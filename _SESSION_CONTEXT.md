@@ -1,5 +1,15 @@
 # Session Context
 
+## 2026-09-24 最新部署
+
+- 前端產品架構 v1 已從 `feature/full-platform-v1-implementation` 合併到 `main`。
+- 正式部署 commit：`60e243dd4fed8d5af090ca90ef92eb2b540cbbe7`。
+- GitHub Pages workflow `35892501346` 已成功完成。
+- 線上網址：`https://jikong0709.github.io/meihau-booking/`。
+- 線上驗收：首頁、`member.html?demo=1`、`admin.html` 均為 HTTP 200；管理後台 390px 手機視窗無水平溢位，主控台 0 error／0 warning。
+- 目前仍是前端 Demo；正式 Google Login、會員／地址／訂單 API、Admin 權限、後端計價與綠界付款尚未串接。
+- 本次部署未修改 Supabase 或其他資料庫。
+
 ## 當前狀態
 
 - 專案：莓好預約站。
