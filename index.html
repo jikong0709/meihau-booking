@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="莓好預約站｜光言工作室：共享辦公、錄音／Podcast、攝影直播、化妝空間與台中預約跑腿。">
+  <meta name="theme-color" content="#7b4258">
+  <title>莓好預約站｜光言工作室</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要內容</a>
+
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a class="brand" href="#top" aria-label="莓好預約站首頁">
+        <span class="brand-mark" aria-hidden="true">莓</span>
+        <span>
+          <strong>莓好預約站</strong>
+          <small>MEIHAU BOOKING</small>
+        </span>
+      </a>
+      <nav class="main-nav" aria-label="主要導覽">
+        <a href="#services">服務</a>
+        <a href="#pricing">價目</a>
+        <a href="#booking">預約</a>
+        <a href="#rules">規則</a>
+      </nav>
+      <a class="button button-small" href="#booking">開始預約</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">莓好預約站 × 光言工作室</p>
+          <h1>工作、創作、跑腿<br>需要的事情一次排好</h1>
+          <p class="hero-lead">共享辦公、Podcast 錄音、攝影直播、化妝空間與台中預約配送，先看價格，再選時間。</p>
+          <div class="hero-actions">
+            <a class="button" href="#booking">建立預約需求</a>
+            <a class="button button-ghost" href="#pricing">先看價目表</a>
+          </div>
+          <div class="notice-chip" role="note">
+            <span aria-hidden="true">●</span>
+            <strong>MVP 試營運版</strong>：目前可估價與產生需求單，尚未串接付款與正式送單。
+          </div>
+        </div>
+        <aside class="hero-panel" aria-label="服務摘要">
+          <div class="mini-card">
+            <span class="mini-icon" aria-hidden="true">💻</span>
+            <div><small>共享辦公</small><strong>NT$99 起</strong></div>
+          </div>
+          <div class="mini-card">
+            <span class="mini-icon" aria-hidden="true">🎙️</span>
+            <div><small>錄音空間</small><strong>NT$500 / hr 起</strong></div>
+          </div>
+          <div class="mini-card">
+            <span class="mini-icon" aria-hidden="true">🎥</span>
+            <div><small>攝影／直播</small><strong>NT$600 / hr 起</strong></div>
+          </div>
+          <div class="mini-card">
+            <span class="mini-icon" aria-hidden="true">🛵</span>
+            <div><small>預約配送</small><strong>NT$99 起</strong></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="services">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">SERVICES</p>
+          <h2>今天需要哪一種？</h2>
+          <p>先把服務拆清楚，不必私訊來回問價格。</p>
+        </div>
+        <div class="service-grid">
+          <article class="service-card">
+            <span class="service-number">01</span>
+            <div class="service-icon" aria-hidden="true">💻</div>
+            <h3>共享辦公</h3>
+            <p>有桌椅、插座、Wi‑Fi 與基本公共空間，帶電腦來就能工作。</p>
+            <ul>
+              <li>2 小時／半日／單日</li>
+              <li>5 日、10 日方案</li>
+              <li>月租自由座／固定座</li>
+            </ul>
+            <a href="#booking" data-preset="cowork">預約工作座位 →</a>
+          </article>
+
+          <article class="service-card featured">
+            <span class="service-number">02</span>
+            <div class="service-icon" aria-hidden="true">🎙️</div>
+            <h3>創作空間</h3>
+            <p>錄音、Podcast、攝影、直播與化妝更衣，同一個地方把內容做完。</p>
+            <ul>
+              <li>錄音室與基本設備</li>
+              <li>攝影／直播與燈具</li>
+              <li>化妝／更衣空間</li>
+            </ul>
+            <a href="#booking" data-preset="record">預約創作空間 →</a>
+          </article>
+
+          <article class="service-card">
+            <span class="service-number">03</span>
+            <div class="service-icon" aria-hidden="true">🛵</div>
+            <h3>跑腿／配送</h3>
+            <p>預約取件、送件、代買與簡單代辦；機車、汽車依物品與距離安排。</p>
+            <ul>
+              <li>預約配送／急件</li>
+              <li>代買與等待計價</li>
+              <li>汽車大型物件配送</li>
+            </ul>
+            <a href="#booking" data-preset="errand">估算跑腿費用 →</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-tint" id="pricing">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">PRICE</p>
+          <h2>試營運價目表</h2>
+          <p>以下為目前 MVP 測試價，用來測需求與預約流程；正式開放前仍可能調整。</p>
+        </div>
+
+        <div class="price-block">
+          <div class="price-title"><span>💻</span><h3>共享辦公</h3></div>
+          <div class="price-grid">
+            <div class="price-item"><span>2 小時</span><strong>$99</strong></div>
+            <div class="price-item"><span>半日 4 小時</span><strong>$150</strong></div>
+            <div class="price-item"><span>單日</span><strong>$250</strong></div>
+            <div class="price-item"><span>5 日券</span><strong>$1,100</strong></div>
+            <div class="price-item"><span>10 日券</span><strong>$2,000</strong></div>
+            <div class="price-item"><span>月租自由座</span><strong>$2,800</strong></div>
+            <div class="price-item"><span>月租固定座</span><strong>$4,000</strong></div>
+          </div>
+        </div>
+
+        <div class="pricing-columns">
+          <div class="price-block">
+            <div class="price-title"><span>🎙️</span><h3>錄音／Podcast</h3></div>
+            <div class="price-list">
+              <div><span>純錄音空間</span><strong>$500 / hr</strong></div>
+              <div><span>空間＋基本設備</span><strong>$700 / hr</strong></div>
+              <div><span>設備＋基本操作協助</span><strong>$1,000 / hr</strong></div>
+              <div><span>2 小時設備方案</span><strong>$1,300</strong></div>
+              <div><span>4 小時設備方案</span><strong>$2,400</strong></div>
+            </div>
+          </div>
+          <div class="price-block">
+            <div class="price-title"><span>🎥</span><h3>攝影／直播</h3></div>
+            <div class="price-list">
+              <div><span>純場地</span><strong>$600 / hr</strong></div>
+              <div><span>場地＋基本燈具</span><strong>$800 / hr</strong></div>
+              <div><span>場地＋攝錄設備</span><strong>$1,000 / hr 起</strong></div>
+              <div><span>2 小時拍攝方案</span><strong>$1,500</strong></div>
+              <div><span>4 小時半日方案</span><strong>$2,800</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pricing-columns">
+          <div class="price-block">
+            <div class="price-title"><span>💄</span><h3>化妝／更衣</h3></div>
+            <div class="price-list">
+              <div><span>單獨租用</span><strong>$300 / hr</strong></div>
+              <div><span>搭配錄音／攝影加購</span><strong>+$200 / hr</strong></div>
+            </div>
+          </div>
+          <div class="price-block">
+            <div class="price-title"><span>🛵</span><h3>預約配送</h3></div>
+            <div class="price-list compact">
+              <div><span>機車 0–3 km</span><strong>$99</strong></div>
+              <div><span>機車 3–5 km</span><strong>$130</strong></div>
+              <div><span>機車 5–8 km</span><strong>$180</strong></div>
+              <div><span>機車 8–10 km</span><strong>$220</strong></div>
+              <div><span>10 km 以上</span><strong>+$15 / km</strong></div>
+              <div><span>急件</span><strong>預約價 +30%</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <p class="pricing-note">跑腿等待：前 10 分鐘免費，之後每 10 分鐘 +$50；增加停靠點 +$50／站。代買：配送費＋$80 服務費＋商品實支。汽車配送 0–3 km $220 起，超過 3 km 每公里 +$20；停車與通行費實報實銷。</p>
+      </div>
+    </section>
+
+    <section class="section" id="booking">
+      <div class="container booking-layout">
+        <div class="booking-copy">
+          <p class="eyebrow">BOOKING</p>
+          <h2>先做一張預約需求單</h2>
+          <p>選服務後會即時計算目前的試營運估價。這一版不會送出付款，也不會自動成立正式預約。</p>
+          <ol class="steps">
+            <li><span>1</span>選服務與方案</li>
+            <li><span>2</span>填日期、時間與需求</li>
+            <li><span>3</span>取得估價與需求摘要</li>
+          </ol>
+          <div class="estimate-card" aria-live="polite">
+            <span>目前估價</span>
+            <strong id="estimatePrice">NT$ —</strong>
+            <small id="estimateNote">選擇服務方案後顯示</small>
+          </div>
+        </div>
+
+        <form class="booking-form" id="bookingForm">
+          <div class="field-row">
+            <label>
+              <span>服務類型</span>
+              <select id="serviceType" name="serviceType" required>
+                <option value="">請選擇</option>
+                <option value="cowork">共享辦公</option>
+                <option value="record">錄音／Podcast</option>
+                <option value="studio">攝影／直播</option>
+                <option value="makeup">化妝／更衣</option>
+                <option value="errand">跑腿／配送</option>
+              </select>
+            </label>
+            <label>
+              <span>方案</span>
+              <select id="servicePlan" name="servicePlan" required disabled>
+                <option value="">請先選服務</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="errandFields" class="conditional-fields" hidden>
+            <div class="field-row">
+              <label>
+                <span>預估配送距離（km）</span>
+                <input id="distanceKm" name="distanceKm" type="number" min="0" step="0.1" inputmode="decimal" placeholder="例如 4.5">
+              </label>
+              <label>
+                <span>預估等待時間（分鐘）</span>
+                <input id="waitMinutes" name="waitMinutes" type="number" min="0" step="5" inputmode="numeric" value="0">
+              </label>
+            </div>
+            <label>
+              <span>額外停靠點</span>
+              <input id="extraStops" name="extraStops" type="number" min="0" step="1" inputmode="numeric" value="0">
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label>
+              <span>希望日期</span>
+              <input id="bookingDate" name="bookingDate" type="date" required>
+            </label>
+            <label>
+              <span>希望時間</span>
+              <input id="bookingTime" name="bookingTime" type="time" required>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label>
+              <span>稱呼</span>
+              <input id="customerName" name="customerName" type="text" autocomplete="name" required placeholder="怎麼稱呼你？">
+            </label>
+            <label>
+              <span>聯絡方式</span>
+              <input id="customerContact" name="customerContact" type="text" autocomplete="tel" required placeholder="手機／LINE 等">
+            </label>
+          </div>
+
+          <label>
+            <span>需求補充</span>
+            <textarea id="bookingNote" name="bookingNote" rows="4" placeholder="例如：3 人錄 Podcast、需要兩支麥克風；或取件／送件的大概區域與物品尺寸"></textarea>
+          </label>
+
+          <label class="consent-row">
+            <input type="checkbox" id="termsConsent" required>
+            <span>我了解目前為 MVP 測試流程，產生需求單不代表正式預約成立，也不會在本頁進行付款。</span>
+          </label>
+
+          <button class="button button-full" type="submit">產生預約需求單</button>
+        </form>
+      </div>
+
+      <div class="container" id="bookingResult" hidden>
+        <div class="result-card">
+          <div>
+            <p class="eyebrow">REQUEST SUMMARY</p>
+            <h3>預約需求單已產生</h3>
+            <p>這一版只在你的瀏覽器顯示摘要，不會把資料送到伺服器。</p>
+          </div>
+          <pre id="bookingSummary"></pre>
+          <button class="button button-ghost" id="copySummary" type="button">複製需求單</button>
+          <p class="copy-status" id="copyStatus" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-dark" id="rules">
+      <div class="container">
+        <div class="section-heading light">
+          <p class="eyebrow">RULES</p>
+          <h2>先把規則說清楚</h2>
+        </div>
+        <div class="rules-grid">
+          <article>
+            <h3>場地使用</h3>
+            <p>共享辦公預計採預約付款；錄音、攝影與直播正式開放後預計採訂金制。超時、清潔與設備損壞依實際使用規則計費。</p>
+          </article>
+          <article>
+            <h3>跑腿配送</h3>
+            <p>停車費、過路費與商品代墊另計。實際報價會依距離、車種、等待、物品尺寸與服務內容確認。</p>
+          </article>
+          <article>
+            <h3>禁止承接</h3>
+            <p>不接違禁品、危險物、來路不明包裹、疑似詐騙交易，以及依法不得代購或配送的物品。</p>
+          </article>
+          <article>
+            <h3>目前版本</h3>
+            <p>價格為試營運測試版；付款、正式訂單、Google Calendar、自動通知與後台管理尚未上線。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-wrap">
+      <div>
+        <strong>莓好預約站</strong>
+        <p>光言工作室的工作、創作與在地服務預約入口</p>
+      </div>
+      <p>© 2026 MEIHAU BOOKING · MVP</p>
+    </div>
+  </footer>
+</body>
+</html>
