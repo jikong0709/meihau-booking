@@ -7,7 +7,7 @@
 - 來源：已接續 ChatGPT 對話「脆文經營規劃」。
 - 程式碼：尚未建立。
 - 部署／線上版本：尚未建立或驗證。
-- Git：本目錄已有獨立 `.git`，預設分支 `main`；尚未設定遠端。
+- Git：本目錄已有獨立 `.git`，預設分支 `main`；`origin` 已連接 `https://github.com/jikong0709/meihau-booking.git`。
 
 ## 已鎖定
 
