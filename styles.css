@@ -336,6 +336,7 @@ textarea { resize: vertical; }
   font-size: .9rem;
 }
 .copy-status { min-height: 1.5em; margin-bottom: 0 !important; font-size: .82rem; }
+.honeypot { position: absolute !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip-path: inset(50%) !important; white-space: nowrap !important; }
 
 .rules-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .rules-grid article { padding: 22px; border: 1px solid rgba(255,255,255,.10); border-radius: 18px; background: rgba(255,255,255,.05); }

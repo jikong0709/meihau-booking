@@ -64,6 +64,9 @@ const bookingResult = document.querySelector('#bookingResult');
 const bookingSummary = document.querySelector('#bookingSummary');
 const copySummary = document.querySelector('#copySummary');
 const copyStatus = document.querySelector('#copyStatus');
+const submitBooking = document.querySelector('#submitBooking');
+const submitStatus = document.querySelector('#submitStatus');
+const bookingEndpoint = 'https://tssvabclujwpljzupuvj.supabase.co/functions/v1/booking-submit';
 
 function formatPrice(value) {
   if (!Number.isFinite(value)) return '—';
@@ -195,7 +198,7 @@ function summaryLine(label, value) {
   return value ? `${label}：${value}` : null;
 }
 
-form.addEventListener('submit', (event) => {
+form.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   if (!form.reportValidity()) return;
@@ -230,10 +233,47 @@ form.addEventListener('submit', (event) => {
     '※ 正式價格、付款、可預約時段與服務細節仍需確認。'
   );
 
-  bookingSummary.textContent = rows.filter((row) => row !== null).join('\n');
-  bookingResult.hidden = false;
-  copyStatus.textContent = '';
-  bookingResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const payload = {
+    service_type: serviceType.value === 'record' ? 'recording' : serviceType.value,
+    service_plan: plan?.[0] || '',
+    requested_date: document.querySelector('#bookingDate').value,
+    requested_time: document.querySelector('#bookingTime').value,
+    customer_name: document.querySelector('#customerName').value.trim(),
+    contact: document.querySelector('#customerContact').value.trim(),
+    note: document.querySelector('#bookingNote').value.trim(),
+    estimate_amount: estimate.price,
+    estimate_label: estimate.note,
+    user_agent: navigator.userAgent,
+    company: document.querySelector('#company').value
+  };
+
+  submitBooking.disabled = true;
+  submitBooking.textContent = '送出中…';
+  submitStatus.textContent = '';
+
+  try {
+    const response = await fetch(bookingEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) {
+      throw new Error(result.message || '暫時無法送出，請稍後再試。');
+    }
+
+    rows.splice(1, 0, summaryLine('需求編號', result.request_id));
+    bookingSummary.textContent = rows.filter((row) => row !== null).join('\n');
+    bookingResult.hidden = false;
+    copyStatus.textContent = '';
+    submitStatus.textContent = '需求單已安全送出。';
+    bookingResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (error) {
+    submitStatus.textContent = error instanceof Error ? error.message : '暫時無法送出，請稍後再試。';
+  } finally {
+    submitBooking.disabled = false;
+    submitBooking.textContent = '送出預約需求單';
+  }
 });
 
 copySummary.addEventListener('click', async () => {

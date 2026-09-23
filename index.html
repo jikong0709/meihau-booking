@@ -192,7 +192,7 @@
         <div class="booking-copy">
           <p class="eyebrow">BOOKING</p>
           <h2>先做一張預約需求單</h2>
-          <p>選服務後會即時計算目前的試營運估價。這一版不會送出付款，也不會自動成立正式預約。</p>
+          <p>選服務後會即時計算目前的試營運估價。送出後會建立待確認需求單，但不會自動付款或成立正式預約。</p>
           <ol class="steps">
             <li><span>1</span>選服務與方案</li>
             <li><span>2</span>填日期、時間與需求</li>
@@ -270,12 +270,18 @@
             <textarea id="bookingNote" name="bookingNote" rows="4" placeholder="例如：3 人錄 Podcast、需要兩支麥克風；或取件／送件的大概區域與物品尺寸"></textarea>
           </label>
 
+          <label class="honeypot" aria-hidden="true">
+            <span>公司名稱</span>
+            <input id="company" name="company" type="text" tabindex="-1" autocomplete="off">
+          </label>
+
           <label class="consent-row">
             <input type="checkbox" id="termsConsent" required>
             <span>我了解目前為 MVP 測試流程，產生需求單不代表正式預約成立，也不會在本頁進行付款。</span>
           </label>
 
-          <button class="button button-full" type="submit">產生預約需求單</button>
+          <button class="button button-full" id="submitBooking" type="submit">送出預約需求單</button>
+          <p class="copy-status" id="submitStatus" aria-live="polite"></p>
         </form>
       </div>
 
@@ -283,8 +289,8 @@
         <div class="result-card">
           <div>
             <p class="eyebrow">REQUEST SUMMARY</p>
-            <h3>預約需求單已產生</h3>
-            <p>這一版只在你的瀏覽器顯示摘要，不會把資料送到伺服器。</p>
+            <h3>預約需求單已送出</h3>
+            <p>工作室收到需求後，仍會另行確認時間、正式價格與付款方式。</p>
           </div>
           <pre id="bookingSummary"></pre>
           <button class="button button-ghost" id="copySummary" type="button">複製需求單</button>
