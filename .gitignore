@@ -1,0 +1,23 @@
+# 私密設定
+.env
+.env.*
+!.env.example
+
+# 相依套件與建置輸出
+node_modules/
+dist/
+build/
+.next/
+.wrangler/
+
+# 編輯器與作業系統
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 暫存與日誌
+*.log
+tmp/
+temp/
+
