@@ -208,6 +208,13 @@ async function initProductionMember() {
   const list = document.querySelector("#addressList"); const pickup = document.querySelector("#pickupAddress"); const dropoff = document.querySelector("#dropoffAddress");
   const renderAddresses = () => { list.innerHTML = addresses.map((a) => `<div class="address-card"><strong>${a.label}</strong><div>${a.address}</div><div class="muted">${a.recipient || ""} ${a.phone || ""}</div><button class="btn ghost small" data-delete="${a.id}">刪除</button></div>`).join("") || '<p class="muted">尚未新增常用地址</p>'; list.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", async () => { await api("addresses", { method: "DELETE", query: `&id=${button.dataset.delete}` }); addresses = addresses.filter((a) => a.id !== button.dataset.delete); renderAddresses(); })); const options = '<option value="">請選擇常用地址</option>' + addresses.map((a) => `<option value="${a.id}">${a.label}｜${a.address}</option>`).join(""); pickup.innerHTML = options; dropoff.innerHTML = options; document.querySelector("#addressCount").textContent = String(addresses.length); };
   renderAddresses();
+  let orders = await api("orders");
+  const renderOrders = () => {
+    document.querySelector("#orderCount").textContent = String(orders.length);
+    document.querySelector("#unpaidCount").textContent = String(orders.filter((order) => !["PAID", "REFUNDED"].includes(order.payment_status)).length);
+    document.querySelector("#memberOrderList").innerHTML = orders.map((order) => `<div class="order-row"><strong>${order.order_items?.map((item) => item.label).join("、") || order.category}</strong><span>${order.booking_date || "日期未定"} ${order.booking_time || ""}</span><span>${money(order.total_amount)}</span><span class="badge ${order.payment_status === "PAID" ? "ok" : order.payment_status === "PARTIAL" ? "warn" : "danger"}">${order.payment_status}</span></div>`).join("") || '<p class="muted">目前沒有預約</p>';
+  };
+  renderOrders();
   const addressForm = document.querySelector("#addressForm"); addressForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(addressForm)); const created = await api("addresses", { method: "POST", body: form }); addresses.push(created); addressForm.reset(); renderAddresses(); });
   const serviceMenu = document.querySelector("#serviceMenu"); const planSelect = document.querySelector("#planSelect"); let category = "rental";
   serviceMenu.innerHTML = '<button class="service-choice active" data-cat="rental"><strong>場地出租</strong></button><button class="service-choice" data-cat="errand"><strong>跑腿／配送</strong></button>';
@@ -217,15 +224,34 @@ async function initProductionMember() {
   const quotePayload = () => ({ service_id: planSelect.value, distance_km: Number(document.querySelector("#distanceKm")?.value || 0), wait_minutes: Number(document.querySelector("#waitMinutes")?.value || 0), extra_stops: Number(document.querySelector("#extraStops")?.value || 0), goods_amount: Number(document.querySelector("#shoppingAmount")?.value || 0), urgent: Boolean(document.querySelector("#urgentFlag")?.checked), pickup_address_id: pickup.value || null, dropoff_address_id: dropoff.value || null });
   async function updateQuote() { currentQuote = await api("quote", { method: "POST", body: quotePayload() }); document.querySelector("#checkoutLines").innerHTML = currentQuote.lines.map((line) => `<div class="checkout-line"><span>${line.label}</span><strong>${money(line.amount)}</strong></div>`).join(""); document.querySelector("#checkoutTotal").textContent = money(currentQuote.total); }
   ["planSelect", "distanceKm", "waitMinutes", "extraStops", "shoppingAmount", "urgentFlag"].forEach((id) => document.querySelector(`#${id}`)?.addEventListener("change", updateQuote));
-  document.querySelector("#checkoutButton")?.addEventListener("click", async () => { const order = await api("orders", { method: "POST", body: { ...quotePayload(), booking_date: document.querySelector("#serviceDate").value || null, booking_time: document.querySelector("#serviceTime").value || null } }); alert(`訂單 ${order.order_no} 已建立，正式付款功能待綠界啟用。`); });
+  document.querySelector("#checkoutButton")?.addEventListener("click", async () => { const order = await api("orders", { method: "POST", body: { ...quotePayload(), booking_date: document.querySelector("#serviceDate").value || null, booking_time: document.querySelector("#serviceTime").value || null } }); orders = await api("orders"); renderOrders(); alert(`訂單 ${order.order_no} 已建立，正式付款功能待綠界啟用。`); });
   renderPlans();
 }
 async function initProductionAdmin() {
-  const { client } = await requireSession(); const member = await api("me");
+  await requireSession(); const member = await api("me");
   if (member.role !== "admin") { document.querySelector(".main").innerHTML = '<div class="demo-note">此帳號沒有管理員權限。</div>'; return; }
   const orders = await api("admin-orders");
-  document.querySelector("#paymentRows").innerHTML = orders.map((order) => `<tr><td>${order.order_no}</td><td>${order.order_items?.map((item) => item.label).join("、") || order.category}</td><td>${order.booking_date || ""} ${order.booking_time || ""}</td><td>${money(order.total_amount)}</td><td>${order.payment_status}</td></tr>`).join("");
-  void client;
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
+  document.querySelector("#todayRentalCount").textContent = String(orders.filter((order) => order.booking_date === today && order.category === "rental").length);
+  document.querySelector("#todayErrandCount").textContent = String(orders.filter((order) => order.booking_date === today && order.category === "errand").length);
+  document.querySelector("#adminUnpaidCount").textContent = String(orders.filter((order) => !["PAID", "REFUNDED"].includes(order.payment_status)).length);
+  document.querySelector("#todayPaidTotal").textContent = money(orders.filter((order) => order.booking_date === today && order.payment_status === "PAID").reduce((sum, order) => sum + order.total_amount, 0));
+  let calendarFilter = "all";
+  const paymentLabel = (status) => ({ PAID: "已付款", PARTIAL: "部分付款", UNPAID: "未付款" }[status] || status);
+  const paymentClass = (status) => status === "PAID" ? "ok" : status === "PARTIAL" ? "warn" : "danger";
+  const titleFor = (order) => order.order_items?.map((item) => item.label).join("、") || order.category;
+  const datedOrders = orders.filter((order) => order.booking_date);
+  const focus = datedOrders[0]?.booking_date ? new Date(`${datedOrders[0].booking_date}T12:00:00`) : new Date();
+  const year = focus.getFullYear(), month = focus.getMonth();
+  document.querySelector("#calendarTitle").textContent = `${year} 年 ${month + 1} 月排程`;
+  const renderDay = (date) => { const rows = orders.filter((order) => order.booking_date === date); document.querySelector("#dayTitle").textContent = `${date} 每日排程`; document.querySelector("#daySchedule").innerHTML = rows.map((order) => `<div class="schedule-row"><strong>${order.booking_time || "時間未定"} ${titleFor(order)}</strong><span>${order.members?.name || order.members?.email || "會員"}</span><span>${money(order.total_amount)}</span><span class="badge ${paymentClass(order.payment_status)}">${paymentLabel(order.payment_status)}</span></div>`).join("") || '<p class="muted">當日無排程</p>'; };
+  const openOrder = (id) => { const order = orders.find((item) => item.id === id); if (!order) return; document.querySelector("#eventModalBody").innerHTML = `<h3>${titleFor(order)}</h3><p>${order.booking_date || "日期未定"} ${order.booking_time || ""}</p><p>${order.members?.name || order.members?.email || "會員"}</p><p>金額：<strong>${money(order.total_amount)}</strong></p><p>付款：${paymentLabel(order.payment_status)}</p>`; document.querySelector("#eventModal").hidden = false; };
+  const renderCalendar = () => { const root = document.querySelector("#calendar"); const first = new Date(year, month, 1); const days = new Date(year, month + 1, 0).getDate(); let html = ["日", "一", "二", "三", "四", "五", "六"].map((name) => `<div class="cal-head">${name}</div>`).join(""); for (let i = 0; i < first.getDay(); i++) html += '<div class="cal-day"></div>'; for (let day = 1; day <= days; day++) { const date = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`; const rows = orders.filter((order) => order.booking_date === date && (calendarFilter === "all" || order.category === calendarFilter)); html += `<div class="cal-day" data-day="${date}"><strong>${day}</strong>${rows.map((order) => `<button class="event ${order.category} ${order.payment_status === "UNPAID" ? "unpaid" : ""}" data-event="${order.id}">${order.booking_time || "--:--"} ${titleFor(order)}</button>`).join("")}</div>`; } root.innerHTML = html; root.querySelectorAll("[data-event]").forEach((button) => button.addEventListener("click", () => openOrder(button.dataset.event))); root.querySelectorAll("[data-day]").forEach((day) => day.addEventListener("dblclick", () => renderDay(day.dataset.day))); };
+  document.querySelectorAll("[data-calendar-filter]").forEach((tab) => tab.addEventListener("click", () => { calendarFilter = tab.dataset.calendarFilter; document.querySelectorAll("[data-calendar-filter]").forEach((item) => item.classList.toggle("active", item === tab)); renderCalendar(); }));
+  document.querySelector("#closeModal")?.addEventListener("click", () => { document.querySelector("#eventModal").hidden = true; });
+  const renderPayments = () => { const filter = document.querySelector("#paymentFilter").value.toUpperCase(); const rows = orders.filter((order) => filter === "ALL" || order.payment_status === filter); document.querySelector("#paymentRows").innerHTML = rows.map((order) => `<tr><td>${order.order_no}</td><td>${titleFor(order)}</td><td>${order.booking_date || ""} ${order.booking_time || ""}</td><td>${money(order.total_amount)}</td><td><span class="badge ${paymentClass(order.payment_status)}">${paymentLabel(order.payment_status)}</span></td></tr>`).join("") || '<tr><td colspan="5">目前沒有訂單</td></tr>'; };
+  document.querySelector("#paymentFilter")?.addEventListener("change", renderPayments);
+  renderCalendar(); renderDay(today); renderPayments();
 }
 
 document.addEventListener('DOMContentLoaded',()=>{

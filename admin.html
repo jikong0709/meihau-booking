@@ -38,11 +38,11 @@
             <span class="badge neutral">管理員專用</span>
           </div>
           <div class="stats">
-            <div class="card stat"><span>今日出租</span><strong>2</strong></div>
-            <div class="card stat"><span>今日跑腿</span><strong>2</strong></div>
-            <div class="card stat"><span>待付款</span><strong>1</strong></div>
+            <div class="card stat"><span>今日出租</span><strong id="todayRentalCount">—</strong></div>
+            <div class="card stat"><span>今日跑腿</span><strong id="todayErrandCount">—</strong></div>
+            <div class="card stat"><span>待付款</span><strong id="adminUnpaidCount">—</strong></div>
             <div class="card stat">
-              <span>今日已收</span><strong>NT$ 1,730</strong>
+              <span>今日已收</span><strong id="todayPaidTotal">—</strong>
             </div>
           </div>
         </section>
@@ -50,7 +50,7 @@
           <div class="toolbar">
             <div>
               <p class="eyebrow">CALENDAR</p>
-              <h2 style="margin: 0">2026 年 9 月排程</h2>
+              <h2 id="calendarTitle" style="margin: 0">排程月曆</h2>
             </div>
             <div class="tabs">
               <button class="tab active" data-calendar-filter="all">全部</button

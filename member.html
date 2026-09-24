@@ -39,8 +39,8 @@
             <button class="btn" data-show="book">立即預約服務</button>
           </div>
           <div class="stats">
-            <div class="card stat"><span>我的預約</span><strong>2</strong></div>
-            <div class="card stat"><span>待付款</span><strong>1</strong></div>
+            <div class="card stat"><span>我的預約</span><strong id="orderCount">—</strong></div>
+            <div class="card stat"><span>待付款</span><strong id="unpaidCount">—</strong></div>
             <div class="card stat">
               <span>常用地址</span><strong id="addressCount">—</strong>
             </div>
@@ -190,16 +190,7 @@
               <h1>我的預約</h1>
             </div>
           </div>
-          <div class="order-list">
-            <div class="order-row">
-              <strong>Podcast 錄音 2 小時</strong><span>2026/09/24 15:00</span
-              ><span>NT$ 1,300</span><span class="badge ok">已付款</span>
-            </div>
-            <div class="order-row">
-              <strong>機車配送 6.4 km</strong><span>2026/09/26 10:00</span
-              ><span>NT$ 180</span><span class="badge danger">未付款</span>
-            </div>
-          </div>
+          <div id="memberOrderList" class="order-list"></div>
         </section>
         <section data-section="profile" class="hidden">
           <div class="page-head">
