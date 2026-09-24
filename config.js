@@ -1,19 +1,6 @@
 window.MEIHAU_CONFIG = {
-  mode: 'mock',
-  auth: {
-    googleLoginUrl: '',
-    logoutUrl: ''
-  },
-  api: {
-    me: '',
-    profile: '',
-    addresses: '',
-    quote: '',
-    orders: '',
-    checkout: '',
-    adminCalendar: '',
-    adminPayments: '',
-    adminMembers: '',
-    adminServices: ''
-  }
+  mode: "production",
+  apiBase: "https://tssvabclujwpljzupuvj.supabase.co/functions/v1/booking-api",
+  runtimeConfigUrl: "https://tssvabclujwpljzupuvj.supabase.co/functions/v1/runtime-config",
+  redirectUrl: "https://jikong0709.github.io/meihau-booking/member.html",
 };

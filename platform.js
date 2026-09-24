@@ -152,9 +152,112 @@ function initAdmin(){
   renderCalendar();renderDay('2026-09-24');renderPayments();
 }
 
+let productionClient;
+async function getProductionClient() {
+  if (productionClient) return productionClient;
+  const response = await fetch(cfg.runtimeConfigUrl);
+  if (!response.ok) throw new Error("無法載入登入設定");
+  const runtime = await response.json();
+  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.57.4");
+  productionClient = createClient(runtime.supabaseUrl, runtime.supabaseAnonKey, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  });
+  return productionClient;
+}
+async function api(action, options = {}) {
+  const client = await getProductionClient();
+  const { data: { session } } = await client.auth.getSession();
+  if (!session) throw new Error("LOGIN_REQUIRED");
+  const response = await fetch(`${cfg.apiBase}?action=${encodeURIComponent(action)}${options.query || ""}`, {
+    method: options.method || "GET",
+    headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "API_ERROR");
+  return data;
+}
+async function initProductionPublic() {
+  document.querySelectorAll("[data-login]").forEach((button) => button.addEventListener("click", async (event) => {
+    event.preventDefault();
+    try {
+      const client = await getProductionClient();
+      const { error } = await client.auth.signInWithOAuth({ provider: "google", options: { redirectTo: cfg.redirectUrl } });
+      if (error) throw error;
+    } catch (error) { alert(`目前無法啟動 Google 登入：${error.message}`); }
+  }));
+}
+async function requireSession() {
+  const client = await getProductionClient();
+  const { data: { session } } = await client.auth.getSession();
+  if (!session) { location.replace("index.html?login=required"); throw new Error("LOGIN_REQUIRED"); }
+  return { client, session };
+}
+async function initProductionMember() {
+  await requireSession();
+  const sections = [...document.querySelectorAll("[data-section]")];
+  const nav = [...document.querySelectorAll("[data-show]")];
+  const show = (id) => { sections.forEach((section) => section.classList.toggle("hidden", section.dataset.section !== id)); nav.forEach((item) => item.classList.toggle("active", item.dataset.show === id)); };
+  nav.forEach((item) => item.addEventListener("click", () => show(item.dataset.show))); show("home");
+  const member = await api("me");
+  const profileForm = document.querySelector("#profileForm");
+  const profileMap = { name: member.name, email: member.email, phone: member.phone, line: member.line_id, contactEmail: member.contact_email };
+  Object.entries(profileMap).forEach(([key, value]) => { const field = profileForm?.querySelector(`[name="${key}"]`); if (field) field.value = value || ""; });
+  profileForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(profileForm)); await api("profile", { method: "PATCH", body: { name: form.name, phone: form.phone, line_id: form.line, contact_email: form.contactEmail } }); document.querySelector("#profileStatus").textContent = "已更新"; });
+  let addresses = await api("addresses");
+  const list = document.querySelector("#addressList"); const pickup = document.querySelector("#pickupAddress"); const dropoff = document.querySelector("#dropoffAddress");
+  const renderAddresses = () => { list.innerHTML = addresses.map((a) => `<div class="address-card"><strong>${a.label}</strong><div>${a.address}</div><div class="muted">${a.recipient || ""} ${a.phone || ""}</div><button class="btn ghost small" data-delete="${a.id}">刪除</button></div>`).join("") || '<p class="muted">尚未新增常用地址</p>'; list.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", async () => { await api("addresses", { method: "DELETE", query: `&id=${button.dataset.delete}` }); addresses = addresses.filter((a) => a.id !== button.dataset.delete); renderAddresses(); })); const options = '<option value="">請選擇常用地址</option>' + addresses.map((a) => `<option value="${a.id}">${a.label}｜${a.address}</option>`).join(""); pickup.innerHTML = options; dropoff.innerHTML = options; document.querySelector("#addressCount").textContent = String(addresses.length); };
+  renderAddresses();
+  let orders = await api("orders");
+  const renderOrders = () => {
+    document.querySelector("#orderCount").textContent = String(orders.length);
+    document.querySelector("#unpaidCount").textContent = String(orders.filter((order) => !["PAID", "REFUNDED"].includes(order.payment_status)).length);
+    document.querySelector("#memberOrderList").innerHTML = orders.map((order) => `<div class="order-row"><strong>${order.order_items?.map((item) => item.label).join("、") || order.category}</strong><span>${order.booking_date || "日期未定"} ${order.booking_time || ""}</span><span>${money(order.total_amount)}</span><span class="badge ${order.payment_status === "PAID" ? "ok" : order.payment_status === "PARTIAL" ? "warn" : "danger"}">${order.payment_status}</span></div>`).join("") || '<p class="muted">目前沒有預約</p>';
+  };
+  renderOrders();
+  const addressForm = document.querySelector("#addressForm"); addressForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(addressForm)); const created = await api("addresses", { method: "POST", body: form }); addresses.push(created); addressForm.reset(); renderAddresses(); });
+  const serviceMenu = document.querySelector("#serviceMenu"); const planSelect = document.querySelector("#planSelect"); let category = "rental";
+  serviceMenu.innerHTML = '<button class="service-choice active" data-cat="rental"><strong>場地出租</strong></button><button class="service-choice" data-cat="errand"><strong>跑腿／配送</strong></button>';
+  const renderPlans = () => { const items = catalog.filter((item) => item.category === category); planSelect.innerHTML = items.map((item) => `<option value="${item.id}">${item.service}｜${item.name}</option>`).join(""); document.querySelector("#errandInputs").classList.toggle("hidden", category !== "errand"); updateQuote(); };
+  serviceMenu.querySelectorAll("[data-cat]").forEach((button) => button.addEventListener("click", () => { category = button.dataset.cat; serviceMenu.querySelectorAll("[data-cat]").forEach((item) => item.classList.toggle("active", item === button)); renderPlans(); }));
+  let currentQuote;
+  const quotePayload = () => ({ service_id: planSelect.value, distance_km: Number(document.querySelector("#distanceKm")?.value || 0), wait_minutes: Number(document.querySelector("#waitMinutes")?.value || 0), extra_stops: Number(document.querySelector("#extraStops")?.value || 0), goods_amount: Number(document.querySelector("#shoppingAmount")?.value || 0), urgent: Boolean(document.querySelector("#urgentFlag")?.checked), pickup_address_id: pickup.value || null, dropoff_address_id: dropoff.value || null });
+  async function updateQuote() { currentQuote = await api("quote", { method: "POST", body: quotePayload() }); document.querySelector("#checkoutLines").innerHTML = currentQuote.lines.map((line) => `<div class="checkout-line"><span>${line.label}</span><strong>${money(line.amount)}</strong></div>`).join(""); document.querySelector("#checkoutTotal").textContent = money(currentQuote.total); }
+  ["planSelect", "distanceKm", "waitMinutes", "extraStops", "shoppingAmount", "urgentFlag"].forEach((id) => document.querySelector(`#${id}`)?.addEventListener("change", updateQuote));
+  document.querySelector("#checkoutButton")?.addEventListener("click", async () => { const order = await api("orders", { method: "POST", body: { ...quotePayload(), booking_date: document.querySelector("#serviceDate").value || null, booking_time: document.querySelector("#serviceTime").value || null } }); orders = await api("orders"); renderOrders(); alert(`訂單 ${order.order_no} 已建立，正式付款功能待綠界啟用。`); });
+  renderPlans();
+}
+async function initProductionAdmin() {
+  await requireSession(); const member = await api("me");
+  if (member.role !== "admin") { document.querySelector(".main").innerHTML = '<div class="demo-note">此帳號沒有管理員權限。</div>'; return; }
+  const orders = await api("admin-orders");
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
+  document.querySelector("#todayRentalCount").textContent = String(orders.filter((order) => order.booking_date === today && order.category === "rental").length);
+  document.querySelector("#todayErrandCount").textContent = String(orders.filter((order) => order.booking_date === today && order.category === "errand").length);
+  document.querySelector("#adminUnpaidCount").textContent = String(orders.filter((order) => !["PAID", "REFUNDED"].includes(order.payment_status)).length);
+  document.querySelector("#todayPaidTotal").textContent = money(orders.filter((order) => order.booking_date === today && order.payment_status === "PAID").reduce((sum, order) => sum + order.total_amount, 0));
+  let calendarFilter = "all";
+  const paymentLabel = (status) => ({ PAID: "已付款", PARTIAL: "部分付款", UNPAID: "未付款" }[status] || status);
+  const paymentClass = (status) => status === "PAID" ? "ok" : status === "PARTIAL" ? "warn" : "danger";
+  const titleFor = (order) => order.order_items?.map((item) => item.label).join("、") || order.category;
+  const datedOrders = orders.filter((order) => order.booking_date);
+  const focus = datedOrders[0]?.booking_date ? new Date(`${datedOrders[0].booking_date}T12:00:00`) : new Date();
+  const year = focus.getFullYear(), month = focus.getMonth();
+  document.querySelector("#calendarTitle").textContent = `${year} 年 ${month + 1} 月排程`;
+  const renderDay = (date) => { const rows = orders.filter((order) => order.booking_date === date); document.querySelector("#dayTitle").textContent = `${date} 每日排程`; document.querySelector("#daySchedule").innerHTML = rows.map((order) => `<div class="schedule-row"><strong>${order.booking_time || "時間未定"} ${titleFor(order)}</strong><span>${order.members?.name || order.members?.email || "會員"}</span><span>${money(order.total_amount)}</span><span class="badge ${paymentClass(order.payment_status)}">${paymentLabel(order.payment_status)}</span></div>`).join("") || '<p class="muted">當日無排程</p>'; };
+  const openOrder = (id) => { const order = orders.find((item) => item.id === id); if (!order) return; document.querySelector("#eventModalBody").innerHTML = `<h3>${titleFor(order)}</h3><p>${order.booking_date || "日期未定"} ${order.booking_time || ""}</p><p>${order.members?.name || order.members?.email || "會員"}</p><p>金額：<strong>${money(order.total_amount)}</strong></p><p>付款：${paymentLabel(order.payment_status)}</p>`; document.querySelector("#eventModal").hidden = false; };
+  const renderCalendar = () => { const root = document.querySelector("#calendar"); const first = new Date(year, month, 1); const days = new Date(year, month + 1, 0).getDate(); let html = ["日", "一", "二", "三", "四", "五", "六"].map((name) => `<div class="cal-head">${name}</div>`).join(""); for (let i = 0; i < first.getDay(); i++) html += '<div class="cal-day"></div>'; for (let day = 1; day <= days; day++) { const date = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`; const rows = orders.filter((order) => order.booking_date === date && (calendarFilter === "all" || order.category === calendarFilter)); html += `<div class="cal-day" data-day="${date}"><strong>${day}</strong>${rows.map((order) => `<button class="event ${order.category} ${order.payment_status === "UNPAID" ? "unpaid" : ""}" data-event="${order.id}">${order.booking_time || "--:--"} ${titleFor(order)}</button>`).join("")}</div>`; } root.innerHTML = html; root.querySelectorAll("[data-event]").forEach((button) => button.addEventListener("click", () => openOrder(button.dataset.event))); root.querySelectorAll("[data-day]").forEach((day) => day.addEventListener("dblclick", () => renderDay(day.dataset.day))); };
+  document.querySelectorAll("[data-calendar-filter]").forEach((tab) => tab.addEventListener("click", () => { calendarFilter = tab.dataset.calendarFilter; document.querySelectorAll("[data-calendar-filter]").forEach((item) => item.classList.toggle("active", item === tab)); renderCalendar(); }));
+  document.querySelector("#closeModal")?.addEventListener("click", () => { document.querySelector("#eventModal").hidden = true; });
+  const renderPayments = () => { const filter = document.querySelector("#paymentFilter").value.toUpperCase(); const rows = orders.filter((order) => filter === "ALL" || order.payment_status === filter); document.querySelector("#paymentRows").innerHTML = rows.map((order) => `<tr><td>${order.order_no}</td><td>${titleFor(order)}</td><td>${order.booking_date || ""} ${order.booking_time || ""}</td><td>${money(order.total_amount)}</td><td><span class="badge ${paymentClass(order.payment_status)}">${paymentLabel(order.payment_status)}</span></td></tr>`).join("") || '<tr><td colspan="5">目前沒有訂單</td></tr>'; };
+  document.querySelector("#paymentFilter")?.addEventListener("change", renderPayments);
+  renderCalendar(); renderDay(today); renderPayments();
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   const page=document.body.dataset.page;
-  if(page==='public')initPublic();
-  if(page==='member')initMember();
-  if(page==='admin')initAdmin();
+  const production = cfg.mode === "production";
+  if(page==='public')(production ? initProductionPublic() : initPublic());
+  if(page==='member')(production ? initProductionMember().catch((error) => { if (error.message !== "LOGIN_REQUIRED") alert(error.message); }) : initMember());
+  if(page==='admin')(production ? initProductionAdmin().catch((error) => { if (error.message !== "LOGIN_REQUIRED") alert(error.message); }) : initAdmin());
 });

@@ -3,3 +3,8 @@ project_id = "tssvabclujwpljzupuvj"
 [functions.booking-submit]
 verify_jwt = false
 
+[functions.booking-api]
+verify_jwt = true
+
+[functions.runtime-config]
+verify_jwt = false

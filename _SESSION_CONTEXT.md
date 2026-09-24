@@ -1,5 +1,26 @@
 # Session Context
 
+## 2026-09-24 正式後端與 Google 登入部署
+
+- 正式 `main` commit：`273cdd7`；GitHub Pages workflow `35946549055` 已成功。
+- Google OAuth 已接至既有 Supabase Auth；正式首頁點「使用 Google 登入」已實測抵達 Google 選擇帳戶頁。
+- 未登入直接開 `member.html` 已實測導回 `index.html?login=required`。
+- 既有 Supabase 專案內使用獨立 `booking` schema，新增 `members`、`addresses`、`orders`、`order_items`；均啟用並強制 RLS。
+- 已部署 `booking-api` 與 `runtime-config` Edge Functions；前端不保存私密金鑰。
+- 會員資料、常用地址、後端計價、訂單清單／建立、Admin 權限閘門、後台統計／月曆／收款清單皆已接正式 API。
+- 待使用者在保留的 Google 分頁親自選帳號，才能繼續驗證首次會員建立與登入後流程。
+- 真實綠界付款尚未啟用；涉及金流，必須取得使用者當下明確確認與正式商店設定後才能處理。
+
+## 2026-09-24 最新部署
+
+- 前端產品架構 v1 已從 `feature/full-platform-v1-implementation` 合併到 `main`。
+- 正式部署 commit：`60e243dd4fed8d5af090ca90ef92eb2b540cbbe7`。
+- GitHub Pages workflow `35892501346` 已成功完成。
+- 線上網址：`https://jikong0709.github.io/meihau-booking/`。
+- 線上驗收：首頁、`member.html?demo=1`、`admin.html` 均為 HTTP 200；管理後台 390px 手機視窗無水平溢位，主控台 0 error／0 warning。
+- 目前仍是前端 Demo；正式 Google Login、會員／地址／訂單 API、Admin 權限、後端計價與綠界付款尚未串接。
+- 本次部署未修改 Supabase 或其他資料庫。
+
 ## 當前狀態
 
 - 專案：莓好預約站。
