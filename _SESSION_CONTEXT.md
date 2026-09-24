@@ -93,3 +93,14 @@
 - 不把目前需求單描述成正式預約或已付款訂單。
 - 不處理刪除、金流或客戶帳號，除非使用者另行明確確認。
 - 不記錄任何 token、API key、密碼、cookie 或私密憑證。
+
+## 2026-09-25 UI v2 最新狀態
+
+- UI v2 已由 `feature/ui-v2-full-redesign` 併入 `main`；功能 commit `ea9f7bf79e8d1bdf45c9c48a9354e4c57234baf8`，merge commit `7438634f0ae59b5353a06b07edf2fec208c33faf`。
+- Pages workflow `36033771729` 已成功，正式站為 `https://jikong0709.github.io/meihau-booking/`。
+- 改動範圍只有 `index.html`、`member.html`、`admin.html`、`platform.css` 與 `assets/ui-v2/`；既有 JS、Supabase、資料庫、Auth、金流、價格計算、API 未修改。
+- 1440／1024／768／390／320px 已檢查；正式站 390px 無頁面水平溢位、手機 Hero 載入正確、console 0 error。
+- 未登入會員頁與管理頁保護已通過；Google 登入入口可到登入頁。
+- ⚠️待使用者操作：選擇 Google 帳號後驗證會員資料、地址 CRUD、報價、訂單清單；使用已授權管理員帳號驗證日曆與收款清單。
+- 因登入後流程尚未驗證，目前狀態是「UI v2 已部署；最終帳號驗收待驗證」，不是整案最終結案。
+- 未追蹤的 `LOGO/`、`output/`、`其他更換的美術UI/` 仍保留，未加入 Git。
