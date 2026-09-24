@@ -1,5 +1,12 @@
 # Session Context
 
+## 2026-09-24 品牌 Logo 更換
+
+- 使用者指定圖檔已納入 `assets/meihau-booking-logo.png`，原圖內容未修改。
+- 公開首頁、會員中心、管理後台與 favicon 均已改用新 Logo。
+- 導覽列顯示圖片中的愛心勾選圖形，保留既有品牌文字與 MEMBER／ADMIN 識別。
+- 桌機與 390px 手機版已完成本機 Playwright 視覺自檢。
+
 ## 2026-09-24 會員全名與多組常用地址
 
 - 正式程式 commit：`c38b158`；GitHub Pages workflow `35949540337` 已成功。
