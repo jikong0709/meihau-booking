@@ -27,7 +27,7 @@
       </aside>
       <main class="main">
         <div class="demo-note">
-          前端架構示範版：會員資料、地址與計價目前只使用瀏覽器本機資料，不會寫入任何資料庫，也不會送出付款。
+          會員資料、常用地址與預約會安全儲存在會員帳號中；正式付款功能尚未啟用。
         </div>
         <section data-section="home">
           <div class="page-head">
@@ -197,12 +197,16 @@
             <div>
               <p class="eyebrow">PROFILE</p>
               <h1>基本會員資料</h1>
-              <p class="muted">Google Email 作為登入識別；可另填聯絡 Email</p>
+              <p class="muted">帳號名稱可使用暱稱；全名獨立保存，供聯絡與預約使用</p>
             </div>
           </div>
           <form id="profileForm" class="panel form-grid">
             <div class="field">
-              <label>姓名</label><input name="name" required />
+              <label>帳號名稱</label><input name="name" placeholder="可使用暱稱或品牌名稱" required />
+              <span class="field-message">Google 登入時帶入，可自行修改，不必是真名</span>
+            </div>
+            <div class="field">
+              <label>全名</label><input name="fullName" placeholder="預約聯絡使用的真實姓名" />
             </div>
             <div class="field">
               <label>Google Email</label
@@ -229,36 +233,50 @@
               <h1>常用地址</h1>
               <p class="muted">可建立多組住家、公司、工作室等常用取送地址</p>
             </div>
+            <button id="addAddressButton" class="btn" type="button">＋ 新增常用地址</button>
           </div>
           <div id="addressList" class="address-list"></div>
           <form
             id="addressForm"
-            class="panel form-grid"
+            class="panel form-grid address-editor hidden"
             style="margin-top: 18px"
           >
+            <div class="field full">
+              <span class="address-editor-title">新增收件地址</span>
+              <span class="field-message">像外送平台一樣，先選地址類型，再填寫收件資訊</span>
+            </div>
+            <div class="field">
+              <label>地址類型</label>
+              <select name="address_type" required>
+                <option value="home">住家</option>
+                <option value="company">公司</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
             <div class="field">
               <label>地址名稱</label
-              ><input name="label" placeholder="住家／公司" required />
+              ><input name="label" placeholder="例如：我的住家、工作室" required />
             </div>
             <div class="field">
-              <label>收件人</label><input name="recipient" />
+              <label>收件人</label><input name="recipient" placeholder="請填收件人姓名" required />
             </div>
             <div class="field">
-              <label>電話</label><input name="phone" inputmode="tel" />
-            </div>
-            <div class="field">
-              <label>完整地址</label><input name="address" required />
+              <label>收件人電話</label><input name="phone" inputmode="tel" placeholder="例如：0912-345-678" required />
             </div>
             <div class="field full">
-              <label>地址備註</label
+              <label>完整收件地址</label><input name="address" autocomplete="street-address" placeholder="縣市、區域、路段、巷弄、樓層" required />
+            </div>
+            <div class="field full">
+              <label>收件位置備註</label
               ><textarea
                 name="note"
                 rows="2"
-                placeholder="例如：5樓無電梯、管理室代收"
+                placeholder="例如：5 樓無電梯、請放管理室、抵達後電話聯絡"
               ></textarea>
             </div>
-            <div class="field full">
+            <div class="field full address-form-actions">
               <button class="btn" type="submit">新增常用地址</button>
+              <button id="cancelAddressButton" class="btn ghost" type="button">取消</button>
             </div>
           </form>
         </section>

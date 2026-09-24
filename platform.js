@@ -28,6 +28,7 @@ const catalog = [
 ];
 
 const money = n => `NT$ ${Math.round(Number(n)||0).toLocaleString('zh-TW')}`;
+const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 function motorPrice(km){ if(km<=3)return 99;if(km<=5)return 130;if(km<=8)return 180;if(km<=10)return 220;return 220+Math.ceil(km-10)*15; }
 function carPrice(km){ return km<=3?220:220+Math.ceil(km-3)*20; }
 function waitFee(min){ return min<=10?0:Math.ceil((min-10)/10)*50; }
@@ -202,12 +203,13 @@ async function initProductionMember() {
   const member = await api("me");
   if (!member) throw new Error("會員資料初始化失敗，請重新整理後再試。");
   const profileForm = document.querySelector("#profileForm");
-  const profileMap = { name: member.name, email: member.email, phone: member.phone, line: member.line_id, contactEmail: member.contact_email };
+  const profileMap = { name: member.name, fullName: member.full_name, email: member.email, phone: member.phone, line: member.line_id, contactEmail: member.contact_email };
   Object.entries(profileMap).forEach(([key, value]) => { const field = profileForm?.querySelector(`[name="${key}"]`); if (field) field.value = value || ""; });
-  profileForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(profileForm)); await api("profile", { method: "PATCH", body: { name: form.name, phone: form.phone, line_id: form.line, contact_email: form.contactEmail } }); document.querySelector("#profileStatus").textContent = "已更新"; });
+  profileForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(profileForm)); await api("profile", { method: "PATCH", body: { name: form.name, full_name: form.fullName, phone: form.phone, line_id: form.line, contact_email: form.contactEmail } }); document.querySelector("#profileStatus").textContent = "已更新"; });
   let addresses = await api("addresses");
   const list = document.querySelector("#addressList"); const pickup = document.querySelector("#pickupAddress"); const dropoff = document.querySelector("#dropoffAddress");
-  const renderAddresses = () => { list.innerHTML = addresses.map((a) => `<div class="address-card"><strong>${a.label}</strong><div>${a.address}</div><div class="muted">${a.recipient || ""} ${a.phone || ""}</div><button class="btn ghost small" data-delete="${a.id}">刪除</button></div>`).join("") || '<p class="muted">尚未新增常用地址</p>'; list.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", async () => { await api("addresses", { method: "DELETE", query: `&id=${button.dataset.delete}` }); addresses = addresses.filter((a) => a.id !== button.dataset.delete); renderAddresses(); })); const options = '<option value="">請選擇常用地址</option>' + addresses.map((a) => `<option value="${a.id}">${a.label}｜${a.address}</option>`).join(""); pickup.innerHTML = options; dropoff.innerHTML = options; document.querySelector("#addressCount").textContent = String(addresses.length); };
+  const addressTypeLabel = { home: "住家", company: "公司", other: "其他" };
+  const renderAddresses = () => { list.innerHTML = addresses.map((a) => `<article class="address-card"><div class="address-card-head"><span class="address-type">${addressTypeLabel[a.address_type] || "其他"}</span><strong>${escapeHtml(a.label)}</strong></div><div class="address-main">${escapeHtml(a.address)}</div><div class="address-recipient"><span>收件人：${escapeHtml(a.recipient || "未填")}</span><span>${escapeHtml(a.phone || "未填電話")}</span></div>${a.note ? `<div class="address-note">收件備註：${escapeHtml(a.note)}</div>` : ""}<button class="btn ghost small" data-delete="${a.id}">刪除</button></article>`).join("") || '<div class="empty-address"><strong>尚未新增常用地址</strong><span>新增住家、公司或其他收件地址，預約時就能直接選用。</span></div>'; list.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", async () => { await api("addresses", { method: "DELETE", query: `&id=${button.dataset.delete}` }); addresses = addresses.filter((a) => a.id !== button.dataset.delete); renderAddresses(); })); const options = '<option value="">請選擇常用地址</option>' + addresses.map((a) => `<option value="${a.id}">${addressTypeLabel[a.address_type] || "其他"}｜${escapeHtml(a.label)}｜${escapeHtml(a.address)}</option>`).join(""); pickup.innerHTML = options; dropoff.innerHTML = options; document.querySelector("#addressCount").textContent = String(addresses.length); };
   renderAddresses();
   let orders = await api("orders");
   const renderOrders = () => {
@@ -216,7 +218,10 @@ async function initProductionMember() {
     document.querySelector("#memberOrderList").innerHTML = orders.map((order) => `<div class="order-row"><strong>${order.order_items?.map((item) => item.label).join("、") || order.category}</strong><span>${order.booking_date || "日期未定"} ${order.booking_time || ""}</span><span>${money(order.total_amount)}</span><span class="badge ${order.payment_status === "PAID" ? "ok" : order.payment_status === "PARTIAL" ? "warn" : "danger"}">${order.payment_status}</span></div>`).join("") || '<p class="muted">目前沒有預約</p>';
   };
   renderOrders();
-  const addressForm = document.querySelector("#addressForm"); addressForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(addressForm)); const created = await api("addresses", { method: "POST", body: form }); addresses.push(created); addressForm.reset(); renderAddresses(); });
+  const addressForm = document.querySelector("#addressForm"); const showAddressForm = (show) => { addressForm?.classList.toggle("hidden", !show); if (show) addressForm?.querySelector("input, select")?.focus(); };
+  document.querySelector("#addAddressButton")?.addEventListener("click", () => showAddressForm(true));
+  document.querySelector("#cancelAddressButton")?.addEventListener("click", () => { addressForm?.reset(); showAddressForm(false); });
+  addressForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(addressForm)); const created = await api("addresses", { method: "POST", body: form }); addresses.push(created); addressForm.reset(); showAddressForm(false); renderAddresses(); });
   const serviceMenu = document.querySelector("#serviceMenu"); const planSelect = document.querySelector("#planSelect"); let category = "rental";
   serviceMenu.innerHTML = '<button class="service-choice active" data-cat="rental"><strong>場地出租</strong></button><button class="service-choice" data-cat="errand"><strong>跑腿／配送</strong></button>';
   const renderPlans = () => { const items = catalog.filter((item) => item.category === category); planSelect.innerHTML = items.map((item) => `<option value="${item.id}">${item.service}｜${item.name}</option>`).join(""); document.querySelector("#errandInputs").classList.toggle("hidden", category !== "errand"); updateQuote(); };
