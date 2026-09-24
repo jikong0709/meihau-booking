@@ -1,5 +1,15 @@
 # Session Context
 
+## 2026-09-24 會員全名與多組常用地址
+
+- 正式程式 commit：`c38b158`；GitHub Pages workflow `35949540337` 已成功。
+- 會員資料已拆分為「帳號名稱」與「全名」。
+- 常用地址可新增多筆，類型為住家／公司／其他；欄位包含地址名稱、收件人、收件人電話、完整地址與收件位置備註。
+- Supabase `booking.members.full_name`、`booking.addresses.address_type` 已套用，地址表仍維持強制 RLS。
+- `booking-api` 已支援全名更新與多地址新增，包含服務端欄位驗證。
+- 線上靜態頁與未登入保護已驗證。
+- 唯一尚待：使用者親自在 Google 選擇帳號後，驗證登入狀態下的會員資料更新與多地址新增／讀回。
+
 ## 2026-09-24 正式後端與 Google 登入部署
 
 - 正式 `main` commit：`273cdd7`；GitHub Pages workflow `35946549055` 已成功。
