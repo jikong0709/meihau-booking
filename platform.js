@@ -152,9 +152,86 @@ function initAdmin(){
   renderCalendar();renderDay('2026-09-24');renderPayments();
 }
 
+let productionClient;
+async function getProductionClient() {
+  if (productionClient) return productionClient;
+  const response = await fetch(cfg.runtimeConfigUrl);
+  if (!response.ok) throw new Error("無法載入登入設定");
+  const runtime = await response.json();
+  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.57.4");
+  productionClient = createClient(runtime.supabaseUrl, runtime.supabaseAnonKey, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  });
+  return productionClient;
+}
+async function api(action, options = {}) {
+  const client = await getProductionClient();
+  const { data: { session } } = await client.auth.getSession();
+  if (!session) throw new Error("LOGIN_REQUIRED");
+  const response = await fetch(`${cfg.apiBase}?action=${encodeURIComponent(action)}${options.query || ""}`, {
+    method: options.method || "GET",
+    headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "API_ERROR");
+  return data;
+}
+async function initProductionPublic() {
+  document.querySelectorAll("[data-login]").forEach((button) => button.addEventListener("click", async (event) => {
+    event.preventDefault();
+    try {
+      const client = await getProductionClient();
+      const { error } = await client.auth.signInWithOAuth({ provider: "google", options: { redirectTo: cfg.redirectUrl } });
+      if (error) throw error;
+    } catch (error) { alert(`目前無法啟動 Google 登入：${error.message}`); }
+  }));
+}
+async function requireSession() {
+  const client = await getProductionClient();
+  const { data: { session } } = await client.auth.getSession();
+  if (!session) { location.replace("index.html?login=required"); throw new Error("LOGIN_REQUIRED"); }
+  return { client, session };
+}
+async function initProductionMember() {
+  await requireSession();
+  const sections = [...document.querySelectorAll("[data-section]")];
+  const nav = [...document.querySelectorAll("[data-show]")];
+  const show = (id) => { sections.forEach((section) => section.classList.toggle("hidden", section.dataset.section !== id)); nav.forEach((item) => item.classList.toggle("active", item.dataset.show === id)); };
+  nav.forEach((item) => item.addEventListener("click", () => show(item.dataset.show))); show("home");
+  const member = await api("me");
+  const profileForm = document.querySelector("#profileForm");
+  const profileMap = { name: member.name, email: member.email, phone: member.phone, line: member.line_id, contactEmail: member.contact_email };
+  Object.entries(profileMap).forEach(([key, value]) => { const field = profileForm?.querySelector(`[name="${key}"]`); if (field) field.value = value || ""; });
+  profileForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(profileForm)); await api("profile", { method: "PATCH", body: { name: form.name, phone: form.phone, line_id: form.line, contact_email: form.contactEmail } }); document.querySelector("#profileStatus").textContent = "已更新"; });
+  let addresses = await api("addresses");
+  const list = document.querySelector("#addressList"); const pickup = document.querySelector("#pickupAddress"); const dropoff = document.querySelector("#dropoffAddress");
+  const renderAddresses = () => { list.innerHTML = addresses.map((a) => `<div class="address-card"><strong>${a.label}</strong><div>${a.address}</div><div class="muted">${a.recipient || ""} ${a.phone || ""}</div><button class="btn ghost small" data-delete="${a.id}">刪除</button></div>`).join("") || '<p class="muted">尚未新增常用地址</p>'; list.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", async () => { await api("addresses", { method: "DELETE", query: `&id=${button.dataset.delete}` }); addresses = addresses.filter((a) => a.id !== button.dataset.delete); renderAddresses(); })); const options = '<option value="">請選擇常用地址</option>' + addresses.map((a) => `<option value="${a.id}">${a.label}｜${a.address}</option>`).join(""); pickup.innerHTML = options; dropoff.innerHTML = options; document.querySelector("#addressCount").textContent = String(addresses.length); };
+  renderAddresses();
+  const addressForm = document.querySelector("#addressForm"); addressForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(addressForm)); const created = await api("addresses", { method: "POST", body: form }); addresses.push(created); addressForm.reset(); renderAddresses(); });
+  const serviceMenu = document.querySelector("#serviceMenu"); const planSelect = document.querySelector("#planSelect"); let category = "rental";
+  serviceMenu.innerHTML = '<button class="service-choice active" data-cat="rental"><strong>場地出租</strong></button><button class="service-choice" data-cat="errand"><strong>跑腿／配送</strong></button>';
+  const renderPlans = () => { const items = catalog.filter((item) => item.category === category); planSelect.innerHTML = items.map((item) => `<option value="${item.id}">${item.service}｜${item.name}</option>`).join(""); document.querySelector("#errandInputs").classList.toggle("hidden", category !== "errand"); updateQuote(); };
+  serviceMenu.querySelectorAll("[data-cat]").forEach((button) => button.addEventListener("click", () => { category = button.dataset.cat; serviceMenu.querySelectorAll("[data-cat]").forEach((item) => item.classList.toggle("active", item === button)); renderPlans(); }));
+  let currentQuote;
+  const quotePayload = () => ({ service_id: planSelect.value, distance_km: Number(document.querySelector("#distanceKm")?.value || 0), wait_minutes: Number(document.querySelector("#waitMinutes")?.value || 0), extra_stops: Number(document.querySelector("#extraStops")?.value || 0), goods_amount: Number(document.querySelector("#shoppingAmount")?.value || 0), urgent: Boolean(document.querySelector("#urgentFlag")?.checked), pickup_address_id: pickup.value || null, dropoff_address_id: dropoff.value || null });
+  async function updateQuote() { currentQuote = await api("quote", { method: "POST", body: quotePayload() }); document.querySelector("#checkoutLines").innerHTML = currentQuote.lines.map((line) => `<div class="checkout-line"><span>${line.label}</span><strong>${money(line.amount)}</strong></div>`).join(""); document.querySelector("#checkoutTotal").textContent = money(currentQuote.total); }
+  ["planSelect", "distanceKm", "waitMinutes", "extraStops", "shoppingAmount", "urgentFlag"].forEach((id) => document.querySelector(`#${id}`)?.addEventListener("change", updateQuote));
+  document.querySelector("#checkoutButton")?.addEventListener("click", async () => { const order = await api("orders", { method: "POST", body: { ...quotePayload(), booking_date: document.querySelector("#serviceDate").value || null, booking_time: document.querySelector("#serviceTime").value || null } }); alert(`訂單 ${order.order_no} 已建立，正式付款功能待綠界啟用。`); });
+  renderPlans();
+}
+async function initProductionAdmin() {
+  const { client } = await requireSession(); const member = await api("me");
+  if (member.role !== "admin") { document.querySelector(".main").innerHTML = '<div class="demo-note">此帳號沒有管理員權限。</div>'; return; }
+  const orders = await api("admin-orders");
+  document.querySelector("#paymentRows").innerHTML = orders.map((order) => `<tr><td>${order.order_no}</td><td>${order.order_items?.map((item) => item.label).join("、") || order.category}</td><td>${order.booking_date || ""} ${order.booking_time || ""}</td><td>${money(order.total_amount)}</td><td>${order.payment_status}</td></tr>`).join("");
+  void client;
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   const page=document.body.dataset.page;
-  if(page==='public')initPublic();
-  if(page==='member')initMember();
-  if(page==='admin')initAdmin();
+  const production = cfg.mode === "production";
+  if(page==='public')(production ? initProductionPublic() : initPublic());
+  if(page==='member')(production ? initProductionMember().catch((error) => { if (error.message !== "LOGIN_REQUIRED") alert(error.message); }) : initMember());
+  if(page==='admin')(production ? initProductionAdmin().catch((error) => { if (error.message !== "LOGIN_REQUIRED") alert(error.message); }) : initAdmin());
 });
