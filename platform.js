@@ -200,6 +200,7 @@ async function initProductionMember() {
   const show = (id) => { sections.forEach((section) => section.classList.toggle("hidden", section.dataset.section !== id)); nav.forEach((item) => item.classList.toggle("active", item.dataset.show === id)); };
   nav.forEach((item) => item.addEventListener("click", () => show(item.dataset.show))); show("home");
   const member = await api("me");
+  if (!member) throw new Error("會員資料初始化失敗，請重新整理後再試。");
   const profileForm = document.querySelector("#profileForm");
   const profileMap = { name: member.name, email: member.email, phone: member.phone, line: member.line_id, contactEmail: member.contact_email };
   Object.entries(profileMap).forEach(([key, value]) => { const field = profileForm?.querySelector(`[name="${key}"]`); if (field) field.value = value || ""; });

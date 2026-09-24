@@ -60,8 +60,10 @@ Deno.serve(async (request) => {
   if (!token) return reply(origin, 401, { error: "Unauthorized" });
   const { data: auth, error: authError } = await db.auth.getUser(token); if (authError || !auth.user) return reply(origin, 401, { error: "Unauthorized" });
   const user = auth.user; const email = user.email || ""; const defaultName = String(user.user_metadata?.full_name || user.user_metadata?.name || "");
-  await db.schema("booking").from("members").upsert({ user_id: user.id, email, name: defaultName }, { onConflict: "user_id", ignoreDuplicates: true });
-  const { data: member } = await db.schema("booking").from("members").select("*").eq("user_id", user.id).single();
+  const { error: memberCreateError } = await db.schema("booking").from("members").upsert({ user_id: user.id, email, name: defaultName }, { onConflict: "user_id", ignoreDuplicates: true });
+  if (memberCreateError) return reply(origin, 500, { error: "Member initialization failed" });
+  const { data: member, error: memberReadError } = await db.schema("booking").from("members").select("*").eq("user_id", user.id).single();
+  if (memberReadError || !member) return reply(origin, 500, { error: "Member profile unavailable" });
   const body = request.method === "GET" ? {} : await request.json().catch(() => ({}));
   if (action === "me") return reply(origin, 200, member);
   if (action === "profile" && request.method === "PATCH") { const patch = { name: String(body.name || "").slice(0, 80), phone: String(body.phone || "").slice(0, 40), line_id: String(body.line_id || "").slice(0, 80), contact_email: String(body.contact_email || "").slice(0, 160), updated_at: new Date().toISOString() }; const { data, error } = await db.schema("booking").from("members").update(patch).eq("user_id", user.id).select().single(); return reply(origin, error ? 400 : 200, error ? { error: error.message } : data); }
