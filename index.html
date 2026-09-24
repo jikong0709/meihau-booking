@@ -3,9 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="description" content="莓好預約站｜光言工作室：共享辦公、錄音／Podcast、攝影直播、化妝空間與台中預約跑腿。" />
-    <title>莓好預約站｜光言工作室</title>
-    <link rel="icon" href="assets/meihau-booking-logo.png" type="image/png" />
+    <meta name="description" content="莓好預約站｜光言工作室：共享辦公、Podcast 錄音、攝影空間與台中跑腿配送，一站完成會員預約與費用確認。" />
+    <title>莓好預約站｜把工作與生活安排得剛剛好</title>
+    <link rel="icon" href="assets/ui-v2/logo-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=Noto+Serif+TC:wght@600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="platform.css" />
     <script src="config.js"></script>
     <script defer src="platform.js"></script>
@@ -13,17 +16,128 @@
   <body data-page="public">
     <header class="topbar">
       <div class="container topbar-inner">
-        <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"><img src="assets/meihau-booking-logo.png" alt="" /></span><span><strong>莓好預約站</strong><small>MEIHAU BOOKING</small></span></a>
-        <nav class="nav" aria-label="公開網站導覽"><a href="#services">服務</a><a href="#pricing">價目</a><a href="#rules">規則</a></nav>
-        <a class="btn small" href="member.html" data-login>登入會員開始預約</a>
+        <a class="brand" href="#top" aria-label="莓好預約站首頁">
+          <span class="brand-mark" aria-hidden="true"><img src="assets/ui-v2/logo-icon.png" alt="" width="1254" height="1254" /></span>
+          <span><strong>莓好預約站</strong><small>MEIHAU BOOKING</small></span>
+        </a>
+        <nav class="nav" aria-label="主要導覽">
+          <a href="#top">首頁</a><a href="#services">服務項目</a><a href="#pricing">價目表</a><a href="#process">使用流程</a><a href="#about">關於我們</a>
+        </nav>
+        <div class="header-actions">
+          <a class="btn ghost small desktop-login" href="member.html" data-login>登入會員</a>
+          <a class="btn small" href="member.html" data-login>開始預約</a>
+          <details class="mobile-menu">
+            <summary aria-label="開啟導覽選單"><span></span><span></span><span></span></summary>
+            <nav aria-label="行動版導覽">
+              <a href="#top">首頁</a><a href="#services">服務項目</a><a href="#pricing">價目表</a><a href="#process">使用流程</a><a href="#about">關於我們</a><a href="member.html" data-login>登入會員開始預約</a>
+            </nav>
+          </details>
+        </div>
       </div>
     </header>
+
     <main>
-      <section class="hero" id="top"><div class="container hero-grid"><div><p class="eyebrow">莓好預約站 × 光言工作室</p><h1>工作、創作、跑腿<br />需要的事情一次排好</h1><p class="lead">共享辦公、錄音／Podcast、攝影直播與預約跑腿都在這裡。先看服務與價目，登入會員後再選時間、地址並確認費用。</p><div class="actions"><a class="btn" href="member.html" data-login>登入會員開始預約</a><a class="btn ghost" href="#pricing">先看價目</a></div></div><aside class="panel hero-list" aria-label="熱門服務起價"><div><span>共享辦公</span><strong>NT$99 起</strong></div><div><span>錄音／Podcast</span><strong>NT$500 起</strong></div><div><span>攝影／直播</span><strong>NT$600 起</strong></div><div><span>預約配送</span><strong>NT$99 起</strong></div><p class="muted">正式預約、地址與付款都在會員中心完成</p></aside></div></section>
-      <section class="section" id="services"><div class="container"><div class="section-head"><p class="eyebrow">SERVICES</p><h2>今天需要什麼服務？</h2><p>價目可以直接看，真正建立預約時再登入會員</p></div><div class="grid3"><article class="card service-card"><div aria-hidden="true">01</div><h3>共享辦公</h3><p>桌椅、插座、Wi‑Fi、冷氣與基本公共空間</p><ul><li>2 小時／半日／單日</li><li>多日方案</li><li>月租自由座／固定座</li></ul><a class="btn ghost" href="member.html" data-login>登入會員開始預約</a></article><article class="card service-card"><div aria-hidden="true">02</div><h3>創作空間</h3><p>錄音、Podcast、攝影、直播、化妝更衣</p><ul><li>純空間</li><li>設備方案</li><li>操作協助與加購</li></ul><a class="btn ghost" href="member.html" data-login>登入會員開始預約</a></article><article class="card service-card"><div aria-hidden="true">03</div><h3>跑腿／配送</h3><p>機車、汽車、代買、取送件與簡單代辦</p><ul><li>里程計價</li><li>等待與停靠加價</li><li>急件加價</li></ul><a class="btn ghost" href="member.html" data-login>登入會員開始預約</a></article></div></div></section>
-      <section class="section tint" id="pricing"><div class="container"><div class="section-head"><p class="eyebrow">PRICE</p><h2>目前試營運價目</h2><p>以下維持既定服務與價格，不在視覺改版中調整商業規則</p></div><h3>共享辦公</h3><div class="price-grid"><div class="price-item"><span>2 小時</span><strong>$99</strong></div><div class="price-item"><span>半日 4 小時</span><strong>$150</strong></div><div class="price-item"><span>單日</span><strong>$250</strong></div><div class="price-item"><span>5 日券</span><strong>$1,100</strong></div><div class="price-item"><span>10 日券</span><strong>$2,000</strong></div><div class="price-item"><span>月租自由座</span><strong>$2,800</strong></div><div class="price-item"><span>月租固定座</span><strong>$4,000</strong></div></div><h3 style="margin-top:30px">錄音／Podcast</h3><div class="price-grid"><div class="price-item"><span>純錄音空間</span><strong>$500/hr</strong></div><div class="price-item"><span>空間＋基本設備</span><strong>$700/hr</strong></div><div class="price-item"><span>設備＋操作協助</span><strong>$1,000/hr</strong></div><div class="price-item"><span>2 小時設備方案</span><strong>$1,300</strong></div><div class="price-item"><span>4 小時設備方案</span><strong>$2,400</strong></div></div><h3 style="margin-top:30px">攝影／直播與化妝</h3><div class="price-grid"><div class="price-item"><span>攝影純場地</span><strong>$600/hr</strong></div><div class="price-item"><span>場地＋基本燈具</span><strong>$800/hr</strong></div><div class="price-item"><span>場地＋攝錄設備</span><strong>$1,000/hr 起</strong></div><div class="price-item"><span>2 小時拍攝方案</span><strong>$1,500</strong></div><div class="price-item"><span>4 小時半日方案</span><strong>$2,800</strong></div><div class="price-item"><span>化妝／更衣</span><strong>$300/hr</strong></div><div class="price-item"><span>搭配場地加購</span><strong>+$200/hr</strong></div></div><h3 style="margin-top:30px">跑腿／配送</h3><div class="price-grid"><div class="price-item"><span>機車 0–3 km</span><strong>$99</strong></div><div class="price-item"><span>3–5 km</span><strong>$130</strong></div><div class="price-item"><span>5–8 km</span><strong>$180</strong></div><div class="price-item"><span>8–10 km</span><strong>$220</strong></div><div class="price-item"><span>10 km 以上</span><strong>+$15/km</strong></div><div class="price-item"><span>汽車 0–3 km</span><strong>$220 起</strong></div><div class="price-item"><span>代買服務</span><strong>+$80</strong></div><div class="price-item"><span>急件</span><strong>+30%</strong></div></div><p class="muted">等待前 10 分鐘免費，其後每 10 分鐘 +$50；額外停靠 +$50／站。汽車停車與通行費實報實銷。</p></div></section>
-      <section class="section" id="rules"><div class="container"><div class="login-banner"><div><p class="eyebrow" style="color:#f5dce5">BOOKING FLOW</p><h2 style="margin:0">登入後，照著步驟完成就好</h2><p>Google 登入 → 補聯絡資料／常用地址 → 選服務 → 確認費用 → 建立訂單 → 前往付款</p></div><a class="btn light" href="member.html" data-login>登入會員開始預約</a></div><div class="grid3" style="margin-top:22px"><article class="card service-card"><h3>場地</h3><p>預約時間、訂金／付款、取消與超時規則於結帳前確認</p></article><article class="card service-card"><h3>跑腿</h3><p>禁止違禁品、不明包裹、可疑轉帳與依法不得代購配送的物品</p></article><article class="card service-card"><h3>費用</h3><p>正式付款金額由後端重新計算；前端顯示只作即時試算與確認</p></article></div></div></section>
+      <section class="hero hero-v2" id="top">
+        <div class="container hero-v2-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">莓好預約站 × 光言工作室</p>
+            <h1>把工作與生活<br />安排得剛剛好</h1>
+            <p class="lead">從共享辦公、Podcast 錄音到台中跑腿配送，<br class="desktop-only" />莓好預約站幫你把每件事排好。</p>
+            <div class="actions">
+              <a class="btn btn-arrow" href="member.html" data-login>登入會員開始預約 <span aria-hidden="true">→</span></a>
+              <a class="btn ghost" href="#pricing">查看服務價目</a>
+            </div>
+            <ul class="hero-benefits" aria-label="服務特色">
+              <li><span aria-hidden="true">◇</span> 彈性預約</li>
+              <li><span aria-hidden="true">⌂</span> 質感空間</li>
+              <li><span aria-hidden="true">⌖</span> 在地服務</li>
+              <li><span aria-hidden="true">◌</span> 生活更輕鬆</li>
+            </ul>
+          </div>
+          <picture class="hero-media">
+            <source media="(max-width: 620px)" srcset="assets/ui-v2/hero-mobile.webp" />
+            <img src="assets/ui-v2/hero-desktop.webp" alt="自然光工作室裡的筆電、Podcast 麥克風與攝影設備" width="1536" height="1024" fetchpriority="high" />
+          </picture>
+        </div>
+      </section>
+
+      <section class="section services-section" id="services">
+        <div class="container">
+          <div class="section-head section-head-row">
+            <div><p class="eyebrow">SERVICES</p><h2>今天，想把哪件事安排好？</h2></div>
+            <p>一個帳號，完成空間、創作與在地生活服務預約。</p>
+          </div>
+          <div class="service-showcase">
+            <article class="service-visual-card">
+              <img src="assets/ui-v2/service-coworking.webp" alt="採光明亮的共享辦公空間" width="1024" height="768" loading="lazy" />
+              <div class="service-visual-body"><div><span>01</span><h3>共享辦公</h3><p>安靜座位、插座與 Wi-Fi，彈性安排專注工作的時段。</p></div><div class="service-price">NT$ <strong>99</strong> 起</div><a href="member.html" data-login aria-label="預約共享辦公">→</a></div>
+            </article>
+            <article class="service-visual-card">
+              <img src="assets/ui-v2/service-podcast.webp" alt="Podcast 錄音麥克風與耳機設備" width="1024" height="768" loading="lazy" />
+              <div class="service-visual-body"><div><span>02</span><h3>Podcast／錄音</h3><p>從純空間到設備協助，讓聲音創作準備得更從容。</p></div><div class="service-price">NT$ <strong>500</strong> 起</div><a href="member.html" data-login aria-label="預約 Podcast 錄音">→</a></div>
+            </article>
+            <article class="service-visual-card">
+              <img src="assets/ui-v2/service-photo.webp" alt="工作室內的攝影機與補光設備" width="1024" height="768" loading="lazy" />
+              <div class="service-visual-body"><div><span>03</span><h3>攝影空間</h3><p>攝影、直播與內容製作需要的空間及基本燈具。</p></div><div class="service-price">NT$ <strong>600</strong> 起</div><a href="member.html" data-login aria-label="預約攝影空間">→</a></div>
+            </article>
+            <article class="service-visual-card">
+              <img src="assets/ui-v2/service-errand.webp" alt="雙手接住配送紙箱的跑腿服務情境" width="1024" height="768" loading="lazy" />
+              <div class="service-visual-body"><div><span>04</span><h3>跑腿／配送</h3><p>台中機車、汽車取送與代買，讓行程不再被瑣事打斷。</p></div><div class="service-price">NT$ <strong>99</strong> 起</div><a href="member.html" data-login aria-label="預約跑腿配送">→</a></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section story-section" id="about">
+        <div class="container story-grid">
+          <div class="story-collage">
+            <img class="story-main" src="assets/ui-v2/space-photo.webp" alt="溫暖自然光下的攝影工作場景" width="1024" height="768" loading="lazy" />
+            <img class="story-small" src="assets/ui-v2/service-podcast.webp" alt="錄音設備細節" width="1024" height="768" loading="lazy" />
+          </div>
+          <div class="story-copy"><p class="eyebrow">A SPACE FOR GOOD WORK</p><h2>讓專業有溫度，<br />也讓日常多一點餘裕</h2><p>莓好預約站把光言工作室的空間、創作設備與台中在地服務整理在同一個入口。需要專心工作、錄下好聲音、拍攝內容，或請人幫忙跑一趟，都能清楚看價目、選時段，再由會員中心完成預約。</p><div class="story-points"><div><strong>清楚透明</strong><span>服務與費用在建立訂單前確認</span></div><div><strong>彈性選擇</strong><span>按時數、方案與實際需求安排</span></div><div><strong>安心紀錄</strong><span>會員資料、地址與預約集中管理</span></div></div></div>
+        </div>
+      </section>
+
+      <section class="section pricing-summary" id="pricing">
+        <div class="container">
+          <div class="section-head section-head-row"><div><p class="eyebrow">PRICE GUIDE</p><h2>先看起價，再選適合的方案</h2></div><p>現行價格與計價規則維持不變，正式總計以後端 quote 為準。</p></div>
+          <div class="price-summary-grid">
+            <article><span>共享辦公</span><strong>NT$ 99</strong><small>2 小時起</small></article>
+            <article><span>Podcast／錄音</span><strong>NT$ 500</strong><small>純錄音空間／小時</small></article>
+            <article><span>攝影空間</span><strong>NT$ 600</strong><small>純場地／小時</small></article>
+            <article><span>跑腿／配送</span><strong>NT$ 99</strong><small>機車 0–3 公里</small></article>
+          </div>
+          <details class="pricing-details">
+            <summary>查看完整現行價目與計價規則 <span aria-hidden="true">＋</span></summary>
+            <div class="pricing-groups">
+              <div><h3>共享辦公</h3><ul><li>2 小時 <strong>$99</strong></li><li>半日 4 小時 <strong>$150</strong></li><li>單日 <strong>$250</strong></li><li>5 日券 <strong>$1,100</strong></li><li>10 日券 <strong>$2,000</strong></li><li>月租自由座 <strong>$2,800</strong></li><li>月租固定座 <strong>$4,000</strong></li></ul></div>
+              <div><h3>Podcast／錄音</h3><ul><li>純錄音空間 <strong>$500/hr</strong></li><li>空間＋基本設備 <strong>$700/hr</strong></li><li>設備＋操作協助 <strong>$1,000/hr</strong></li><li>2 小時設備方案 <strong>$1,300</strong></li><li>4 小時設備方案 <strong>$2,400</strong></li></ul></div>
+              <div><h3>攝影／直播</h3><ul><li>攝影純場地 <strong>$600/hr</strong></li><li>場地＋基本燈具 <strong>$800/hr</strong></li><li>場地＋攝錄設備 <strong>$1,000/hr 起</strong></li><li>2 小時拍攝方案 <strong>$1,500</strong></li><li>4 小時半日方案 <strong>$2,800</strong></li><li>化妝／更衣 <strong>$300/hr</strong></li><li>搭配場地加購 <strong>+$200/hr</strong></li></ul></div>
+              <div><h3>跑腿／配送</h3><ul><li>機車 0–3 km <strong>$99</strong></li><li>3–5 km <strong>$130</strong></li><li>5–8 km <strong>$180</strong></li><li>8–10 km <strong>$220</strong></li><li>10 km 以上 <strong>+$15/km</strong></li><li>汽車 0–3 km <strong>$220 起</strong></li><li>代買服務 <strong>+$80</strong></li><li>急件 <strong>+30%</strong></li></ul></div>
+            </div>
+            <p class="muted">等待前 10 分鐘免費，其後每 10 分鐘 +$50；額外停靠 +$50／站。汽車停車與通行費實報實銷。</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="section process-section" id="process">
+        <div class="container"><div class="section-head centered"><p class="eyebrow">BOOKING FLOW</p><h2>四個步驟，把需要的服務排進生活</h2></div><ol class="process-list"><li><span>01</span><div><h3>登入會員</h3><p>使用 Google 登入，保留你的預約與常用資料。</p></div></li><li><span>02</span><div><h3>選擇服務</h3><p>挑選空間、方案或跑腿配送類型。</p></div></li><li><span>03</span><div><h3>填寫時間與需求</h3><p>選日期、時間、地址與需要的加購項目。</p></div></li><li><span>04</span><div><h3>確認費用並建立預約</h3><p>檢查後端 quote 明細與總計，再建立訂單。</p></div></li></ol></div>
+      </section>
+
+      <section class="section assurance-section" id="rules">
+        <div class="container assurance-grid"><div><p class="eyebrow">BOOK WITH CONFIDENCE</p><h2>清楚的規則，<br />讓每次安排都更安心</h2></div><div class="assurance-items"><article><span>01</span><div><h3>會員預約</h3><p>正式預約皆在登入後完成，資料與訂單集中管理。</p></div></article><article><span>02</span><div><h3>後端計價</h3><p>畫面金額供即時確認，正式總計仍由後端重新計算。</p></div></article><article><span>03</span><div><h3>服務邊界</h3><p>跑腿不承接違禁品、不明包裹、可疑轉帳或依法不得代購配送的物品。</p></div></article></div></div>
+      </section>
+
+      <section class="section final-cta"><div class="container final-cta-inner"><div><p class="eyebrow">READY WHEN YOU ARE</p><h2>把下一件事，安排得剛剛好</h2><p>登入會員，選擇今天需要的服務。</p></div><a class="btn light btn-arrow" href="member.html" data-login>登入會員開始預約 <span aria-hidden="true">→</span></a></div></section>
     </main>
-    <footer class="footer"><div class="container">莓好預約站｜光言工作室</div></footer>
+
+    <footer class="footer footer-v2">
+      <div class="container footer-grid">
+        <div><a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"><img src="assets/ui-v2/logo-icon.png" alt="" width="1254" height="1254" /></span><span><strong>莓好預約站</strong><small>MEIHAU BOOKING</small></span></a><p>共享辦公、創作空間與台中在地跑腿配送。</p></div>
+        <nav aria-label="頁尾導覽"><strong>快速導覽</strong><a href="#services">服務項目</a><a href="#pricing">價目表</a><a href="#process">使用流程</a></nav>
+        <div><strong>會員服務</strong><a href="member.html" data-login>登入會員</a><a href="member.html" data-login>開始預約</a><span>預約內容以會員中心為準</span></div>
+      </div>
+      <div class="container footer-bottom"><span>© 莓好預約站 × 光言工作室</span><span>以溫度，安排每一件重要的小事</span></div>
+    </footer>
   </body>
 </html>
