@@ -23,6 +23,7 @@
           <button data-show="home">首頁</button
           ><button data-show="book">預約服務</button
           ><button data-show="orders">我的預約</button
+          ><button data-show="inquiries">我的詢價</button
           ><button data-show="profile">我的資料</button
           ><button data-show="addresses">常用地址</button
           ><a href="index.html">回公開網站</a>
@@ -58,27 +59,27 @@
           <div class="member-action-grid">
             <article class="card service-card">
               <div class="service-icon" aria-hidden="true">01</div>
-              <h3>預約空間</h3>
-              <p>共享辦公、Podcast、攝影直播、化妝更衣</p>
-              <button class="btn ghost" data-show="book">選擇出租服務</button>
+              <h3>錄音／空間</h3>
+              <p>錄音體驗、一日歌手與錄音需求選項</p>
+              <button class="btn ghost" data-show="book">選擇錄音服務</button>
             </article>
             <article class="card service-card">
               <div class="service-icon" aria-hidden="true">02</div>
-              <h3>跑腿／配送</h3>
-              <p>機車、汽車、代買與簡單代辦</p>
-              <button class="btn ghost" data-show="book">選擇跑腿服務</button>
+              <h3>AI／數位服務</h3>
+              <p>簡報、網站、Excel 與數位系統客製</p>
+              <button class="btn ghost" data-show="book">選擇數位服務</button>
             </article>
             <article class="card service-card">
               <div class="service-icon" aria-hidden="true">03</div>
-              <h3>我的預約</h3>
-              <p>查看已建立的訂單、日期與付款狀態</p>
-              <button class="btn ghost" data-show="orders">查看我的預約</button>
+              <h3>臨時人力</h3>
+              <p>活動工作人員、現場支援與單次人力需求</p>
+              <button class="btn ghost" data-show="book">提出人力需求</button>
             </article>
             <article class="card service-card">
               <div class="service-icon" aria-hidden="true">04</div>
-              <h3>常用地址</h3>
-              <p>預先建立住家、公司或其他常用取送地點</p>
-              <button class="btn ghost" data-show="addresses">管理地址</button>
+              <h3>我的詢價</h3>
+              <p>追蹤需求評估、報價與確認狀態</p>
+              <button class="btn ghost" data-show="inquiries">查看我的詢價</button>
             </article>
           </div>
         </section>
@@ -105,71 +106,18 @@
                   <label for="serviceTime">時間</label><input type="time" id="serviceTime" />
                 </div>
               </div>
-              <div
-                id="errandInputs"
-                class="stack hidden"
-                style="margin-top: 18px"
-              >
-                <div class="form-grid">
-                  <div class="field">
-                    <label for="pickupAddress">取件常用地址</label
-                    ><select id="pickupAddress"></select>
-                  </div>
-                  <div class="field">
-                    <label for="dropoffAddress">送達常用地址</label
-                    ><select id="dropoffAddress"></select>
-                  </div>
-                  <div class="field">
-                    <label for="distanceKm">實際／預估里程 km</label
-                    ><input
-                      id="distanceKm"
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      value="3"
-                    />
-                  </div>
-                  <div class="field">
-                    <label for="waitMinutes">等待時間 分鐘</label
-                    ><input
-                      id="waitMinutes"
-                      type="number"
-                      min="0"
-                      step="5"
-                      value="0"
-                    />
-                  </div>
-                  <div class="field">
-                    <label for="extraStops">額外停靠點</label
-                    ><input
-                      id="extraStops"
-                      type="number"
-                      min="0"
-                      step="1"
-                      value="0"
-                    />
-                  </div>
-                  <div class="field">
-                    <label for="shoppingAmount">代買商品金額</label
-                    ><input
-                      id="shoppingAmount"
-                      type="number"
-                      min="0"
-                      step="1"
-                      value="0"
-                    />
-                  </div>
-                </div>
-                <label
-                  ><input id="urgentFlag" type="checkbox" /> 急件 +30%</label
-                >
+              <div id="serviceOptionWrap" class="field hidden" style="margin-top: 18px">
+                <label for="serviceOption">錄音需求類型</label><select id="serviceOption"></select>
+              </div>
+              <div id="addonWrap" class="stack hidden" style="margin-top: 18px">
+                <strong>可選加購</strong>
+                <div id="addonOptions" class="addon-options"></div>
+                <span class="field-message">未定價加購不會自行計入訂單金額，需由人工確認。</span>
+              </div>
+              <div id="inquiryFields" class="stack hidden" style="margin-top: 18px">
                 <div class="field">
-                  <label for="errandDescription">物品／跑腿內容</label
-                  ><textarea
-                    id="errandDescription"
-                    rows="3"
-                    placeholder="例如：取文件、代買蛋糕、需汽車載送等"
-                  ></textarea>
+                  <label for="inquiryRequirements">需求內容</label>
+                  <textarea id="inquiryRequirements" rows="5" placeholder="請說明用途、規模、交付內容與其他需求"></textarea>
                 </div>
               </div>
               <div class="field" style="margin-top: 18px">
@@ -185,10 +133,10 @@
                 <span>總計</span><strong id="checkoutTotal">NT$ 0</strong>
               </div>
               <p class="muted">
-                正式版由後端再次計價後才建立訂單，前端金額不得作為付款唯一依據
+                金額由後端依正式服務資料驗證；付款功能尚未啟用，不會顯示已付款假象。
               </p>
               <button id="checkoutButton" class="btn full" type="button">
-                確認訂單並前往付款
+                立即預約
               </button>
             </aside>
           </div>
@@ -201,6 +149,12 @@
             </div>
           </div>
           <div id="memberOrderList" class="order-list"></div>
+        </section>
+        <section data-section="inquiries" class="hidden">
+          <div class="page-head">
+            <div><p class="eyebrow">MY INQUIRIES</p><h1>我的詢價</h1><p class="muted">查看需求評估、報價與確認狀態</p></div>
+          </div>
+          <div id="memberInquiryList" class="order-list"></div>
         </section>
         <section data-section="profile" class="hidden">
           <div class="page-head">

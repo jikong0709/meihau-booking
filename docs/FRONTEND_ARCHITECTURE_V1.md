@@ -297,3 +297,23 @@
 正式跑腿計價請由後端或可信任的路線 API 計算取件→送達的實際路線距離。不要讓會員手填公里數作為正式付款依據。
 
 目前 `member.html` 的公里輸入欄只用於前端架構展示。
+
+## 11. 服務系統 V1（2026-09-30）
+
+正式服務不再由 production 前端 hardcode；資料來源為 `booking.services`，並由 `GET booking-api?action=services` 提供會員中心使用。
+
+- `direct_booking`：REC-001、REC-002、AI-001，可呼叫 `quote`／`orders`，金額由後端讀取正式服務資料。
+- `custom_quote`：AI-002、AI-003、AI-004、MAN-001、MAN-002、MAN-003，只能呼叫 `inquiries`；`quote`／`orders` 必須拒絕。
+- `coming_soon`：MAN-004 可顯示但不可建立訂單或詢價。
+- `hidden`：SPACE-001～SPACE-007 不回傳到會員可選目錄。
+- 舊 service ID：保留為 `archived`，只供歷史查詢；舊訂單仍讀取 `order_items` 成交快照，不重新計價。
+- Add-on：ADD-001、ADD-002 價格為 `NULL`，可記錄選擇但不得自行加到訂單總額。
+
+詢價 API：
+
+- `GET ?action=inquiries`：只回傳登入會員自己的詢價。
+- `POST ?action=inquiries`：只接受 active `custom_quote` 服務。
+- `GET ?action=admin-inquiries`：伺服器確認 `booking.members.role = admin` 後回傳全部詢價。
+- `PATCH ?action=admin-inquiries`：只有 Admin 可更新狀態與 `quoted_amount`。
+
+資料庫啟用並強制 RLS；一般 authenticated 使用者只能讀取自己的詢價，不能更新 `quoted_amount`。Edge Function 使用 service role 時仍必須先驗證 JWT 與 Admin 角色，不依靠前端隱藏。

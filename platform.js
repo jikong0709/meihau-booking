@@ -1,6 +1,7 @@
 const cfg = window.MEIHAU_CONFIG || { mode: 'mock', auth: {}, api: {} };
 
-const catalog = [
+// 僅供 config 缺失時的離線相容示範；production 服務一律由 booking.services 載入。
+const legacyDemoCatalog = [
   {id:'cowork-2h',category:'rental',service:'共享辦公',name:'2 小時',price:99},
   {id:'cowork-half',category:'rental',service:'共享辦公',name:'半日 4 小時',price:150},
   {id:'cowork-day',category:'rental',service:'共享辦公',name:'單日',price:250},
@@ -73,9 +74,9 @@ function initMember(){
   serviceMenu.innerHTML=categories.map(([id,label])=>`<button class="service-choice ${id==='rental'?'active':''}" data-cat="${id}"><strong>${label}</strong><div class="muted">${id==='rental'?'共享辦公、錄音、攝影、化妝':'機車、汽車、代買、代辦'}</div></button>`).join('');
   serviceMenu.querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{activeCategory=b.dataset.cat;serviceMenu.querySelectorAll('[data-cat]').forEach(x=>x.classList.toggle('active',x===b));renderPlans();}));
   function renderPlans(){
-    const items=catalog.filter(x=>x.category===activeCategory);
+    const items=legacyDemoCatalog.filter(x=>x.category===activeCategory);
     planSelect.innerHTML=items.map(x=>`<option value="${x.id}">${x.service}｜${x.name}${x.price!==null?'｜'+money(x.price):''}</option>`).join('');
-    document.querySelector('#errandInputs').classList.toggle('hidden',activeCategory!=='errand');
+    document.querySelector('#errandInputs')?.classList.toggle('hidden',activeCategory!=='errand');
     calc();
   }
 
@@ -89,21 +90,21 @@ function initMember(){
   const calcIds=['planSelect','distanceKm','waitMinutes','extraStops','shoppingAmount','urgentFlag'];
   calcIds.forEach(id=>document.querySelector('#'+id)?.addEventListener('input',calc));
   function calc(){
-    const item=catalog.find(x=>x.id===planSelect.value) || catalog.find(x=>x.category===activeCategory);
+    const item=legacyDemoCatalog.find(x=>x.id===planSelect.value) || legacyDemoCatalog.find(x=>x.category===activeCategory);
     if(!item)return;
     const lines=[];let total=0;
     if(item.category==='rental'){ total=item.price||0; lines.push([`${item.service}｜${item.name}`,total]); }
     else{
-      const km=Math.max(0,Number(document.querySelector('#distanceKm').value||0));
-      const wait=Math.max(0,Number(document.querySelector('#waitMinutes').value||0));
-      const stops=Math.max(0,Number(document.querySelector('#extraStops').value||0));
+      const km=Math.max(0,Number(document.querySelector('#distanceKm')?.value||0));
+      const wait=Math.max(0,Number(document.querySelector('#waitMinutes')?.value||0));
+      const stops=Math.max(0,Number(document.querySelector('#extraStops')?.value||0));
       if(item.id==='task'){ total=200;lines.push(['跑腿／代辦 1 小時起',200]); }
       else{
         let delivery=item.id==='car'?carPrice(km):motorPrice(km);
-        const isUrgent=item.id==='urgent'||document.querySelector('#urgentFlag').checked;
+        const isUrgent=item.id==='urgent'||Boolean(document.querySelector('#urgentFlag')?.checked);
         if(isUrgent)delivery=Math.round(delivery*1.3);
         lines.push([`${item.id==='car'?'汽車':'機車'}配送 ${km.toFixed(1)} km`,delivery]);total+=delivery;
-        if(item.id==='shopping'){lines.push(['代買服務費',80]);total+=80;const goods=Math.max(0,Number(document.querySelector('#shoppingAmount').value||0));if(goods){lines.push(['商品代墊',goods]);total+=goods;}}
+        if(item.id==='shopping'){lines.push(['代買服務費',80]);total+=80;const goods=Math.max(0,Number(document.querySelector('#shoppingAmount')?.value||0));if(goods){lines.push(['商品代墊',goods]);total+=goods;}}
         const wf=waitFee(wait);if(wf){lines.push(['等待費',wf]);total+=wf;}
         const sf=stopFee(stops);if(sf){lines.push(['額外停靠',sf]);total+=sf;}
       }
@@ -209,7 +210,7 @@ async function initProductionMember() {
   let addresses = await api("addresses");
   const list = document.querySelector("#addressList"); const pickup = document.querySelector("#pickupAddress"); const dropoff = document.querySelector("#dropoffAddress");
   const addressTypeLabel = { home: "住家", company: "公司", other: "其他" };
-  const renderAddresses = () => { list.innerHTML = addresses.map((a) => `<article class="address-card"><div class="address-card-head"><span class="address-type">${addressTypeLabel[a.address_type] || "其他"}</span><strong>${escapeHtml(a.label)}</strong></div><div class="address-main">${escapeHtml(a.address)}</div><div class="address-recipient"><span>收件人：${escapeHtml(a.recipient || "未填")}</span><span>${escapeHtml(a.phone || "未填電話")}</span></div>${a.note ? `<div class="address-note">收件備註：${escapeHtml(a.note)}</div>` : ""}<button class="btn ghost small" data-delete="${a.id}">刪除</button></article>`).join("") || '<div class="empty-address"><strong>尚未新增常用地址</strong><span>新增住家、公司或其他收件地址，預約時就能直接選用。</span></div>'; list.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", async () => { await api("addresses", { method: "DELETE", query: `&id=${button.dataset.delete}` }); addresses = addresses.filter((a) => a.id !== button.dataset.delete); renderAddresses(); })); const options = '<option value="">請選擇常用地址</option>' + addresses.map((a) => `<option value="${a.id}">${addressTypeLabel[a.address_type] || "其他"}｜${escapeHtml(a.label)}｜${escapeHtml(a.address)}</option>`).join(""); pickup.innerHTML = options; dropoff.innerHTML = options; document.querySelector("#addressCount").textContent = String(addresses.length); };
+  const renderAddresses = () => { list.innerHTML = addresses.map((a) => `<article class="address-card"><div class="address-card-head"><span class="address-type">${addressTypeLabel[a.address_type] || "其他"}</span><strong>${escapeHtml(a.label)}</strong></div><div class="address-main">${escapeHtml(a.address)}</div><div class="address-recipient"><span>收件人：${escapeHtml(a.recipient || "未填")}</span><span>${escapeHtml(a.phone || "未填電話")}</span></div>${a.note ? `<div class="address-note">收件備註：${escapeHtml(a.note)}</div>` : ""}<button class="btn ghost small" data-delete="${a.id}">刪除</button></article>`).join("") || '<div class="empty-address"><strong>尚未新增常用地址</strong><span>新增住家、公司或其他收件地址，預約時就能直接選用。</span></div>'; list.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", async () => { await api("addresses", { method: "DELETE", query: `&id=${button.dataset.delete}` }); addresses = addresses.filter((a) => a.id !== button.dataset.delete); renderAddresses(); })); const options = '<option value="">請選擇常用地址</option>' + addresses.map((a) => `<option value="${a.id}">${addressTypeLabel[a.address_type] || "其他"}｜${escapeHtml(a.label)}｜${escapeHtml(a.address)}</option>`).join(""); if (pickup) pickup.innerHTML = options; if (dropoff) dropoff.innerHTML = options; document.querySelector("#addressCount").textContent = String(addresses.length); };
   renderAddresses();
   let orders = await api("orders");
   const renderOrders = () => {
@@ -222,24 +223,101 @@ async function initProductionMember() {
   document.querySelector("#addAddressButton")?.addEventListener("click", () => showAddressForm(true));
   document.querySelector("#cancelAddressButton")?.addEventListener("click", () => { addressForm?.reset(); showAddressForm(false); });
   addressForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(addressForm)); const created = await api("addresses", { method: "POST", body: form }); addresses.push(created); addressForm.reset(); showAddressForm(false); renderAddresses(); });
-  const serviceMenu = document.querySelector("#serviceMenu"); const planSelect = document.querySelector("#planSelect"); let category = "rental";
-  serviceMenu.innerHTML = '<button class="service-choice active" data-cat="rental"><strong>場地出租</strong></button><button class="service-choice" data-cat="errand"><strong>跑腿／配送</strong></button>';
-  const renderPlans = () => { const items = catalog.filter((item) => item.category === category); planSelect.innerHTML = items.map((item) => `<option value="${item.id}">${item.service}｜${item.name}</option>`).join(""); document.querySelector("#errandInputs").classList.toggle("hidden", category !== "errand"); updateQuote(); };
-  serviceMenu.querySelectorAll("[data-cat]").forEach((button) => button.addEventListener("click", () => { category = button.dataset.cat; serviceMenu.querySelectorAll("[data-cat]").forEach((item) => item.classList.toggle("active", item === button)); renderPlans(); }));
+  const catalogData = await api("services");
+  let inquiries = await api("inquiries");
+  const renderInquiries = () => {
+    const labels = { pending: "待處理", reviewing: "評估中", quoted: "已報價", accepted: "已接受", closed: "已結案" };
+    document.querySelector("#memberInquiryList").innerHTML = inquiries.map((item) => `<div class="order-row"><strong>${escapeHtml(item.service_name)}</strong><span>${escapeHtml(item.requirements)}</span><span>${item.quoted_amount === null ? "尚未報價" : money(item.quoted_amount)}</span><span class="badge neutral">${labels[item.status] || escapeHtml(item.status)}</span></div>`).join("") || '<p class="muted">目前沒有詢價紀錄</p>';
+  };
+  renderInquiries();
+  const serviceMenu = document.querySelector("#serviceMenu");
+  const planSelect = document.querySelector("#planSelect");
+  const categoryDefinitions = [
+    ["temporary_staff", "臨時人力", "活動、現場與單次支援"],
+    ["recording_space", "錄音／空間", "錄音體驗與一日歌手"],
+    ["ai_digital", "AI／數位服務", "簡報、網站、Excel 與系統"],
+    ["venue_equipment", "場地／設備", "服務池目前未開放"],
+  ];
+  let category = "recording_space";
   let currentQuote;
-  const quotePayload = () => ({ service_id: planSelect.value, distance_km: Number(document.querySelector("#distanceKm")?.value || 0), wait_minutes: Number(document.querySelector("#waitMinutes")?.value || 0), extra_stops: Number(document.querySelector("#extraStops")?.value || 0), goods_amount: Number(document.querySelector("#shoppingAmount")?.value || 0), urgent: Boolean(document.querySelector("#urgentFlag")?.checked), pickup_address_id: pickup.value || null, dropoff_address_id: dropoff.value || null });
-  async function updateQuote() { currentQuote = await api("quote", { method: "POST", body: quotePayload() }); document.querySelector("#checkoutLines").innerHTML = currentQuote.lines.map((line) => `<div class="checkout-line"><span>${line.label}</span><strong>${money(line.amount)}</strong></div>`).join(""); document.querySelector("#checkoutTotal").textContent = money(currentQuote.total); }
-  ["planSelect", "distanceKm", "waitMinutes", "extraStops", "shoppingAmount", "urgentFlag"].forEach((id) => document.querySelector(`#${id}`)?.addEventListener("change", updateQuote));
-  document.querySelector("#checkoutButton")?.addEventListener("click", async () => { const order = await api("orders", { method: "POST", body: { ...quotePayload(), booking_date: document.querySelector("#serviceDate").value || null, booking_time: document.querySelector("#serviceTime").value || null } }); orders = await api("orders"); renderOrders(); alert(`訂單 ${order.order_no} 已建立，正式付款功能待綠界啟用。`); });
+  const selectedService = () => catalogData.services.find((item) => item.service_id === planSelect.value);
+  const priceLabel = (item) => item.price_type === "custom_quote" ? "客製報價" : `${money(item.price)}${item.price_type === "starting_from" ? " 起" : ""}`;
+  serviceMenu.innerHTML = categoryDefinitions.map(([id, label, description]) => `<button class="service-choice ${id === category ? "active" : ""}" data-cat="${id}"><strong>${label}</strong><div class="muted">${description}</div></button>`).join("");
+  const quotePayload = () => ({
+    service_id: planSelect.value,
+    option_id: document.querySelector("#serviceOption")?.value || null,
+    selected_addon_ids: [...document.querySelectorAll('[name="serviceAddon"]:checked')].map((field) => field.value),
+  });
+  const updateServiceMode = async () => {
+    const item = selectedService();
+    const optionWrap = document.querySelector("#serviceOptionWrap");
+    const addonWrap = document.querySelector("#addonWrap");
+    const inquiryFields = document.querySelector("#inquiryFields");
+    const checkoutButton = document.querySelector("#checkoutButton");
+    if (!item || item.service_status !== "active") {
+      optionWrap.classList.add("hidden"); addonWrap.classList.add("hidden"); inquiryFields.classList.add("hidden");
+      document.querySelector("#checkoutLines").innerHTML = '<p class="muted">此分類目前沒有可預約服務。</p>';
+      document.querySelector("#checkoutTotal").textContent = "尚未開放"; checkoutButton.disabled = true; return;
+    }
+    const options = catalogData.options.filter((option) => option.service_id === item.service_id);
+    optionWrap.classList.toggle("hidden", options.length === 0);
+    document.querySelector("#serviceOption").innerHTML = '<option value="">請選擇需求類型（選填）</option>' + options.map((option) => `<option value="${option.option_id}">${escapeHtml(option.option_name)}</option>`).join("");
+    const showAddons = item.category_id === "recording_space";
+    addonWrap.classList.toggle("hidden", !showAddons);
+    document.querySelector("#addonOptions").innerHTML = showAddons ? catalogData.addons.map((addon) => `<label><input type="checkbox" name="serviceAddon" value="${addon.addon_id}" /> <span><strong>${escapeHtml(addon.addon_name)}</strong><small>${addon.addon_price === null ? "價格待確認" : money(addon.addon_price)}</small></span></label>`).join("") : "";
+    const isInquiry = item.booking_type === "custom_quote";
+    inquiryFields.classList.toggle("hidden", !isInquiry);
+    checkoutButton.textContent = isInquiry ? "立即詢價" : "立即預約";
+    checkoutButton.disabled = false;
+    if (isInquiry) {
+      currentQuote = null;
+      document.querySelector("#checkoutLines").innerHTML = `<div class="checkout-line"><span>${escapeHtml(item.service_name)}</span><strong>${priceLabel(item)}</strong></div>`;
+      document.querySelector("#checkoutTotal").textContent = "人工報價";
+    } else await updateQuote();
+  };
+  const renderPlans = () => {
+    const items = catalogData.services.filter((item) => item.category_id === category);
+    planSelect.innerHTML = items.length ? items.map((item) => `<option value="${item.service_id}" ${item.service_status !== "active" ? "disabled" : ""}>${escapeHtml(item.service_name)}｜${priceLabel(item)}${item.service_status === "coming_soon" ? "｜即將推出" : ""}</option>`).join("") : '<option value="">目前沒有上架服務</option>';
+    updateServiceMode().catch((error) => alert(error.message));
+  };
+  serviceMenu.querySelectorAll("[data-cat]").forEach((button) => button.addEventListener("click", () => { category = button.dataset.cat; serviceMenu.querySelectorAll("[data-cat]").forEach((item) => item.classList.toggle("active", item === button)); renderPlans(); }));
+  async function updateQuote() {
+    const item = selectedService(); if (!item || item.booking_type !== "direct_booking") return;
+    currentQuote = await api("quote", { method: "POST", body: quotePayload() });
+    document.querySelector("#checkoutLines").innerHTML = currentQuote.lines.map((line) => `<div class="checkout-line"><span>${escapeHtml(line.label)}</span><strong>${money(line.amount)}</strong></div>`).join("") + currentQuote.pending_addons.map((addon) => `<div class="checkout-line"><span>${escapeHtml(addon.addon_name)}</span><strong>價格待確認</strong></div>`).join("");
+    document.querySelector("#checkoutTotal").textContent = `${money(currentQuote.total)} 起`;
+  }
+  planSelect.addEventListener("change", () => updateServiceMode().catch((error) => alert(error.message)));
+  document.querySelector("#serviceOption")?.addEventListener("change", () => updateQuote().catch((error) => alert(error.message)));
+  document.querySelector("#addonOptions")?.addEventListener("change", () => updateQuote().catch((error) => alert(error.message)));
+  document.querySelector("#checkoutButton")?.addEventListener("click", async () => {
+    try {
+      const item = selectedService(); if (!item) return;
+      const bookingDate = document.querySelector("#serviceDate").value || null;
+      const bookingTime = document.querySelector("#serviceTime").value || null;
+      const note = document.querySelector("#bookingNote").value || "";
+      if (item.booking_type === "custom_quote") {
+        const requirements = document.querySelector("#inquiryRequirements").value.trim();
+        const created = await api("inquiries", { method: "POST", body: { service_id: item.service_id, preferred_date: bookingDate, preferred_time: bookingTime, requirements, additional_notes: note } });
+        inquiries = [created, ...inquiries]; renderInquiries(); document.querySelector("#inquiryRequirements").value = ""; show("inquiries");
+        alert("詢價已送出，管理者確認後會更新報價狀態。");
+      } else {
+        const order = await api("orders", { method: "POST", body: { ...quotePayload(), booking_date: bookingDate, booking_time: bookingTime, note } });
+        orders = await api("orders"); renderOrders();
+        alert(`訂單 ${order.order_no} 已建立；付款功能尚未啟用，未產生付款成功紀錄。`);
+      }
+    } catch (error) { alert(error.message); }
+  });
   renderPlans();
 }
 async function initProductionAdmin() {
   await requireSession(); const member = await api("me");
   if (member.role !== "admin") { document.querySelector(".main").innerHTML = '<div class="demo-note">此帳號沒有管理員權限。</div>'; return; }
-  const orders = await api("admin-orders");
+  const [orders, services] = await Promise.all([api("admin-orders"), api("admin-services")]);
+  let inquiries = await api("admin-inquiries");
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
-  document.querySelector("#todayRentalCount").textContent = String(orders.filter((order) => order.booking_date === today && order.category === "rental").length);
-  document.querySelector("#todayErrandCount").textContent = String(orders.filter((order) => order.booking_date === today && order.category === "errand").length);
+  document.querySelector("#todayRentalCount").textContent = String(orders.filter((order) => order.booking_date === today).length);
+  document.querySelector("#todayErrandCount").textContent = String(inquiries.filter((item) => ["pending", "reviewing"].includes(item.status)).length);
   document.querySelector("#adminUnpaidCount").textContent = String(orders.filter((order) => !["PAID", "REFUNDED"].includes(order.payment_status)).length);
   document.querySelector("#todayPaidTotal").textContent = money(orders.filter((order) => order.booking_date === today && order.payment_status === "PAID").reduce((sum, order) => sum + order.total_amount, 0));
   let calendarFilter = "all";
@@ -257,6 +335,24 @@ async function initProductionAdmin() {
   document.querySelector("#closeModal")?.addEventListener("click", () => { document.querySelector("#eventModal").hidden = true; });
   const renderPayments = () => { const filter = document.querySelector("#paymentFilter").value.toUpperCase(); const rows = orders.filter((order) => filter === "ALL" || order.payment_status === filter); document.querySelector("#paymentRows").innerHTML = rows.map((order) => `<tr><td>${order.order_no}</td><td>${titleFor(order)}</td><td>${order.booking_date || ""} ${order.booking_time || ""}</td><td>${money(order.total_amount)}</td><td><span class="badge ${paymentClass(order.payment_status)}">${paymentLabel(order.payment_status)}</span></td></tr>`).join("") || '<tr><td colspan="5">目前沒有訂單</td></tr>'; };
   document.querySelector("#paymentFilter")?.addEventListener("change", renderPayments);
+  const categoryLabel = { temporary_staff: "臨時人力", recording_space: "錄音／空間", ai_digital: "AI／數位服務", venue_equipment: "場地／設備" };
+  const priceTypeLabel = { fixed: "固定價", starting_from: "起價", custom_quote: "客製報價" };
+  const bookingTypeLabel = { direct_booking: "直接預約", custom_quote: "先詢價" };
+  document.querySelector("#adminServiceRows").innerHTML = services.map((service) => `<tr><td><strong>${escapeHtml(service.service_id)}</strong><br>${escapeHtml(service.service_name)}</td><td>${categoryLabel[service.category_id] || escapeHtml(service.category_id)}</td><td>${service.price === null ? "客製報價" : money(service.price)}<br><small>${priceTypeLabel[service.price_type] || escapeHtml(service.price_type)}</small></td><td>${bookingTypeLabel[service.booking_type] || escapeHtml(service.booking_type)}</td><td><span class="badge neutral">${escapeHtml(service.service_status)}</span><br><small>#${service.sort_order}</small></td></tr>`).join("") || '<tr><td colspan="5">目前沒有服務資料</td></tr>';
+  const renderAdminInquiries = () => {
+    document.querySelector("#adminInquiryRows").innerHTML = inquiries.map((item) => `<tr><td><strong>${escapeHtml(item.id.slice(0, 8))}</strong><br><small>${escapeHtml(item.members?.full_name || item.members?.name || item.members?.email || "會員")}</small></td><td><strong>${escapeHtml(item.service_name)}</strong><br><small>${item.preferred_date || "日期未定"} ${item.preferred_time || ""}</small></td><td>${escapeHtml(item.requirements)}</td><td><div class="admin-inquiry-actions"><select data-inquiry-status="${item.id}"><option value="pending" ${item.status === "pending" ? "selected" : ""}>待處理</option><option value="reviewing" ${item.status === "reviewing" ? "selected" : ""}>評估中</option><option value="quoted" ${item.status === "quoted" ? "selected" : ""}>已報價</option><option value="accepted" ${item.status === "accepted" ? "selected" : ""}>已接受</option><option value="closed" ${item.status === "closed" ? "selected" : ""}>已結案</option></select><input data-inquiry-amount="${item.id}" type="number" min="0" step="1" placeholder="報價金額" value="${item.quoted_amount ?? ""}" /><button class="btn ghost small" data-save-inquiry="${item.id}">儲存</button></div></td></tr>`).join("") || '<tr><td colspan="4">目前沒有詢價</td></tr>';
+    document.querySelectorAll("[data-save-inquiry]").forEach((button) => button.addEventListener("click", async () => {
+      try {
+        const id = button.dataset.saveInquiry;
+        const status = document.querySelector(`[data-inquiry-status="${id}"]`).value;
+        const quotedAmount = document.querySelector(`[data-inquiry-amount="${id}"]`).value;
+        const updated = await api("admin-inquiries", { method: "PATCH", body: { id, status, quoted_amount: quotedAmount } });
+        inquiries = inquiries.map((item) => item.id === id ? { ...item, ...updated } : item);
+        renderAdminInquiries();
+      } catch (error) { alert(error.message); }
+    }));
+  };
+  renderAdminInquiries();
   renderCalendar(); renderDay(today); renderPayments();
 }
 
