@@ -104,3 +104,16 @@
 - ⚠️待使用者操作：選擇 Google 帳號後驗證會員資料、地址 CRUD、報價、訂單清單；使用已授權管理員帳號驗證日曆與收款清單。
 - 因登入後流程尚未驗證，目前狀態是「UI v2 已部署；最終帳號驗收待驗證」，不是整案最終結案。
 - 未追蹤的 `LOGO/`、`output/`、`其他更換的美術UI/` 仍保留，未加入 Git。
+
+## 2026-09-30 服務系統 V1 最新狀態
+
+- 功能 commit `646387da42273e4e55877b8150d523e7a6ea1c1f` 已推送 `main`；Pages workflow `36680263055` 成功。
+- 正式站 `https://jikong0709.github.io/meihau-booking/` 已讀回 HTTP 200；首頁有 9 張正式服務卡，手機／桌機無頁面水平溢位，console 0 error／warning。
+- 部署前 SHA `934ea4189901f99d6bf061d7ec0d5c5d9475e171`；回滾 tag `rollback-service-v1-pre-20260930-934ea41` 已推送。
+- Supabase migration `20260930055848_service_system_v1.sql` 已套用；`booking-api` v4 已部署且 JWT、CORS、無 session 401 檢查通過。
+- 資料庫讀回：active services 9、coming soon 1、hidden 7、archived legacy 24、addons 2、service options 6；原有 members 2、addresses 0、orders 0、order_items 0 未變。
+- 服務分流：直接預約為 `direct`；客製服務為 `custom_quote` 並寫入 `service_inquiries`，不得直接產生訂單。
+- 未登入會員／管理頁 redirect 通過；Google OAuth 後完整流程仍是 `NOT RUN`，原因是客戶帳號操作必須由使用者親自進行或另行明確授權。
+- 下次優先：使用者登入後驗證會員資料、地址 CRUD、直接預約、客製詢價、自己的詢價；再用已授權管理員驗證詢價管理與 RLS 隔離。
+- Production Security Advisor 有既存 Leaked Password Protection Disabled 警告；Performance Advisor 無問題。
+- 金流仍未啟用／未操作；未追蹤的使用者素材資料夾保持原狀。
