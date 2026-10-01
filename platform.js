@@ -240,6 +240,7 @@ async function initProductionMember() {
   ];
   let category = "recording_space";
   let currentQuote;
+  let serviceStateRevision = 0;
   const selectedService = () => catalogData.services.find((item) => item.service_id === planSelect.value);
   const priceLabel = (item) => item.price_type === "custom_quote" ? "客製報價" : `${money(item.price)}${item.price_type === "starting_from" ? " 起" : ""}`;
   serviceMenu.innerHTML = categoryDefinitions.map(([id, label, description]) => `<button class="service-choice ${id === category ? "active" : ""}" data-cat="${id}"><strong>${label}</strong><div class="muted">${description}</div></button>`).join("");
@@ -249,11 +250,13 @@ async function initProductionMember() {
     selected_addon_ids: [...document.querySelectorAll('[name="serviceAddon"]:checked')].map((field) => field.value),
   });
   const updateServiceMode = async () => {
+    const revision = ++serviceStateRevision;
     const item = selectedService();
     const optionWrap = document.querySelector("#serviceOptionWrap");
     const addonWrap = document.querySelector("#addonWrap");
     const inquiryFields = document.querySelector("#inquiryFields");
     const checkoutButton = document.querySelector("#checkoutButton");
+    currentQuote = null;
     if (!item || item.service_status !== "active") {
       optionWrap.classList.add("hidden"); addonWrap.classList.add("hidden"); inquiryFields.classList.add("hidden");
       document.querySelector("#checkoutLines").innerHTML = '<p class="muted">此分類目前沒有可預約服務。</p>';
@@ -270,10 +273,12 @@ async function initProductionMember() {
     checkoutButton.textContent = isInquiry ? "立即詢價" : "立即預約";
     checkoutButton.disabled = false;
     if (isInquiry) {
-      currentQuote = null;
       document.querySelector("#checkoutLines").innerHTML = `<div class="checkout-line"><span>${escapeHtml(item.service_name)}</span><strong>${priceLabel(item)}</strong></div>`;
       document.querySelector("#checkoutTotal").textContent = "人工報價";
-    } else await updateQuote();
+    } else {
+      checkoutButton.disabled = true;
+      await updateQuote(revision);
+    }
   };
   const renderPlans = () => {
     const items = catalogData.services.filter((item) => item.category_id === category);
@@ -281,11 +286,17 @@ async function initProductionMember() {
     updateServiceMode().catch((error) => alert(error.message));
   };
   serviceMenu.querySelectorAll("[data-cat]").forEach((button) => button.addEventListener("click", () => { category = button.dataset.cat; serviceMenu.querySelectorAll("[data-cat]").forEach((item) => item.classList.toggle("active", item === button)); renderPlans(); }));
-  async function updateQuote() {
+  async function updateQuote(revision = ++serviceStateRevision) {
     const item = selectedService(); if (!item || item.booking_type !== "direct_booking") return;
-    currentQuote = await api("quote", { method: "POST", body: quotePayload() });
-    document.querySelector("#checkoutLines").innerHTML = currentQuote.lines.map((line) => `<div class="checkout-line"><span>${escapeHtml(line.label)}</span><strong>${money(line.amount)}</strong></div>`).join("") + currentQuote.pending_addons.map((addon) => `<div class="checkout-line"><span>${escapeHtml(addon.addon_name)}</span><strong>價格待確認</strong></div>`).join("");
-    document.querySelector("#checkoutTotal").textContent = `${money(currentQuote.total)} 起`;
+    const payload = quotePayload();
+    const checkoutButton = document.querySelector("#checkoutButton");
+    checkoutButton.disabled = true;
+    const quote = await api("quote", { method: "POST", body: payload });
+    if (revision !== serviceStateRevision || planSelect.value !== payload.service_id) return;
+    currentQuote = quote;
+    document.querySelector("#checkoutLines").innerHTML = quote.lines.map((line) => `<div class="checkout-line"><span>${escapeHtml(line.label)}</span><strong>${money(line.amount)}</strong></div>`).join("") + quote.pending_addons.map((addon) => `<div class="checkout-line"><span>${escapeHtml(addon.addon_name)}</span><strong>價格待確認</strong></div>`).join("");
+    document.querySelector("#checkoutTotal").textContent = `${money(quote.total)} 起`;
+    checkoutButton.disabled = false;
   }
   planSelect.addEventListener("change", () => updateServiceMode().catch((error) => alert(error.message)));
   document.querySelector("#serviceOption")?.addEventListener("change", () => updateQuote().catch((error) => alert(error.message)));
