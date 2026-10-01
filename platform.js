@@ -215,8 +215,23 @@ async function requireSession() {
   if (!session) { location.replace("index.html?login=required"); throw new Error("LOGIN_REQUIRED"); }
   return { client, session };
 }
+function bindAccountSwitch(client) {
+  document.querySelectorAll("[data-switch-account]").forEach((button) => button.addEventListener("click", async () => {
+    button.disabled = true;
+    button.textContent = "正在登出…";
+    const { error } = await client.auth.signOut({ scope: "local" });
+    if (error) {
+      button.disabled = false;
+      button.textContent = "切換帳號";
+      alert(`目前無法切換帳號：${error.message}`);
+      return;
+    }
+    location.replace("index.html?login=1");
+  }));
+}
 async function initProductionMember() {
-  await requireSession();
+  const { client } = await requireSession();
+  bindAccountSwitch(client);
   const sections = [...document.querySelectorAll("[data-section]")];
   const nav = [...document.querySelectorAll("[data-show]")];
   const show = (id) => { sections.forEach((section) => section.classList.toggle("hidden", section.dataset.section !== id)); nav.forEach((item) => item.classList.toggle("active", item.dataset.show === id)); };
@@ -347,7 +362,7 @@ async function initProductionMember() {
   renderPlans();
 }
 async function initProductionAdmin() {
-  await requireSession(); const member = await api("me");
+  const { client } = await requireSession(); bindAccountSwitch(client); const member = await api("me");
   if (!["admin", "developer"].includes(member.role)) { document.querySelector(".main").innerHTML = '<div class="demo-note">此帳號沒有管理員權限。</div>'; return; }
   const isDeveloper = member.role === "developer";
   document.title = `${isDeveloper ? "開發者" : "管理"}後台｜莓好預約站`;
