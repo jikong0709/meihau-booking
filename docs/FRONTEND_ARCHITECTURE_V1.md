@@ -26,7 +26,7 @@
 - 「建立訂單並付款」入口
 
 ### `admin.html`｜管理後台
-正式環境必須由後端確認 `admin` 權限，不能只靠前端隱藏。
+正式環境必須由後端確認 `admin`／`developer` 權限，不能只靠前端隱藏。
 
 功能：
 - Dashboard：今日出租、今日跑腿、待付款、已收款
@@ -109,7 +109,7 @@
 }
 ```
 
-管理後台要求：`roles` 必須包含 `admin`。
+管理後台要求：角色必須是 `admin` 或 `developer`；權限層級為 `developer > admin > member`。
 
 ## 4. 會員資料 API 契約
 
@@ -313,7 +313,7 @@
 
 - `GET ?action=inquiries`：只回傳登入會員自己的詢價。
 - `POST ?action=inquiries`：只接受 active `custom_quote` 服務。
-- `GET ?action=admin-inquiries`：伺服器確認 `booking.members.role = admin` 後回傳全部詢價。
-- `PATCH ?action=admin-inquiries`：只有 Admin 可更新狀態與 `quoted_amount`。
+- `GET ?action=admin-inquiries`：伺服器確認 `booking.members.role` 為 `admin` 或 `developer` 後回傳全部詢價。
+- `PATCH ?action=admin-inquiries`：只有 Admin／Developer 可更新狀態與 `quoted_amount`。
 
-資料庫啟用並強制 RLS；一般 authenticated 使用者只能讀取自己的詢價，不能更新 `quoted_amount`。Edge Function 使用 service role 時仍必須先驗證 JWT 與 Admin 角色，不依靠前端隱藏。
+資料庫啟用並強制 RLS；一般 authenticated 使用者只能讀取自己的詢價，不能更新 `quoted_amount`。Edge Function 使用 service role 時仍必須先驗證 JWT 與 Admin／Developer 角色，不依靠前端隱藏。

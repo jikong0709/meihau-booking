@@ -156,7 +156,7 @@ Deno.serve(async (request) => {
     } catch { return reply(origin, 400, { error: "Invalid inquiry" }); }
   }
   if (action.startsWith("admin-")) {
-    if (member?.role !== "admin") return reply(origin, 403, { error: "Forbidden" });
+    if (!["admin", "developer"].includes(member?.role)) return reply(origin, 403, { error: "Forbidden" });
     if (action === "admin-orders" && request.method === "GET") {
       const { data, error } = await db.schema("booking").from("orders").select("*,members(name,email),order_items(*)").order("booking_date");
       return reply(origin, error ? 400 : 200, error ? { error: "Orders unavailable" } : data);

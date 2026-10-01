@@ -323,7 +323,7 @@ async function initProductionMember() {
 }
 async function initProductionAdmin() {
   await requireSession(); const member = await api("me");
-  if (member.role !== "admin") { document.querySelector(".main").innerHTML = '<div class="demo-note">此帳號沒有管理員權限。</div>'; return; }
+  if (!["admin", "developer"].includes(member.role)) { document.querySelector(".main").innerHTML = '<div class="demo-note">此帳號沒有管理員權限。</div>'; return; }
   const [orders, services] = await Promise.all([api("admin-orders"), api("admin-services")]);
   let inquiries = await api("admin-inquiries");
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });

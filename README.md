@@ -32,7 +32,7 @@
 3. 會員可維護手機、LINE、聯絡 Email 與多組常用地址。
 4. direct booking 金額只由後端服務資料計算；custom quote 不得建立固定金額訂單。
 5. 綠界金流 secrets 不得進前端。
-6. 管理後台正式版必須由伺服器驗證 `admin` 權限。
+6. 管理後台正式版必須由伺服器驗證 `admin`／`developer` 權限；角色層級為 `developer > admin > member`。
 7. 付款狀態與服務狀態分開管理。
 8. 舊訂單保留成交價快照，後台改價不能回寫舊訂單。
 
