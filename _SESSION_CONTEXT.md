@@ -117,3 +117,14 @@
 - 下次優先：使用者登入後驗證會員資料、地址 CRUD、直接預約、客製詢價、自己的詢價；再用已授權管理員驗證詢價管理與 RLS 隔離。
 - Production Security Advisor 有既存 Leaked Password Protection Disabled 警告；Performance Advisor 無問題。
 - 金流仍未啟用／未操作；未追蹤的使用者素材資料夾保持原狀。
+
+## 2026-10-01 Developer 導向與後台整合最新狀態
+
+- 正式 `main` 版本 `fc17ab7`；Pages workflow `36821363851` 成功。
+- 指定最高權限帳號已在正式資料庫讀回 `developer`；副管理者正式登入畫面已讀回 `admin`。
+- `platform.js` 現在依 `me.role` 導向：Developer／Admin 進後台，Member 進會員中心；公開首頁已有 session 時也依角色進入。
+- 後台已整合為六個工作區；Developer 專屬「系統狀態」對 Admin 隱藏。
+- 後台與會員中心新增「切換帳號」，只清除本站本機 session，不代替使用者選擇 Google 帳號。
+- 正式 Admin 驗證通過：角色標示、會員頁自動導向、首頁角色按鈕、預約營運工作區切換、console 無 error／warning。
+- ⚠️待使用者操作：點「切換帳號」後親自選擇 Developer 帳號；登入後應看到「開發者與營運工作台」「最高權限・Developer」與「系統狀態」。
+- ⚠️整案仍待 Claude Code fresh-context 最終驗收；不要把 Codex 自檢標成制度上的最終完成。
