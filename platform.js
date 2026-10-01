@@ -179,11 +179,31 @@ async function api(action, options = {}) {
   if (!response.ok) throw new Error(data.error || "API_ERROR");
   return data;
 }
+const privilegedRoles = new Set(["admin", "developer"]);
+const isPrivilegedMember = (member) => privilegedRoles.has(member?.role);
+const destinationForMember = (member) => isPrivilegedMember(member) ? "admin.html" : "member.html";
 async function initProductionPublic() {
+  const client = await getProductionClient();
+  const { data: { session } } = await client.auth.getSession();
+  let currentMember = null;
+  if (session) {
+    try { currentMember = await api("me"); } catch (error) { console.warn("Unable to resolve signed-in destination", error); }
+  }
+  const roleLabel = currentMember?.role === "developer" ? "進入開發者後台" : currentMember?.role === "admin" ? "進入管理後台" : "進入會員中心";
+  if (currentMember) {
+    [document.querySelector(".desktop-login"), document.querySelector(".header-actions > .btn.small:not(.desktop-login)"), document.querySelector(".hero-copy .btn[data-login]")]
+      .filter(Boolean)
+      .forEach((button) => { button.childNodes[0].textContent = `${roleLabel} `; });
+  }
   document.querySelectorAll("[data-login]").forEach((button) => button.addEventListener("click", async (event) => {
     event.preventDefault();
     try {
-      const client = await getProductionClient();
+      const { data: { session: activeSession } } = await client.auth.getSession();
+      if (activeSession) {
+        const member = currentMember || await api("me");
+        location.href = destinationForMember(member);
+        return;
+      }
       const { error } = await client.auth.signInWithOAuth({ provider: "google", options: { redirectTo: cfg.redirectUrl } });
       if (error) throw error;
     } catch (error) { alert(`目前無法啟動 Google 登入：${error.message}`); }
@@ -203,6 +223,11 @@ async function initProductionMember() {
   nav.forEach((item) => item.addEventListener("click", () => show(item.dataset.show))); show("home");
   const member = await api("me");
   if (!member) throw new Error("會員資料初始化失敗，請重新整理後再試。");
+  const stayInMemberCenter = new URLSearchParams(location.search).get("mode") === "member";
+  if (isPrivilegedMember(member) && !stayInMemberCenter) {
+    location.replace("admin.html");
+    return;
+  }
   const profileForm = document.querySelector("#profileForm");
   const profileMap = { name: member.name, fullName: member.full_name, email: member.email, phone: member.phone, line: member.line_id, contactEmail: member.contact_email };
   Object.entries(profileMap).forEach(([key, value]) => { const field = profileForm?.querySelector(`[name="${key}"]`); if (field) field.value = value || ""; });
@@ -324,6 +349,28 @@ async function initProductionMember() {
 async function initProductionAdmin() {
   await requireSession(); const member = await api("me");
   if (!["admin", "developer"].includes(member.role)) { document.querySelector(".main").innerHTML = '<div class="demo-note">此帳號沒有管理員權限。</div>'; return; }
+  const isDeveloper = member.role === "developer";
+  document.title = `${isDeveloper ? "開發者" : "管理"}後台｜莓好預約站`;
+  document.querySelector("#adminBrandRole").textContent = isDeveloper ? "DEVELOPER" : "ADMIN";
+  document.querySelector("#adminWorkspaceEyebrow").textContent = isDeveloper ? "DEVELOPER WORKSPACE" : "ADMIN WORKSPACE";
+  document.querySelector("#adminWorkspaceTitle").textContent = isDeveloper ? "開發者與營運工作台" : "營運管理工作台";
+  document.querySelector("#adminRoleBadge").textContent = isDeveloper ? "最高權限・Developer" : "副管理者・Admin";
+  document.querySelector("#adminOperatorName").textContent = member.name || member.full_name || member.email || "已登入";
+  document.querySelector("#adminAccessNote").textContent = isDeveloper
+    ? "Developer 已驗證：可使用完整營運功能與系統狀態；權限由正式 API 驗證。"
+    : "Admin 已驗證：可使用營運、詢價、會員與服務資料；系統狀態僅限 Developer。";
+  document.querySelectorAll("[data-developer-only]").forEach((element) => element.classList.toggle("hidden", !isDeveloper));
+  const adminViews = [...document.querySelectorAll("[data-admin-view]")];
+  const adminNav = [...document.querySelectorAll("[data-admin-show]")];
+  const allowedViews = new Set(adminViews.filter((view) => !view.hasAttribute("data-developer-only") || isDeveloper).map((view) => view.dataset.adminView));
+  const showAdminView = (id) => {
+    const next = allowedViews.has(id) ? id : "overview";
+    adminViews.forEach((view) => view.classList.toggle("hidden", view.dataset.adminView !== next || (view.hasAttribute("data-developer-only") && !isDeveloper)));
+    adminNav.forEach((item) => item.classList.toggle("active", item.dataset.adminShow === next));
+    history.replaceState(null, "", `#${next}`);
+  };
+  adminNav.forEach((item) => item.addEventListener("click", () => showAdminView(item.dataset.adminShow)));
+  showAdminView(location.hash.slice(1) || "overview");
   const [orders, services] = await Promise.all([api("admin-orders"), api("admin-services")]);
   let inquiries = await api("admin-inquiries");
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
@@ -331,6 +378,11 @@ async function initProductionAdmin() {
   document.querySelector("#todayErrandCount").textContent = String(inquiries.filter((item) => ["pending", "reviewing"].includes(item.status)).length);
   document.querySelector("#adminUnpaidCount").textContent = String(orders.filter((order) => !["PAID", "REFUNDED"].includes(order.payment_status)).length);
   document.querySelector("#todayPaidTotal").textContent = money(orders.filter((order) => order.booking_date === today && order.payment_status === "PAID").reduce((sum, order) => sum + order.total_amount, 0));
+  document.querySelector("#adminInquiryCount").textContent = String(inquiries.filter((item) => ["pending", "reviewing"].includes(item.status)).length);
+  document.querySelector("#adminServiceCount").textContent = String(services.length);
+  document.querySelector("#systemRole").textContent = member.role;
+  document.querySelector("#systemServiceCount").textContent = String(services.length);
+  document.querySelector("#systemApiStatus").textContent = "正常";
   let calendarFilter = "all";
   const paymentLabel = (status) => ({ PAID: "已付款", PARTIAL: "部分付款", UNPAID: "未付款" }[status] || status);
   const paymentClass = (status) => status === "PAID" ? "ok" : status === "PARTIAL" ? "warn" : "danger";
@@ -359,6 +411,7 @@ async function initProductionAdmin() {
         const quotedAmount = document.querySelector(`[data-inquiry-amount="${id}"]`).value;
         const updated = await api("admin-inquiries", { method: "PATCH", body: { id, status, quoted_amount: quotedAmount } });
         inquiries = inquiries.map((item) => item.id === id ? { ...item, ...updated } : item);
+        document.querySelector("#adminInquiryCount").textContent = String(inquiries.filter((item) => ["pending", "reviewing"].includes(item.status)).length);
         renderAdminInquiries();
       } catch (error) { alert(error.message); }
     }));

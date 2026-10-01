@@ -343,7 +343,59 @@ img, svg { max-width: 100%; }
 }
 .side-nav .active, .side-nav button:hover, .side-nav a:hover { background: rgba(255,255,255,.095); color: #fff; }
 .side-nav button:active, .side-nav a:active { transform: scale(.985); }
+.side-nav-label {
+  padding: 2px 13px 7px;
+  color: rgba(255,255,255,.45);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+.sidebar-footer {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 22px;
+  display: flex;
+  gap: 14px;
+  color: rgba(255,255,255,.58);
+  font-size: .78rem;
+}
+.sidebar-footer a { text-decoration: none; }
 .main { min-width: 0; padding: clamp(20px, 3vw, 36px); max-width: 1480px; width: 100%; margin-inline: auto; }
+.admin-workspace-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 20px;
+}
+.admin-workspace-head h1 { margin: 0; color: var(--ink-strong); font-family: "Noto Serif TC", serif; font-size: clamp(2rem, 3.6vw, 3.15rem); line-height: 1.15; }
+.admin-workspace-head p:last-child { margin-bottom: 0; }
+.admin-role-meta { display: grid; justify-items: end; gap: 8px; min-width: max-content; color: var(--muted); font-size: .84rem; }
+.admin-command-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.admin-command {
+  min-height: 128px;
+  padding: 18px;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--duration-fast) var(--ease-out), border-color var(--duration-ui) ease, box-shadow var(--duration-ui) ease;
+}
+.admin-command span { color: var(--berry-500); font-size: .72rem; font-weight: 850; letter-spacing: .14em; }
+.admin-command strong { color: var(--ink-strong); font-size: 1.04rem; }
+.admin-command small { color: var(--muted); line-height: 1.55; }
+.admin-subsection { margin-top: 34px; }
+.table-scroll { margin-top: 16px; overflow: auto; }
+.system-status-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.system-status-grid article { display: grid; gap: 7px; }
+.system-status-grid span, .system-status-grid small { color: var(--muted); }
+.system-status-grid strong { color: var(--ink-strong); font-size: 1.2rem; }
 .demo-note {
   margin-bottom: var(--space-6);
   padding: 12px 14px;
@@ -568,6 +620,7 @@ img, svg { max-width: 100%; }
   .event:hover { filter: brightness(.97); }
   .icon-btn:hover { background: var(--berry-100); }
   .table tbody tr:hover td { background: #fcf9f7; }
+  .admin-command:hover { transform: translateY(-2px); border-color: var(--berry-300); box-shadow: var(--shadow-sm); }
 }
 
 @media (max-width: 1080px) {
@@ -577,6 +630,7 @@ img, svg { max-width: 100%; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .service-builder { grid-template-columns: minmax(0, 1fr) 320px; }
   .order-row, .schedule-row { grid-template-columns: 1.2fr .82fr .65fr .55fr; }
+  .admin-command-grid, .system-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 820px) {
@@ -608,7 +662,10 @@ img, svg { max-width: 100%; }
   .sidebar .brand { margin: 0; flex: 0 0 auto; }
   .sidebar .brand span:last-child { display: none; }
   .side-nav { display: flex; gap: 4px; flex: 0 0 auto; }
+  .side-nav-label { display: none; }
   .side-nav button, .side-nav a { width: auto; min-width: max-content; text-align: center; padding-inline: 12px; }
+  .sidebar-footer { position: static; flex: 0 0 auto; min-width: max-content; }
+  .admin-workspace-head { align-items: flex-start; }
   .main { padding: 22px 18px 110px; }
   .service-builder { display: block; }
   .checkout {
@@ -670,6 +727,9 @@ img, svg { max-width: 100%; }
   .table { min-width: 680px; }
   .modal { padding: 12px; }
   .modal-card { padding: 20px; max-height: 88vh; border-radius: 18px; }
+  .admin-workspace-head { display: grid; gap: 12px; }
+  .admin-role-meta { justify-items: start; min-width: 0; }
+  .admin-command-grid, .system-status-grid { grid-template-columns: 1fr; }
   .checkout { left: 8px; right: 8px; bottom: 8px; }
   .checkout .btn { min-width: 132px; padding-inline: 12px; }
 }
