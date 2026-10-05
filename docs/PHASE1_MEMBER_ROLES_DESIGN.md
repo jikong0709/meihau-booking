@@ -72,6 +72,33 @@
 | admin-agreement-records | GET | 同意紀錄查詢 |
 | admin-system-role | PATCH | **僅 developer**：設定 admin／member（伺服器端驗證；不可經 API 設 developer） |
 
+### 2.1 API 合約（前後端共同依據，JSON；錯誤一律 `{ "error": "code", "message": "中文說明" }`，HTTP 400/401/403/404）
+
+呼叫方式沿用現有 booking-api（`?action=xxx`，見 platform.js 既有 api 呼叫函式）。
+
+```text
+GET  me            → { member:{user_id,email,name,full_name,phone,line_id,contact_email,avatar_url,region,bio,is_public,role,account_status},
+                       partner_roles:[{role_key,status}], pending_agreements:[{agreement_id,agreement_key,version,title}] }
+GET  my-roles      → { roles:[{role_key,status,review_note_public:null}],
+                       provider:{...providers 會員可編欄位, service_ids:[]}|null, partner:{...}|null, seeker:{...}|null,
+                       tag_ids:[uuid], agreements:[{agreement_id,agreement_key,version,title,applies_to_roles,agreed:boolean}] }
+PUT  my-roles      ← { roles:["member","provider",...], provider:{...}|null, partner:{...}|null, seeker:{...}|null,
+                       tag_ids:[uuid], agree_agreement_ids:[uuid] }
+                   → 同 GET my-roles；缺必要規範 → 400 agreements_required（message 列出缺哪份）
+GET  tags&type=skill（可省略 type）→ { tags:[{tag_id,tag_type,name,slug}] }
+GET  agreements&role=provider（可省略）→ { agreements:[{agreement_id,agreement_key,version,title,body_md,applies_to_roles}] }
+GET  services-for-providers → { services:[{service_id,service_name,category_id}] }（status active/coming_soon）
+
+GET  admin-people&q=&role_key=&role_status=&tag_id=&multi_role=1&page=1 → { items:[{user_id,name,full_name,email,role,account_status,admin_note,partner_roles:[{role_key,status}],tags:[{tag_id,name,tag_type}],created_at}], total, page, page_size:50 }
+GET  admin-person&user_id= → { member:{全欄位}, roles:[...含 review_note], provider, partner, seeker, tags, agreement_records:[{agreement_key,agreement_version,agreed_at,status}] }
+PATCH admin-person ← { user_id, admin_note?, account_status?, add_tag_ids?:[], remove_tag_ids?:[] }
+PATCH admin-role-review ← { user_id, role_key, decision:"approved"|"rejected"|"inactive", review_note? }
+GET/POST/PATCH admin-tags ← POST {tag_type,name,slug?}；PATCH {tag_id,name?,status?,sort_order?}
+GET/POST/PATCH admin-agreements ← POST {agreement_key,title,body_md,applies_to_roles}（建 draft，version 自動+1）；PATCH {agreement_id, action:"publish"} 或 {agreement_id,title?,body_md?}（僅 draft 可改）
+GET  admin-agreement-records&agreement_key=&user_id= → { items:[...] }
+PATCH admin-system-role ← { user_id, role:"admin"|"member" }（僅 developer；目標為 developer 時拒絕）
+```
+
 ## 3. 前台
 - `member.html` 新區塊「我的合作角色」：四個勾選（一般會員｜找服務、服務提供者｜找案件、合作夥伴｜找合作、資源需求者｜找資源），勾選才展開對應欄位；作品集只收網址（可多筆）；依勾選角色列出規範（可展開全文）與確認勾選；送出後每個角色顯示狀態徽章（審核中／已通過／未通過／已停用）。
 - 私密欄位（手機、Email、LINE）前台永不公開。
