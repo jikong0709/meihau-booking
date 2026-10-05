@@ -16,6 +16,14 @@ type ServiceRow = {
   service_status: "draft" | "coming_soon" | "active" | "paused" | "custom" | "hidden" | "archived";
   is_featured: boolean;
   sort_order: number;
+  service_type: "recording" | "ai_digital" | "staff" | "space" | "companion" | null;
+  price_unit: "session" | "hour" | "half_day" | "day" | "project" | null;
+  included_hours: number | null;
+  min_hours: number | null;
+  additional_hour_price: number | null;
+  deposit: number | null;
+  companion_modes: Array<"quiet" | "low_interaction" | "together" | "body_doubling">;
+  requires_provider: boolean;
 };
 
 type AddonRow = {
@@ -50,10 +58,26 @@ async function loadActiveService(db: any, serviceId: string) {
 async function buildQuote(db: any, input: Record<string, unknown>) {
   const service = await loadActiveService(db, String(input.service_id || ""));
   if (service.booking_type !== "direct_booking" || service.price === null) throw new Error("inquiry_required");
-  const lines = [{ label: service.service_name, amount: service.price }];
+  const rawHours = input.hours;
+  const hours = rawHours === undefined || rawHours === null || rawHours === ""
+    ? (service.included_hours ?? service.min_hours ?? 1)
+    : Number(rawHours);
+  if (!Number.isInteger(hours) || hours < 1 || hours > 12 || (service.min_hours !== null && hours < service.min_hours)) throw new Error("invalid_hours");
+  let serviceAmount = service.price;
+  if (service.price_unit === "hour") {
+    serviceAmount = service.price * hours;
+  } else if (service.included_hours !== null && hours > service.included_hours) {
+    if (service.additional_hour_price === null) throw new Error("invalid_hours");
+    serviceAmount += (hours - service.included_hours) * service.additional_hour_price;
+  }
+  const companionMode = String(input.companion_mode || "");
+  const workGoal = String(input.work_goal || "").trim();
+  if (workGoal.length > 500) throw new Error("invalid_work_goal");
+  if (service.service_type === "companion" && (!companionMode || !service.companion_modes.includes(companionMode as ServiceRow["companion_modes"][number]))) throw new Error("invalid_companion_mode");
+  const lines = [{ label: service.service_name, amount: serviceAmount }];
   const selectedAddonIds = selectedIds(input, "selected_addon_ids");
   const pendingAddons: AddonRow[] = [];
-  let total = service.price;
+  let total = serviceAmount;
   if (selectedAddonIds.length) {
     const { data, error } = await db.schema("booking").from("service_addons").select("*").in("addon_id", selectedAddonIds).eq("status", "active");
     if (error || !data || data.length !== selectedAddonIds.length) throw new Error("invalid_addon");
@@ -78,6 +102,11 @@ async function buildQuote(db: any, input: Record<string, unknown>) {
     category: service.category_id,
     service_id: service.service_id,
     price_type: service.price_type,
+    booking_details: {
+      hours,
+      companion_mode: service.service_type === "companion" ? companionMode : null,
+      work_goal: service.service_type === "companion" ? workGoal : "",
+    },
     lines,
     pending_addons: pendingAddons.map(({ addon_id, addon_name }) => ({ addon_id, addon_name })),
     total,
@@ -115,7 +144,10 @@ Deno.serve(async (request) => {
   }
   if (action === "quote" && request.method === "POST") {
     try { return reply(origin, 200, await buildQuote(db, body)); }
-    catch (error) { return reply(origin, 400, { error: error instanceof Error && error.message === "inquiry_required" ? "Inquiry required for this service" : "Invalid quote" }); }
+    catch (error) {
+      const messages: Record<string, string> = { inquiry_required: "Inquiry required for this service", invalid_hours: "Invalid booking hours", invalid_companion_mode: "Invalid companion mode", invalid_work_goal: "Work goal is too long" };
+      return reply(origin, 400, { error: error instanceof Error ? (messages[error.message] || "Invalid quote") : "Invalid quote" });
+    }
   }
   if (action === "orders" && request.method === "GET") { const { data, error } = await db.schema("booking").from("orders").select("*,order_items(*)").eq("user_id", user.id).order("created_at", { ascending: false }); return reply(origin, error ? 400 : 200, error ? { error: error.message } : data); }
   if (action === "orders" && request.method === "POST") {
@@ -129,16 +161,47 @@ Deno.serve(async (request) => {
         pending_addons: q.pending_addons,
         pickup_address_id: String(body.pickup_address_id || "") || null,
         dropoff_address_id: String(body.dropoff_address_id || "") || null,
+        booking_details: q.booking_details,
       };
-      const order = { order_no: orderNo, user_id: user.id, service_id: q.service_id, category: q.category, booking_date: body.booking_date || null, booking_time: body.booking_time || null, note: String(body.note || "").slice(0, 2000), total_amount: q.total, quote_payload: safeQuotePayload };
+      let providerId: string | null = null;
+      const service = await loadActiveService(db, q.service_id);
+      if (service.requires_provider) {
+        const { data: provider, error: providerError } = await db.schema("booking").from("service_providers").select("provider_id").eq("service_id", q.service_id).eq("status", "active").order("sort_order").limit(1).maybeSingle();
+        if (providerError || !provider) throw new Error("provider_unavailable");
+        providerId = provider.provider_id;
+      }
+      const order = { order_no: orderNo, user_id: user.id, service_id: q.service_id, provider_id: providerId, category: q.category, booking_date: body.booking_date || null, booking_time: body.booking_time || null, booking_details: q.booking_details, note: String(body.note || "").slice(0, 2000), total_amount: q.total, quote_payload: safeQuotePayload };
       const { data, error } = await db.schema("booking").from("orders").insert(order).select().single();
       if (error) return reply(origin, 400, { error: "Order could not be created" });
       const { error: itemError } = await db.schema("booking").from("order_items").insert(q.lines.map((line) => ({ order_id: data.id, ...line })));
       if (itemError) return reply(origin, 500, { error: "Order items could not be created" });
       return reply(origin, 201, { ...data, lines: q.lines, pending_addons: q.pending_addons });
     } catch (error) {
-      return reply(origin, 400, { error: error instanceof Error && error.message === "inquiry_required" ? "Inquiry required for this service" : "Invalid order" });
+      const messages: Record<string, string> = { inquiry_required: "Inquiry required for this service", invalid_hours: "Invalid booking hours", invalid_companion_mode: "Invalid companion mode", invalid_work_goal: "Work goal is too long", provider_unavailable: "Service provider unavailable" };
+      return reply(origin, 400, { error: error instanceof Error ? (messages[error.message] || "Invalid order") : "Invalid order" });
     }
+  }
+  if (action === "order-cancel" && request.method === "POST") {
+    const id = String(body.id || "");
+    if (!id) return reply(origin, 400, { error: "Invalid order cancellation" });
+    const { data, error } = await db.schema("booking").from("orders")
+      .update({ service_status: "CANCELLED", updated_at: new Date().toISOString() })
+      .eq("id", id).eq("user_id", user.id).eq("payment_status", "UNPAID")
+      .in("service_status", ["WAITING_PAYMENT", "DRAFT"]).select().maybeSingle();
+    if (error || !data) return reply(origin, 400, { error: "Order cannot be cancelled" });
+    return reply(origin, 200, data);
+  }
+  if (action === "order-reschedule" && request.method === "PATCH") {
+    const id = String(body.id || "");
+    const bookingDate = String(body.booking_date || "");
+    const bookingTime = String(body.booking_time || "");
+    if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate) || !/^\d{2}:\d{2}$/.test(bookingTime)) return reply(origin, 400, { error: "Invalid reschedule request" });
+    const { data, error } = await db.schema("booking").from("orders")
+      .update({ booking_date: bookingDate, booking_time: bookingTime, updated_at: new Date().toISOString() })
+      .eq("id", id).eq("user_id", user.id).eq("payment_status", "UNPAID")
+      .in("service_status", ["WAITING_PAYMENT", "DRAFT"]).select().maybeSingle();
+    if (error || !data) return reply(origin, 400, { error: "Order cannot be rescheduled" });
+    return reply(origin, 200, data);
   }
   if (action === "inquiries" && request.method === "GET") {
     const { data, error } = await db.schema("booking").from("service_inquiries").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
@@ -160,6 +223,13 @@ Deno.serve(async (request) => {
     if (action === "admin-orders" && request.method === "GET") {
       const { data, error } = await db.schema("booking").from("orders").select("*,members(name,email),order_items(*)").order("booking_date");
       return reply(origin, error ? 400 : 200, error ? { error: "Orders unavailable" } : data);
+    }
+    if (action === "admin-orders" && request.method === "PATCH") {
+      const id = String(body.id || "");
+      const serviceStatus = String(body.service_status || "");
+      if (!id || !["CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"].includes(serviceStatus)) return reply(origin, 400, { error: "Invalid service status update" });
+      const { data, error } = await db.schema("booking").from("orders").update({ service_status: serviceStatus, updated_at: new Date().toISOString() }).eq("id", id).select().single();
+      return reply(origin, error ? 400 : 200, error ? { error: "Order status update failed" } : data);
     }
     if (action === "admin-services" && request.method === "GET") {
       const { data, error } = await db.schema("booking").from("services").select("*").order("sort_order");
