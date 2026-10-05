@@ -137,3 +137,13 @@
 - Claude 的 Supabase MCP 連線不含本專案；DB 操作改用本機 Supabase CLI `db query --linked --project-ref tssvabclujwpljzupuvj`。
 - 登入後流程（同日）：會員資料讀取、地址新增／讀回、我的預約／詢價、後台各工作區 PASS。
 - ⚠️待使用者：親自送出一筆直接預約與一筆客製詢價（Claude 送出被安全機制擋）；決定直接預約日期是否必填；決定 E2E 測試資料是否清除。
+- 下次優先：會員資料、地址 CRUD、直接預約、客製詢價、詢價管理的登入後流程驗收（仍 NOT RUN）。
+
+## 2026-10-05 陪工作／共同存在型服務 P0
+
+- `feature/companion-services` 已實作新 migration、時數計價、陪伴模式／目標、Provider 指派、會員取消／改期、Admin 服務狀態與 UI。
+- migration 規格服務列共 38 筆；COMP-001／002／003／006 active，價格分別為 299／399／499／499。
+- 本機自檢：JS／TS syntax、diff check、AC2 mock、AC3 靜態權限條件、AC4 無前端硬編碼金額、三頁 HTTP 200 均通過。
+- NOT RUN：DB migration 重跑兩次、Deno check、瀏覽器 console／390px；未 push、未部署、未寫正式 DB。
+- Git commit 被沙箱阻擋：worktree Git metadata 位於禁止寫入的另一工作目錄，`index.lock` Permission denied。
+- 下一步必須由 Claude Code fresh-context 先驗收，再由可寫 Git metadata 的環境分三段提交；不得直接部署。
