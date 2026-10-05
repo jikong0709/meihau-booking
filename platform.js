@@ -171,7 +171,7 @@ async function initProductionPublic() {
     try {
       const { data: { session: activeSession } } = await client.auth.getSession();
       if (activeSession) {
-        const member = currentMember || await api("me");
+        const member = currentMember || memberFromMe(await api("me"));
         location.href = destinationForMember(member);
         return;
       }
@@ -254,7 +254,7 @@ function readRoleFields(card) {
 function fillRoleFields(card, data = {}) {
   card?.querySelectorAll("[data-f]").forEach((field) => {
     const value = data?.[field.dataset.f];
-    if (field.type === "checkbox") field.checked = Boolean(value);
+    if (field.type === "checkbox") field.checked = field.dataset.f === "accept_matching" && value === undefined ? true : Boolean(value);
     else field.value = value ?? "";
   });
   card?.querySelectorAll("[data-s]").forEach((field) => { field.value = data?.social_links?.[field.dataset.s] ?? ""; });
@@ -334,8 +334,10 @@ async function initMemberRoles(mePayload) {
       const selectedRoles = checks.filter((check) => check.checked).map((check) => check.dataset.roleCheck);
       const portfolio = getPortfolio();
       const urlValues = [...form.querySelectorAll("[data-url]")].filter((field) => !field.closest("[data-role-fields]")?.classList.contains("hidden")).map((field) => field.value.trim()).filter(Boolean).concat(portfolio);
-      const invalidUrl = urlValues.find((value) => { try { return !["http:", "https:"].includes(new URL(value).protocol); } catch { return true; } });
-      if (invalidUrl) { message.textContent = "作品集與網站網址僅接受 http／https 格式。"; return; }
+      const invalidUrlField = [...form.querySelectorAll("[data-url]")].filter((field) => !field.closest("[data-role-fields]")?.classList.contains("hidden")).find((field) => { const value = field.value.trim(); if (!value) return false; try { return !["http:", "https:"].includes(new URL(value).protocol); } catch { return true; } });
+      const invalidPortfolioUrl = portfolio.find((value) => { try { return !["http:", "https:"].includes(new URL(value).protocol); } catch { return true; } });
+      if (invalidUrlField) { message.textContent = `${invalidUrlField.labels?.[0]?.textContent || "網址欄位"}僅接受 http／https 網址。`; invalidUrlField.focus(); return; }
+      if (invalidPortfolioUrl) { message.textContent = "作品集網址僅接受 http／https 網址。"; return; }
       if (portfolio.length > 10) { message.textContent = "作品集網址最多 10 筆。"; return; }
       const budgetMin = Number(document.querySelector("#skBudgetMin")?.value || 0), budgetMax = Number(document.querySelector("#skBudgetMax")?.value || 0);
       if (selectedRoles.includes("resource_seeker") && budgetMax && budgetMin > budgetMax) { message.textContent = "預算下限不可高於預算上限。"; return; }
@@ -346,6 +348,8 @@ async function initMemberRoles(mePayload) {
       provider.portfolio_urls = portfolio;
       const partner = readRoleFields(form.querySelector('[data-role-card="partner"]'));
       partner.partner_types = [...form.querySelectorAll('[name="partner_type"]:checked')].map((input) => input.value);
+      if (selectedRoles.includes("partner") && !String(partner.organization_name || "").trim()) { message.textContent = "請填寫合作夥伴的單位／品牌名稱。"; document.querySelector("#ptOrg")?.focus(); return; }
+      if (selectedRoles.includes("partner") && !partner.partner_types.length) { message.textContent = "請至少選擇一項夥伴類型。"; document.querySelector("#ptTypes")?.scrollIntoView({ block: "center" }); return; }
       partner.resources = getResources(); partner.cooperation_methods = getMethods();
       const seeker = readRoleFields(form.querySelector('[data-role-card="resource_seeker"]'));
       seeker.need_categories = getNeeds();
@@ -625,7 +629,7 @@ async function initAdminPeople(isDeveloper) {
       ${profileBlocks.map(([title, data]) => `<section class="panel drawer-block"><h3>${title}</h3><dl class="kv">${detailPairs(data)}</dl></section>`).join("")}
       <section class="panel drawer-block"><h3>標籤</h3><div id="personTags" class="tag-line">${(detail.tags || []).map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)} <button class="tag-remove" type="button" data-remove-person-tag="${escapeHtml(tag.tag_id)}" aria-label="移除 ${escapeHtml(tag.name)}">×</button></span>`).join("") || '<span class="muted">尚無標籤</span>'}</div><div class="field"><label for="personTagAdd">新增標籤</label><select id="personTagAdd"><option value="">請選擇</option>${allTags.filter((tag) => tag.status === "active" && !(detail.tags || []).some((assigned) => assigned.tag_id === tag.tag_id)).map((tag) => `<option value="${escapeHtml(tag.tag_id)}">${escapeHtml(tag.name)}｜${escapeHtml(tag.tag_type)}</option>`).join("")}</select></div><button id="addPersonTag" class="btn ghost small" type="button">加入標籤</button></section>
       <section class="panel drawer-block"><h3>內部資料</h3><form id="personAdminForm" class="inline-form"><div class="field"><label for="personAccountStatus">帳號狀態</label><select id="personAccountStatus" name="account_status"><option value="active" ${member.account_status !== "suspended" ? "selected" : ""}>啟用</option><option value="suspended" ${member.account_status === "suspended" ? "selected" : ""}>停權</option></select></div><div class="field"><label for="personAdminNote">內部備註</label><textarea id="personAdminNote" name="admin_note" rows="4">${escapeHtml(member.admin_note || "")}</textarea></div><button class="btn small" type="submit">儲存會員資料</button></form></section>
-      ${isDeveloper ? `<section class="panel drawer-block" data-system-role-section><h3>系統權限（僅 Developer）</h3><div class="field"><label for="personSystemRole">系統權限</label><select id="personSystemRole"><option value="member" ${member.role !== "admin" ? "selected" : ""}>member</option><option value="admin" ${member.role === "admin" ? "selected" : ""}>admin</option></select></div><button id="saveSystemRole" class="btn ghost small" type="button">更新系統權限</button></section>` : ""}
+      ${isDeveloper ? (member.role === "developer" ? `<section class="panel drawer-block" data-system-role-section><h3>系統權限（僅 Developer）</h3><p class="demo-note">Developer 帳號受保護</p></section>` : `<section class="panel drawer-block" data-system-role-section><h3>系統權限（僅 Developer）</h3><div class="field"><label for="personSystemRole">系統權限</label><select id="personSystemRole"><option value="member" ${member.role !== "admin" ? "selected" : ""}>member</option><option value="admin" ${member.role === "admin" ? "selected" : ""}>admin</option></select></div><button id="saveSystemRole" class="btn ghost small" type="button">更新系統權限</button></section>`) : ""}
       <section class="panel drawer-block"><h3>同意紀錄</h3><div class="table-scroll"><table class="table"><thead><tr><th>規範</th><th>版本</th><th>狀態</th></tr></thead><tbody>${(detail.agreement_records || []).map((record) => `<tr><td>${escapeHtml(record.agreement_key)}</td><td>v${escapeHtml(record.agreement_version)}</td><td>${escapeHtml(record.status)}</td></tr>`).join("") || '<tr><td colspan="3">尚無同意紀錄</td></tr>'}</tbody></table></div></section>`;
     drawer.hidden = false; backdrop.hidden = false;
     root.querySelectorAll("[data-role-decision]").forEach((button) => button.addEventListener("click", async () => {

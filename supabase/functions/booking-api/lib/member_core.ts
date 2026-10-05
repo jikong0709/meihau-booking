@@ -5,13 +5,15 @@ import { reply } from "./http.ts";
 
 export async function handleProfile(ctx: RequestContext) {
   const { body, db, origin, user } = ctx;
-  const patch = {
-    name: String(body.name || "").slice(0, 80), full_name: String(body.full_name || "").slice(0, 120),
-    phone: String(body.phone || "").slice(0, 40), line_id: String(body.line_id || "").slice(0, 80),
-    contact_email: String(body.contact_email || "").slice(0, 160), avatar_url: String(body.avatar_url || "").slice(0, 2000),
-    region: String(body.region || "").slice(0, 120), bio: String(body.bio || "").slice(0, 2000),
-    is_public: Boolean(body.is_public), updated_at: new Date().toISOString(),
+  const patch: Record<string, string | boolean> = { updated_at: new Date().toISOString() };
+  const textFields: Record<string, number> = {
+    name: 80, full_name: 120, phone: 40, line_id: 80, contact_email: 160,
+    avatar_url: 2000, region: 120, bio: 2000,
   };
+  for (const [field, limit] of Object.entries(textFields)) {
+    if (field in body) patch[field] = String(body[field] ?? "").slice(0, limit);
+  }
+  if ("is_public" in body) patch.is_public = Boolean(body.is_public);
   const { data, error } = await db.schema("booking").from("members").update(patch).eq("user_id", user.id).select(MEMBER_PUBLIC_COLUMNS).single();
   return reply(origin, error ? 400 : 200, error ? { error: error.message } : data);
 }

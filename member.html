@@ -257,8 +257,8 @@
                   <div class="field"><label for="pvArea">服務地區</label><input id="pvArea" data-f="service_area" maxlength="120" placeholder="例如：台中市區" /></div>
                   <div class="field"><label for="pvMode">服務方式</label><select id="pvMode" data-f="service_mode"><option value="online">線上</option><option value="offline">實體</option><option value="both">線上＋實體</option></select></div>
                   <div class="field"><label for="pvWebsite">官方網站</label><input id="pvWebsite" data-f="website" data-url inputmode="url" placeholder="https://" /></div>
-                  <div class="field"><label for="pvIg">Instagram</label><input id="pvIg" data-f="instagram" maxlength="200" /></div>
-                  <div class="field"><label for="pvFb">Facebook</label><input id="pvFb" data-f="facebook" maxlength="200" /></div>
+                  <div class="field"><label for="pvIg">Instagram</label><input id="pvIg" data-f="instagram" data-url inputmode="url" maxlength="200" placeholder="https://www.instagram.com/example" /></div>
+                  <div class="field"><label for="pvFb">Facebook</label><input id="pvFb" data-f="facebook" data-url inputmode="url" maxlength="200" placeholder="https://www.facebook.com/example" /></div>
                   <div class="field"><label for="pvLine">LINE</label><input id="pvLine" data-f="line" maxlength="120" /><span class="private-note">🔒 不會公開顯示</span></div>
                   <div class="field"><label for="pvAvail">目前接案狀態</label><select id="pvAvail" data-f="availability_status"><option value="available">可接案</option><option value="partial">部分時段可接</option><option value="paused">暫停接案</option><option value="internal_only">僅限內部</option><option value="standby">待命</option></select></div>
                   <div class="field"><label for="pvHours">可服務時段</label><input id="pvHours" data-f="available_hours" maxlength="200" placeholder="例如：平日晚上、週末" /></div>
@@ -283,13 +283,13 @@
               <p class="role-inactive-hint hidden" data-role-hint="partner">取消後資料保留，狀態改為停用；之後重新勾選會回到審核中。</p>
               <div class="role-fields hidden" data-role-fields="partner">
                 <div class="form-grid">
-                  <div class="field full"><label for="ptOrg">單位／品牌名稱</label><input id="ptOrg" data-f="organization_name" maxlength="120" /></div>
+                  <div class="field full"><label for="ptOrg">單位／品牌名稱（必填）</label><input id="ptOrg" data-f="organization_name" maxlength="120" required /></div>
                   <div class="field full"><label for="ptIntro">簡介</label><textarea id="ptIntro" data-f="introduction" rows="3" maxlength="2000"></textarea></div>
                   <div class="field"><label for="ptWebsite">官方網站</label><input id="ptWebsite" data-f="website" data-url inputmode="url" placeholder="https://" /></div>
                   <div class="field"><label for="ptLocation">所在地點</label><input id="ptLocation" data-f="location" maxlength="200" /></div>
                   <div class="field"><label for="ptArea">服務／合作地區</label><input id="ptArea" data-f="service_area" maxlength="200" /></div>
-                  <div class="field"><label for="ptFb">Facebook</label><input id="ptFb" data-s="facebook" maxlength="200" /></div>
-                  <div class="field"><label for="ptIg">Instagram</label><input id="ptIg" data-s="instagram" maxlength="200" /></div>
+                  <div class="field"><label for="ptFb">Facebook</label><input id="ptFb" data-s="facebook" data-url inputmode="url" maxlength="200" placeholder="https://www.facebook.com/example" /></div>
+                  <div class="field"><label for="ptIg">Instagram</label><input id="ptIg" data-s="instagram" data-url inputmode="url" maxlength="200" placeholder="https://www.instagram.com/example" /></div>
                   <div class="field"><label for="ptLine">LINE</label><input id="ptLine" data-s="line" maxlength="120" /><span class="private-note">🔒 不會公開顯示</span></div>
                   <div class="field full"><label for="ptConditions">合作條件</label><textarea id="ptConditions" data-f="cooperation_conditions" rows="2" maxlength="1000"></textarea></div>
                   <div class="field"><label for="ptPrice">價格說明</label><input id="ptPrice" data-f="price_description" maxlength="300" /></div>
@@ -297,7 +297,7 @@
                   <label class="field-check"><input type="checkbox" data-f="advertising_interest" />有廣告合作意願</label>
                   <label class="field-check"><input type="checkbox" data-f="matching_interest" />願意被媒合</label>
                 </div>
-                <div class="field"><span>夥伴類型（可複選）</span><div class="chip-group" id="ptTypes"></div></div>
+                <div class="field"><span>夥伴類型（必填，可複選）</span><div class="chip-group" id="ptTypes"></div></div>
                 <div class="field"><span>可提供的資源（自由新增）</span><div id="ptResources" class="list-editor"></div></div>
                 <div class="field"><span>合作方式（自由新增，例如：聯名活動、通路上架）</span><div id="ptMethods" class="list-editor"></div></div>
                 <div class="field"><span>資源／地區標籤（可複選）</span><div class="chip-group" id="ptTags"><span class="muted">載入中…</span></div></div>
@@ -320,7 +320,7 @@
                   <div class="field"><label for="skTimeline">時程</label><input id="skTimeline" data-f="timeline" maxlength="200" placeholder="例如：下個月底前" /></div>
                   <div class="field"><label for="skCoop">合作型態</label><input id="skCoop" data-f="cooperation_type" maxlength="200" /></div>
                   <label class="field-check"><input type="checkbox" data-f="is_public" />公開我的需求（不含聯絡資料）</label>
-                  <label class="field-check"><input type="checkbox" data-f="accept_matching" />願意被媒合</label>
+                  <label class="field-check"><input type="checkbox" data-f="accept_matching" checked />願意被媒合</label>
                 </div>
                 <div class="field"><span>需求類別（自由新增）</span><div id="skNeeds" class="list-editor"></div></div>
                 <div class="field"><span>所需技能／資源／地區標籤（可複選）</span><div class="chip-group" id="skTags"><span class="muted">載入中…</span></div></div>

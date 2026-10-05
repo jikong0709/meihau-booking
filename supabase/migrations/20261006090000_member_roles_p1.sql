@@ -31,7 +31,7 @@ alter table booking.providers
   add column if not exists accept_long_term boolean not null default false,
   add column if not exists available_hours text not null default '',
   add column if not exists availability_status text not null default 'available',
-  add column if not exists approval_status text not null default 'pending',
+  add column if not exists approval_status text,
   add column if not exists admin_note text not null default '';
 alter table booking.providers drop constraint if exists providers_user_id_fkey;
 alter table booking.providers add constraint providers_user_id_fkey foreign key (user_id) references booking.members(user_id);
@@ -45,6 +45,10 @@ alter table booking.providers drop constraint if exists providers_availability_s
 alter table booking.providers add constraint providers_availability_status_check check (availability_status in ('available','partial','paused','internal_only','standby'));
 alter table booking.providers drop constraint if exists providers_approval_status_check;
 alter table booking.providers add constraint providers_approval_status_check check (approval_status in ('pending','approved','rejected','suspended'));
+update booking.providers set approval_status = 'approved' where provider_id = 'PRV-MEIHAU' and approval_status is null;
+update booking.providers set approval_status = 'pending' where approval_status is null;
+alter table booking.providers alter column approval_status set default 'pending';
+alter table booking.providers alter column approval_status set not null;
 alter table booking.providers drop constraint if exists providers_portfolio_urls_check;
 alter table booking.providers add constraint providers_portfolio_urls_check check (cardinality(portfolio_urls) <= 10);
 
@@ -183,7 +187,7 @@ drop policy if exists "members read active providers" on booking.providers;
 revoke all on booking.members, booking.providers, booking.member_roles, booking.tags, booking.member_tags, booking.partners, booking.seeker_profiles, booking.agreements, booking.member_agreements from anon, authenticated;
 grant select, insert, update, delete on booking.member_roles, booking.tags, booking.member_tags, booking.partners, booking.seeker_profiles, booking.agreements, booking.member_agreements to service_role;
 
-update booking.providers set approval_status = 'approved' where provider_id = 'PRV-MEIHAU';
+update booking.providers set approval_status = 'approved' where provider_id = 'PRV-MEIHAU' and approval_status is null;
 
 insert into booking.tags(tag_type, name, slug, sort_order) values
   ('identity','設計師','designer',10), ('identity','講師','lecturer',20), ('identity','店家','store',30), ('identity','品牌','brand',40), ('identity','供應商','supplier',50),
