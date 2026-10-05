@@ -25,6 +25,7 @@
           ><button data-show="orders">我的預約</button
           ><button data-show="inquiries">我的詢價</button
           ><button data-show="profile">我的資料</button
+          ><button data-show="roles">我的合作角色</button
           ><button data-show="addresses">常用地址</button
           ><button type="button" data-switch-account>切換帳號</button
           ><a href="index.html">回公開網站</a>
@@ -34,6 +35,7 @@
         <div class="demo-note">
           會員資料、常用地址與預約會安全儲存在會員帳號中；正式付款功能尚未啟用。
         </div>
+        <div id="pendingAgreementBanner" class="pending-agreement-banner hidden" role="status"></div>
         <section data-section="home">
           <div class="page-head">
             <div>
@@ -197,19 +199,143 @@
             </div>
             <div class="field">
               <label for="profileEmail">Google Email</label
-              ><input id="profileEmail" name="email" type="email" readonly />
+              ><input id="profileEmail" name="email" type="email" readonly /><span class="private-note">🔒 不會公開顯示</span>
             </div>
             <div class="field">
-              <label for="profilePhone">手機</label><input id="profilePhone" name="phone" inputmode="tel" />
+              <label for="profilePhone">手機</label><input id="profilePhone" name="phone" inputmode="tel" /><span class="private-note">🔒 不會公開顯示</span>
             </div>
-            <div class="field"><label for="profileLine">LINE ID</label><input id="profileLine" name="line" /></div>
+            <div class="field"><label for="profileLine">LINE ID</label><input id="profileLine" name="line" /><span class="private-note">🔒 不會公開顯示</span></div>
             <div class="field full">
               <label for="profileContactEmail">聯絡 Email</label
-              ><input id="profileContactEmail" name="contactEmail" type="email" />
+              ><input id="profileContactEmail" name="contactEmail" type="email" /><span class="private-note">🔒 不會公開顯示</span>
             </div>
+            <div class="field">
+              <label for="profileAvatar">頭像網址</label><input id="profileAvatar" name="avatarUrl" type="url" inputmode="url" placeholder="https://" />
+            </div>
+            <div class="field">
+              <label for="profileRegion">所在地區</label><input id="profileRegion" name="region" maxlength="120" />
+            </div>
+            <div class="field full">
+              <label for="profileBio">自我介紹</label><textarea id="profileBio" name="bio" maxlength="2000" rows="4"></textarea>
+            </div>
+            <label class="field-check full"><input id="profilePublic" name="isPublic" type="checkbox" />公開個人介紹（手機、Email、LINE 永不公開）</label>
             <div class="field full">
               <button class="btn" type="submit">更新資料</button
               ><span id="profileStatus" class="muted"></span>
+            </div>
+          </form>
+        </section>
+        <section data-section="roles" id="roles" class="hidden">
+          <div class="page-head">
+            <div>
+              <p class="eyebrow">MY ROLES</p>
+              <h1>我的合作角色</h1>
+              <p class="muted">一個帳號可同時勾選多個角色；勾選後填寫對應資料並同意規範，送出後由管理員審核</p>
+            </div>
+          </div>
+          <div id="rolesLoadError" class="demo-note hidden" role="alert"></div>
+          <form id="rolesForm" novalidate>
+            <article class="card role-card" data-role-card="member">
+              <div class="role-card-head">
+                <label class="role-toggle"><input type="checkbox" data-role-check="member" /><span><b>一般會員｜找服務</b><small>預約服務、詢價，使用會員中心</small></span></label>
+                <span class="role-badge-row" data-role-status="member"></span>
+              </div>
+              <p class="role-inactive-hint hidden" data-role-hint="member">取消後資料保留，狀態改為停用；之後重新勾選會回到審核中。</p>
+            </article>
+
+            <article class="card role-card" data-role-card="provider">
+              <div class="role-card-head">
+                <label class="role-toggle"><input type="checkbox" data-role-check="provider" /><span><b>服務提供者｜找案件</b><small>提供技能或服務，接收案件與合作機會</small></span></label>
+                <span class="role-badge-row" data-role-status="provider"></span>
+              </div>
+              <p class="role-review-note hidden" data-role-note="provider"></p>
+              <p class="role-inactive-hint hidden" data-role-hint="provider">取消後資料保留，狀態改為停用；之後重新勾選會回到審核中。</p>
+              <div class="role-fields hidden" data-role-fields="provider">
+                <div class="form-grid">
+                  <div class="field"><label for="pvEntity">身分型態</label><select id="pvEntity" data-f="entity_type"><option value="individual">個人</option><option value="brand">品牌</option><option value="store">店家</option></select></div>
+                  <div class="field"><label for="pvBrand">品牌／工作室名稱</label><input id="pvBrand" data-f="brand_name" maxlength="120" /></div>
+                  <div class="field"><label for="pvArea">服務地區</label><input id="pvArea" data-f="service_area" maxlength="120" placeholder="例如：台中市區" /></div>
+                  <div class="field"><label for="pvMode">服務方式</label><select id="pvMode" data-f="service_mode"><option value="online">線上</option><option value="offline">實體</option><option value="both">線上＋實體</option></select></div>
+                  <div class="field"><label for="pvWebsite">官方網站</label><input id="pvWebsite" data-f="website" data-url inputmode="url" placeholder="https://" /></div>
+                  <div class="field"><label for="pvIg">Instagram</label><input id="pvIg" data-f="instagram" maxlength="200" /></div>
+                  <div class="field"><label for="pvFb">Facebook</label><input id="pvFb" data-f="facebook" maxlength="200" /></div>
+                  <div class="field"><label for="pvLine">LINE</label><input id="pvLine" data-f="line" maxlength="120" /><span class="private-note">🔒 不會公開顯示</span></div>
+                  <div class="field"><label for="pvAvail">目前接案狀態</label><select id="pvAvail" data-f="availability_status"><option value="available">可接案</option><option value="partial">部分時段可接</option><option value="paused">暫停接案</option><option value="internal_only">僅限內部</option><option value="standby">待命</option></select></div>
+                  <div class="field"><label for="pvHours">可服務時段</label><input id="pvHours" data-f="available_hours" maxlength="200" placeholder="例如：平日晚上、週末" /></div>
+                  <div class="field full"><label for="pvPricing">價格說明</label><textarea id="pvPricing" data-f="pricing_description" rows="2" maxlength="1000"></textarea></div>
+                  <div class="field"><label for="pvQuote">報價方式</label><input id="pvQuote" data-f="quote_method" maxlength="200" /></div>
+                  <div class="field"><label for="pvDiscount">會員優惠</label><input id="pvDiscount" data-f="member_discount" maxlength="200" /></div>
+                  <label class="field-check"><input type="checkbox" data-f="accept_projects" />接受專案合作</label>
+                  <label class="field-check"><input type="checkbox" data-f="accept_long_term" />接受長期合作</label>
+                </div>
+                <div class="field"><span>提供哪些服務（可複選）</span><div class="chip-group" id="pvServices"><span class="muted">載入中…</span></div></div>
+                <div class="field"><span>技能標籤（可複選）</span><div class="chip-group" id="pvSkills"><span class="muted">載入中…</span></div></div>
+                <div class="field"><span>作品集網址（最多 10 筆，僅限 http／https）</span><div id="pvPortfolio" class="list-editor"></div></div>
+              </div>
+            </article>
+
+            <article class="card role-card" data-role-card="partner">
+              <div class="role-card-head">
+                <label class="role-toggle"><input type="checkbox" data-role-check="partner" /><span><b>合作夥伴｜找合作</b><small>店家、品牌、供應商、通路、場地、講師等異業合作</small></span></label>
+                <span class="role-badge-row" data-role-status="partner"></span>
+              </div>
+              <p class="role-review-note hidden" data-role-note="partner"></p>
+              <p class="role-inactive-hint hidden" data-role-hint="partner">取消後資料保留，狀態改為停用；之後重新勾選會回到審核中。</p>
+              <div class="role-fields hidden" data-role-fields="partner">
+                <div class="form-grid">
+                  <div class="field full"><label for="ptOrg">單位／品牌名稱</label><input id="ptOrg" data-f="organization_name" maxlength="120" /></div>
+                  <div class="field full"><label for="ptIntro">簡介</label><textarea id="ptIntro" data-f="introduction" rows="3" maxlength="2000"></textarea></div>
+                  <div class="field"><label for="ptWebsite">官方網站</label><input id="ptWebsite" data-f="website" data-url inputmode="url" placeholder="https://" /></div>
+                  <div class="field"><label for="ptLocation">所在地點</label><input id="ptLocation" data-f="location" maxlength="200" /></div>
+                  <div class="field"><label for="ptArea">服務／合作地區</label><input id="ptArea" data-f="service_area" maxlength="200" /></div>
+                  <div class="field"><label for="ptFb">Facebook</label><input id="ptFb" data-s="facebook" maxlength="200" /></div>
+                  <div class="field"><label for="ptIg">Instagram</label><input id="ptIg" data-s="instagram" maxlength="200" /></div>
+                  <div class="field"><label for="ptLine">LINE</label><input id="ptLine" data-s="line" maxlength="120" /><span class="private-note">🔒 不會公開顯示</span></div>
+                  <div class="field full"><label for="ptConditions">合作條件</label><textarea id="ptConditions" data-f="cooperation_conditions" rows="2" maxlength="1000"></textarea></div>
+                  <div class="field"><label for="ptPrice">價格說明</label><input id="ptPrice" data-f="price_description" maxlength="300" /></div>
+                  <div class="field"><label for="ptDiscount">會員優惠</label><input id="ptDiscount" data-f="member_discount" maxlength="200" /></div>
+                  <label class="field-check"><input type="checkbox" data-f="advertising_interest" />有廣告合作意願</label>
+                  <label class="field-check"><input type="checkbox" data-f="matching_interest" />願意被媒合</label>
+                </div>
+                <div class="field"><span>夥伴類型（可複選）</span><div class="chip-group" id="ptTypes"></div></div>
+                <div class="field"><span>可提供的資源（自由新增）</span><div id="ptResources" class="list-editor"></div></div>
+                <div class="field"><span>合作方式（自由新增，例如：聯名活動、通路上架）</span><div id="ptMethods" class="list-editor"></div></div>
+                <div class="field"><span>資源／地區標籤（可複選）</span><div class="chip-group" id="ptTags"><span class="muted">載入中…</span></div></div>
+              </div>
+            </article>
+
+            <article class="card role-card" data-role-card="resource_seeker">
+              <div class="role-card-head">
+                <label class="role-toggle"><input type="checkbox" data-role-check="resource_seeker" /><span><b>資源需求者｜找資源</b><small>有案件或活動，需要人力、場地、物資或合作夥伴</small></span></label>
+                <span class="role-badge-row" data-role-status="resource_seeker"></span>
+              </div>
+              <p class="role-review-note hidden" data-role-note="resource_seeker"></p>
+              <p class="role-inactive-hint hidden" data-role-hint="resource_seeker">取消後資料保留，狀態改為停用；之後重新勾選會回到審核中。</p>
+              <div class="role-fields hidden" data-role-fields="resource_seeker">
+                <div class="form-grid">
+                  <div class="field full"><label for="skLooking">想找什麼</label><textarea id="skLooking" data-f="looking_for" rows="3" maxlength="2000"></textarea></div>
+                  <div class="field"><label for="skBudgetMin">預算下限（NT$）</label><input id="skBudgetMin" data-f="budget_min" data-num type="number" min="0" step="100" inputmode="numeric" /></div>
+                  <div class="field"><label for="skBudgetMax">預算上限（NT$）</label><input id="skBudgetMax" data-f="budget_max" data-num type="number" min="0" step="100" inputmode="numeric" /></div>
+                  <div class="field"><label for="skRegion">地區</label><input id="skRegion" data-f="region" maxlength="120" /></div>
+                  <div class="field"><label for="skTimeline">時程</label><input id="skTimeline" data-f="timeline" maxlength="200" placeholder="例如：下個月底前" /></div>
+                  <div class="field"><label for="skCoop">合作型態</label><input id="skCoop" data-f="cooperation_type" maxlength="200" /></div>
+                  <label class="field-check"><input type="checkbox" data-f="is_public" />公開我的需求（不含聯絡資料）</label>
+                  <label class="field-check"><input type="checkbox" data-f="accept_matching" />願意被媒合</label>
+                </div>
+                <div class="field"><span>需求類別（自由新增）</span><div id="skNeeds" class="list-editor"></div></div>
+                <div class="field"><span>所需技能／資源／地區標籤（可複選）</span><div class="chip-group" id="skTags"><span class="muted">載入中…</span></div></div>
+              </div>
+            </article>
+
+            <article class="card role-card" id="agreementsCard">
+              <h3 style="margin:0 0 6px">規範與同意</h3>
+              <p class="muted" style="margin:0 0 12px">依你勾選的角色列出規範；請展開閱讀全文並逐份確認。</p>
+              <div id="agreementList" class="stack"><span class="muted">請先勾選角色</span></div>
+            </article>
+            <p class="private-note">手機、Email、LINE 為私密欄位，不會公開顯示；作品集僅收網址，不上傳檔案。</p>
+            <div class="roles-actions">
+              <button id="rolesSubmit" class="btn" type="submit" disabled>送出角色申請</button>
+              <span id="rolesMessage" class="roles-error" role="status" aria-live="polite"></span>
             </div>
           </form>
         </section>

@@ -21,7 +21,7 @@
           <button class="active" type="button" data-admin-show="overview">總覽</button>
           <button type="button" data-admin-show="operations">預約營運</button>
           <button type="button" data-admin-show="inquiries">詢價管理</button>
-          <button type="button" data-admin-show="members">會員</button>
+          <button type="button" data-admin-show="members">👥 會員與合作管理</button>
           <button type="button" data-admin-show="services">服務資料</button>
           <button type="button" data-admin-show="system" data-developer-only>系統狀態</button>
         </nav>
@@ -40,11 +40,50 @@
         <section id="daySection" class="admin-view hidden admin-subsection" data-admin-view="operations"><div class="page-head"><div><p class="eyebrow">DAILY SCHEDULE</p><h2 id="dayTitle">每日排程</h2></div></div><div id="daySchedule" class="schedule-list"></div></section>
         <section id="payments" class="admin-view hidden admin-subsection" data-admin-view="operations"><div class="toolbar"><div><p class="eyebrow">PAYMENTS</p><h2 style="margin:0">收款管理</h2></div><label class="field" for="paymentFilter"><span>付款狀態</span><select id="paymentFilter"><option value="all">全部</option><option value="paid">已付款</option><option value="unpaid">未付款</option><option value="partial">部分付款</option></select></label></div><div class="table-scroll"><table class="table"><thead><tr><th>訂單</th><th>服務</th><th>排程</th><th>金額</th><th>付款狀態</th></tr></thead><tbody id="paymentRows"></tbody></table></div><p class="muted">付款狀態與服務狀態分開呈現；正式資料與狀態更新皆以後端回傳為準。</p></section>
         <section id="inquiriesAdmin" class="admin-view hidden" data-admin-view="inquiries"><div class="page-head"><div><p class="eyebrow">INQUIRIES</p><h2>詢價管理</h2><p class="muted">管理員與開發者可查看全部詢價、填寫報價金額與更新狀態</p></div><span class="badge pending"><span id="adminInquiryCount">—</span> 筆待處理</span></div><div class="table-scroll"><table class="table"><thead><tr><th>詢價／會員</th><th>服務與日期</th><th>需求內容</th><th>狀態／報價</th></tr></thead><tbody id="adminInquiryRows"></tbody></table></div></section>
-        <section id="members" class="admin-view hidden" data-admin-view="members"><div class="page-head"><div><p class="eyebrow">MEMBERS</p><h2>會員管理</h2><p class="muted">會員搜尋與狀態工具將集中於此；目前先保留正式會員資料入口</p></div></div><div class="panel"><div class="form-grid"><div class="field"><label for="memberSearch">會員搜尋</label><input id="memberSearch" placeholder="姓名／Email／手機" /></div><div class="field"><label for="memberStatus">會員狀態</label><select id="memberStatus"><option>全部</option><option>正常</option><option>停用</option></select></div></div><p class="muted">搜尋與停用功能尚未串接，避免將介面骨架誤認為已生效操作。</p></div></section>
+        <section id="members" class="admin-view hidden" data-admin-view="members">
+          <div class="page-head"><div><p class="eyebrow">PEOPLE & PARTNERS</p><h2>會員與合作管理</h2><p class="muted">會員、合作角色、標籤與規範集中管理；系統權限仍與合作角色分開。</p></div></div>
+          <div class="people-subtabs tabs" role="tablist" aria-label="會員與合作管理子頁">
+            <button class="tab active" type="button" data-people-tab="people">全部會員</button>
+            <button class="tab" type="button" data-people-tab="tags">標籤管理</button>
+            <button class="tab" type="button" data-people-tab="agreements">規範版本</button>
+            <button class="tab" type="button" data-people-tab="records">同意紀錄</button>
+          </div>
+          <div data-people-panel="people">
+            <form id="peopleFilters" class="panel people-filters">
+              <div class="field"><label for="peopleQuery">搜尋</label><input id="peopleQuery" name="q" placeholder="姓名／Email／手機" /></div>
+              <div class="field"><label for="peopleRole">合作角色</label><select id="peopleRole" name="role_key"><option value="">全部角色</option><option value="member">一般會員</option><option value="provider">服務提供者</option><option value="partner">合作夥伴</option><option value="resource_seeker">資源需求者</option></select></div>
+              <div class="field"><label for="peopleRoleStatus">角色狀態</label><select id="peopleRoleStatus" name="role_status"><option value="">全部狀態</option><option value="pending">審核中</option><option value="approved">已通過</option><option value="rejected">未通過</option><option value="inactive">已停用</option></select></div>
+              <div class="field"><label for="peopleTag">標籤</label><select id="peopleTag" name="tag_id"><option value="">全部標籤</option></select></div>
+              <label class="field-check"><input name="multi_role" type="checkbox" value="1" />只看多重角色</label>
+              <button class="btn small" type="submit">套用篩選</button>
+            </form>
+            <div id="peopleMessage" class="demo-note hidden" role="status"></div>
+            <div class="table-scroll"><table class="table"><thead><tr><th>會員</th><th>帳號狀態</th><th>合作角色</th><th>標籤</th><th>建立時間</th></tr></thead><tbody id="peopleRows"></tbody></table></div>
+            <div class="people-pager"><button id="peoplePrev" class="btn ghost small" type="button">上一頁</button><span id="peoplePage" class="muted">第 1 頁</span><button id="peopleNext" class="btn ghost small" type="button">下一頁</button></div>
+          </div>
+          <div class="hidden" data-people-panel="tags">
+            <form id="tagCreateForm" class="panel form-grid"><div class="field"><label for="tagType">標籤類型</label><select id="tagType" name="tag_type" required><option value="identity">身分</option><option value="skill">技能</option><option value="service">服務</option><option value="project_type">案件類型</option><option value="cooperation_type">合作類型</option><option value="resource_type">資源類型</option><option value="region">地區</option></select></div><div class="field"><label for="tagName">名稱</label><input id="tagName" name="name" required maxlength="80" /></div><div class="field"><label for="tagSlug">Slug（可留空）</label><input id="tagSlug" name="slug" maxlength="100" /></div><div class="field"><button class="btn small" type="submit">新增標籤</button></div></form>
+            <div class="table-scroll"><table class="table"><thead><tr><th>名稱</th><th>類型</th><th>Slug</th><th>狀態／排序</th><th>操作</th></tr></thead><tbody id="tagRows"></tbody></table></div>
+          </div>
+          <div class="hidden" data-people-panel="agreements">
+            <form id="agreementDraftForm" class="panel inline-form"><div class="form-grid"><div class="field"><label for="agreementKey">規範類型</label><select id="agreementKey" name="agreement_key" required><option value="member_terms">會員條款</option><option value="provider_rules">服務提供者規範</option><option value="partner_rules">合作夥伴規範</option><option value="seeker_rules">資源需求者規範</option><option value="matching_rules">媒合規範</option><option value="payment_rules">付款規範</option></select></div><div class="field"><label for="agreementTitle">標題</label><input id="agreementTitle" name="title" required maxlength="160" /></div></div><div class="field"><label for="agreementRoles">適用角色（逗號分隔）</label><input id="agreementRoles" name="applies_to_roles" placeholder="provider,partner" required /></div><div class="field"><label for="agreementBody">規範全文</label><textarea id="agreementBody" name="body_md" rows="8" required></textarea></div><button class="btn small" type="submit">新增草稿</button></form>
+            <div id="agreementAdminList"></div>
+          </div>
+          <div class="hidden" data-people-panel="records">
+            <form id="agreementRecordFilters" class="panel form-grid"><div class="field"><label for="recordKey">規範類型</label><input id="recordKey" name="agreement_key" placeholder="例如 provider_rules" /></div><div class="field"><label for="recordUser">會員 user_id</label><input id="recordUser" name="user_id" /></div><div class="field full"><button class="btn small" type="submit">查詢同意紀錄</button></div></form>
+            <div class="table-scroll"><table class="table"><thead><tr><th>會員</th><th>規範</th><th>版本</th><th>同意時間</th><th>狀態</th></tr></thead><tbody id="agreementRecordRows"></tbody></table></div>
+          </div>
+        </section>
         <section id="servicesAdmin" class="admin-view hidden" data-admin-view="services"><div class="page-head"><div><p class="eyebrow">SERVICES & PRICING</p><h2>服務資料</h2><p class="muted">正式 services 單一來源；歷史服務保留 archived，不回算舊訂單成交價</p></div><span class="badge neutral"><span id="adminServiceCount">—</span> 項服務</span></div><div class="table-scroll"><table class="table"><thead><tr><th>服務 ID／名稱</th><th>分類</th><th>價格</th><th>流程</th><th>狀態／排序</th></tr></thead><tbody id="adminServiceRows"></tbody></table></div></section>
         <section id="uiStates" class="admin-view hidden" data-admin-view="system" data-developer-only><div class="page-head"><div><p class="eyebrow">DEVELOPER SYSTEM</p><h2>系統狀態</h2><p class="muted">只對 developer 顯示的正式環境讀取狀態</p></div><span class="badge ok">API 已連線</span></div><div class="system-status-grid"><article class="panel"><span>執行環境</span><strong>Production</strong><small>GitHub Pages + Supabase</small></article><article class="panel"><span>目前角色</span><strong id="systemRole">—</strong><small>由伺服器會員資料驗證</small></article><article class="panel"><span>正式服務</span><strong id="systemServiceCount">—</strong><small>包含 active、coming soon 與歷史封存</small></article><article class="panel"><span>後端狀態</span><strong id="systemApiStatus">檢查中</strong><small>booking-api 權限與資料載入</small></article></div><div class="panel admin-subsection"><h3>權限邊界</h3><p class="muted">Developer 可使用完整營運工作台與系統狀態；Admin 可使用營運、詢價、會員與服務資料；Member 僅能進入會員中心。</p></div></section>
       </main>
     </div>
     <div id="eventModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="eventModalTitle"><div class="card modal-card"><div class="modal-head"><div><p class="eyebrow">BOOKING DETAIL</p><h2 id="eventModalTitle">排程明細</h2></div><button id="closeModal" class="icon-btn" aria-label="關閉排程明細">×</button></div><div id="eventModalBody"></div></div></div>
+    <div id="personDrawerBackdrop" class="drawer-backdrop" hidden></div>
+    <aside id="personDrawer" class="drawer" hidden aria-labelledby="personDrawerTitle">
+      <div class="drawer-head"><div><p class="eyebrow">MEMBER DETAIL</p><h2 id="personDrawerTitle">會員詳情</h2></div><button id="closePersonDrawer" class="icon-btn" type="button" aria-label="關閉會員詳情">×</button></div>
+      <div id="personDrawerMessage" class="demo-note hidden" role="status"></div>
+      <div id="personDrawerBody"></div>
+    </aside>
   </body>
 </html>
