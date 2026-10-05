@@ -55,7 +55,7 @@
           </div>
           <div class="section-head" style="margin-top: 36px">
             <h2>快速開始</h2>
-            <p>所有正式預約都必須登入會員後進行</p>
+            <p>所有正式預約都必須登入會員後進行，價格由 API 服務資料載入</p>
           </div>
           <div class="member-action-grid">
             <article class="card service-card">
@@ -78,9 +78,9 @@
             </article>
             <article class="card service-card">
               <div class="service-icon" aria-hidden="true">04</div>
-              <h3>我的詢價</h3>
-              <p>追蹤需求評估、報價與確認狀態</p>
-              <button class="btn ghost" data-show="inquiries">查看我的詢價</button>
+              <h3>空間／陪伴</h3>
+              <p>一個人工作，也可以有人一起。</p>
+              <button class="btn ghost" data-show="book">選擇陪工作服務</button>
             </article>
           </div>
         </section>
@@ -93,6 +93,7 @@
             </div>
           </div>
           <div id="serviceMenu" class="service-menu"></div>
+          <div id="serviceCatalogCards" class="service-catalog-cards" aria-live="polite"></div>
           <div class="service-builder" style="margin-top: 18px">
             <div class="panel">
               <div class="form-grid">
@@ -115,6 +116,27 @@
                 <div id="addonOptions" class="addon-options"></div>
                 <span class="field-message">未定價加購不會自行計入訂單金額，需由人工確認。</span>
               </div>
+              <div id="companionFields" class="companion-booking hidden" style="margin-top: 18px">
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="bookingHours">預約時數</label>
+                    <input id="bookingHours" type="number" min="1" max="12" step="1" value="1" />
+                  </div>
+                  <div class="field companion-only">
+                    <label for="companionMode">陪伴模式</label>
+                    <select id="companionMode"></select>
+                  </div>
+                  <div class="field full companion-only">
+                    <label for="workGoal">今日工作目標（選填）</label>
+                    <textarea id="workGoal" rows="3" maxlength="500" placeholder="例如：完成簡報初稿、讀完兩個章節"></textarea>
+                  </div>
+                </div>
+                <aside class="companion-rules companion-only" aria-label="陪工作服務規則">
+                  <strong>「陪工作」不是「幫工作」</strong>
+                  <div><b>可以</b><span>一起工作、一起使用空間、安靜坐在附近、在指定時間一起開始、休息時間簡單交流、依需求維持安靜。</span></div>
+                  <div><b>不包含</b><span>不替客戶工作、不代寫作業／報告、不代做設計；不提供心理諮商、醫療、職涯、法律／財務建議；不涉及性服務，也不接受違法或危險工作。</span></div>
+                </aside>
+              </div>
               <div id="inquiryFields" class="stack hidden" style="margin-top: 18px">
                 <div class="field">
                   <label for="inquiryRequirements">需求內容</label>
@@ -131,7 +153,7 @@
               <h3>費用結算</h3>
               <div id="checkoutLines" class="checkout-lines"></div>
               <div class="checkout-total">
-                <span>總計</span><strong id="checkoutTotal">NT$ 0</strong>
+                <span>總計</span><strong id="checkoutTotal">尚未載入</strong>
               </div>
               <p class="muted">
                 金額由後端依正式服務資料驗證；付款功能尚未啟用，不會顯示已付款假象。
