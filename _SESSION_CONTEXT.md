@@ -157,4 +157,4 @@
 - 管理員：小雨 `yu614321@gmail.com`、開發者備用帳號 `jane3201jane3201@gmail.com` 已寫入 `role_assignments`＝admin（首次登入自動套用；DB 讀回被安全機制擋，未讀回）。
 - NOT RUN：會員取消／改期、後台改服務狀態（需有陪工作訂單）。
 - ⚠️環境：PowerShell 執行原則擋 `npx.ps1`，請用 `npx.cmd`；git 需加 `-c safe.directory=*`。Claude 端 production deploy／DB 讀取會被 auto mode 安全機制擋，需使用者執行或授權。
-- 下一個任務：後台「人員身分管理」（帳號備註、顧客服務類別、服務提供者提供哪些服務）＋網站招募資訊，作為媒合地基；先寫規格給使用者確認。
+- 下一個任務：後台「人員身分管理」（帳號備註、顧客服務類別、服務提供者提供哪些服務）＋網站招募資訊，作為媒合地基。草案已寫 `docs/PEOPLE_ROLES_MATCHING_PLAN_V1.md`，**暫停等使用者提供完整資訊**；已定案「只有 developer 可設 admin」。
