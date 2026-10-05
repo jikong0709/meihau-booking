@@ -135,4 +135,5 @@
 - 「光言」帳號已升為 `developer`（role_assignments＋members 同步）；目前 Developer 2 名（光言、草槑兒），無 Admin。
 - Developer 正式站畫面驗收 PASS：開發者與營運工作台／最高權限・Developer／系統狀態可見。
 - Claude 的 Supabase MCP 連線不含本專案；DB 操作改用本機 Supabase CLI `db query --linked --project-ref tssvabclujwpljzupuvj`。
-- 下次優先：會員資料、地址 CRUD、直接預約、客製詢價、詢價管理的登入後流程驗收（仍 NOT RUN）。
+- 登入後流程（同日）：會員資料讀取、地址新增／讀回、我的預約／詢價、後台各工作區 PASS。
+- ⚠️待使用者：親自送出一筆直接預約與一筆客製詢價（Claude 送出被安全機制擋）；決定直接預約日期是否必填；決定 E2E 測試資料是否清除。
