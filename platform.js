@@ -191,7 +191,10 @@ async function initProductionPublic() {
   }
   const roleLabel = currentMember?.role === "developer" ? "進入開發者後台" : currentMember?.role === "admin" ? "進入管理後台" : "進入會員中心";
   if (currentMember) {
-    [document.querySelector(".desktop-login"), document.querySelector(".header-actions > .btn.small:not(.desktop-login)"), document.querySelector(".hero-copy .btn[data-login]")]
+    // Header keeps a single role entry button (solid primary); the ghost login button is hidden.
+    const ghostLogin = document.querySelector(".desktop-login");
+    if (ghostLogin) { ghostLogin.hidden = true; ghostLogin.style.display = "none"; }
+    [document.querySelector(".header-actions > .btn.small:not(.desktop-login)"), document.querySelector(".hero-copy .btn[data-login]")]
       .filter(Boolean)
       .forEach((button) => { button.childNodes[0].textContent = `${roleLabel} `; });
   }
