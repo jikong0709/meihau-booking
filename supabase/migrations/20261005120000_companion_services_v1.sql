@@ -187,16 +187,7 @@ insert into booking.services (
   ('SPACE-006','venue_equipment','直播空間','依小時計價的直播空間','場地服務預備中。',800,'starting_from','direct_booking','coming_soon',false,270,'space','hour',null,1,null,null,'{}',false),
   ('SPACE-007','venue_equipment','活動場地','活動場地需求先詢價','場地服務預備中。',1500,'starting_from','custom_quote','coming_soon',false,280,'space','session',null,null,null,null,'{}',false),
   ('SPACE-008','venue_equipment','商務地址','商務地址服務','目前不公開上架。',null,'custom_quote','custom_quote','hidden',false,290,'space','project',null,null,null,null,'{}',false),
-  ('SPACE-009','venue_equipment','虛擬辦公','虛擬辦公服務','目前不公開上架。',null,'custom_quote','custom_quote','hidden',false,300,'space','project',null,null,null,null,'{}',false),
-
-  ('COMP-001','venue_equipment','陪工作｜完全安靜','安靜地一起開始並維持工作節奏','可一起工作、一起使用空間或安靜坐在附近；陪工作不是幫工作。',299,'fixed','direct_booking','active',true,310,'companion','session',2,2,150,null,array['quiet'],true),
-  ('COMP-002','venue_equipment','陪工作｜低互動','在需要時簡短交流的共同工作','可在開始與休息時簡單交流；陪工作不是幫工作。',399,'fixed','direct_booking','active',true,320,'companion','session',2,2,200,null,array['low_interaction'],true),
-  ('COMP-003','venue_equipment','陪上班','用共同存在感陪你完成一段工作時間','可選安靜、低互動或一起工作；陪工作不是幫工作。',499,'fixed','direct_booking','active',true,330,'companion','session',3,3,150,null,array['quiet','low_interaction','together'],true),
-  ('COMP-004','venue_equipment','陪讀／陪學習','一起維持閱讀或學習節奏','陪工作不是幫工作。',399,'fixed','direct_booking','coming_soon',false,340,'companion','session',2,2,200,null,array['quiet','low_interaction','together'],true),
-  ('COMP-005','venue_equipment','陪創作','一起維持創作節奏','陪工作不是幫工作。',399,'fixed','direct_booking','coming_soon',false,350,'companion','session',2,2,200,null,array['quiet','low_interaction','together'],true),
-  ('COMP-006','venue_equipment','Body Doubling','透過共同存在協助維持專注','以 Body Doubling 模式共同工作；陪工作不是幫工作。',499,'fixed','direct_booking','active',true,360,'companion','session',2,2,250,null,array['body_doubling'],true),
-  ('COMP-007','venue_equipment','陪你完成一件事','一起在指定時間推進一件事','可選全部陪伴模式；陪工作不是幫工作。',599,'fixed','direct_booking','coming_soon',false,370,'companion','session',2,2,300,null,array['quiet','low_interaction','together','body_doubling'],true),
-  ('COMP-008','venue_equipment','客製陪伴','依需求規劃客製陪伴','由人工確認需求與報價；陪工作不是幫工作。',300,'starting_from','custom_quote','coming_soon',false,380,'companion','hour',null,1,null,null,array['quiet','low_interaction','together','body_doubling'],true)
+  ('SPACE-009','venue_equipment','虛擬辦公','虛擬辦公服務','目前不公開上架。',null,'custom_quote','custom_quote','hidden',false,300,'space','project',null,null,null,null,'{}',false)
 on conflict (service_id) do update set
   category_id = excluded.category_id,
   service_name = excluded.service_name,
@@ -216,6 +207,43 @@ on conflict (service_id) do update set
   deposit = excluded.deposit,
   companion_modes = excluded.companion_modes,
   requires_provider = excluded.requires_provider,
+  updated_at = now();
+
+-- Companion services: location is set only for COMP-* rows so other service locations stay untouched.
+insert into booking.services (
+  service_id, category_id, service_name, short_description, full_description,
+  price, price_type, booking_type, service_status, is_featured, sort_order,
+  service_type, price_unit, included_hours, min_hours, additional_hour_price, deposit,
+  companion_modes, requires_provider, location
+) values
+  ('COMP-001','venue_equipment','陪工作｜完全安靜','安靜地一起開始並維持工作節奏','可一起工作、一起使用空間或安靜坐在附近；陪工作不是幫工作。',299,'fixed','direct_booking','active',true,310,'companion','session',2,2,150,null,array['quiet'],true,'莓好工作空間（預約確認後通知地點）'),
+  ('COMP-002','venue_equipment','陪工作｜低互動','在需要時簡短交流的共同工作','可在開始與休息時簡單交流；陪工作不是幫工作。',399,'fixed','direct_booking','active',true,320,'companion','session',2,2,200,null,array['low_interaction'],true,'莓好工作空間（預約確認後通知地點）'),
+  ('COMP-003','venue_equipment','陪上班','用共同存在感陪你完成一段工作時間','可選安靜、低互動或一起工作；陪工作不是幫工作。',499,'fixed','direct_booking','active',true,330,'companion','session',3,3,150,null,array['quiet','low_interaction','together'],true,'莓好工作空間（預約確認後通知地點）'),
+  ('COMP-004','venue_equipment','陪讀／陪學習','一起維持閱讀或學習節奏','陪工作不是幫工作。',399,'fixed','direct_booking','coming_soon',false,340,'companion','session',2,2,200,null,array['quiet','low_interaction','together'],true,'莓好工作空間（預約確認後通知地點）'),
+  ('COMP-005','venue_equipment','陪創作','一起維持創作節奏','陪工作不是幫工作。',399,'fixed','direct_booking','coming_soon',false,350,'companion','session',2,2,200,null,array['quiet','low_interaction','together'],true,'莓好工作空間（預約確認後通知地點）'),
+  ('COMP-006','venue_equipment','Body Doubling','透過共同存在協助維持專注','以 Body Doubling 模式共同工作；陪工作不是幫工作。',499,'fixed','direct_booking','active',true,360,'companion','session',2,2,250,null,array['body_doubling'],true,'莓好工作空間（預約確認後通知地點）'),
+  ('COMP-007','venue_equipment','陪你完成一件事','一起在指定時間推進一件事','可選全部陪伴模式；陪工作不是幫工作。',599,'fixed','direct_booking','coming_soon',false,370,'companion','session',2,2,300,null,array['quiet','low_interaction','together','body_doubling'],true,'莓好工作空間（預約確認後通知地點）'),
+  ('COMP-008','venue_equipment','客製陪伴','依需求規劃客製陪伴','由人工確認需求與報價；陪工作不是幫工作。',300,'starting_from','custom_quote','coming_soon',false,380,'companion','hour',null,1,null,null,array['quiet','low_interaction','together','body_doubling'],true,'莓好工作空間（預約確認後通知地點）')
+on conflict (service_id) do update set
+  category_id = excluded.category_id,
+  service_name = excluded.service_name,
+  short_description = excluded.short_description,
+  full_description = excluded.full_description,
+  price = excluded.price,
+  price_type = excluded.price_type,
+  booking_type = excluded.booking_type,
+  service_status = excluded.service_status,
+  is_featured = excluded.is_featured,
+  sort_order = excluded.sort_order,
+  service_type = excluded.service_type,
+  price_unit = excluded.price_unit,
+  included_hours = excluded.included_hours,
+  min_hours = excluded.min_hours,
+  additional_hour_price = excluded.additional_hour_price,
+  deposit = excluded.deposit,
+  companion_modes = excluded.companion_modes,
+  requires_provider = excluded.requires_provider,
+  location = excluded.location,
   updated_at = now();
 
 insert into booking.providers (provider_id, display_name, provider_type, bio, status)

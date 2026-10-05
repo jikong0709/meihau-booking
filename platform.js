@@ -7,6 +7,12 @@ const legacyDemoCatalog = [
 ];
 
 const money = n => `NT$ ${Math.round(Number(n)||0).toLocaleString('zh-TW')}`;
+const priceLabel = (item) => {
+  if (item.price_type === "custom_quote" || item.price === null) return "客製報價";
+  const amount = money(item.price).replace("NT$ ", "NT$");
+  const unit = item.price_unit === "hour" ? "／小時" : item.price_unit === "half_day" ? "／半日" : item.price_unit === "day" ? "／日" : item.price_unit === "project" ? "／專案" : item.included_hours ? `／${item.included_hours} 小時` : "";
+  return `${amount}${unit}${item.price_type === "starting_from" ? "起" : ""}`;
+};
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 
 function readStore(key,fallback){ try{return JSON.parse(localStorage.getItem(key)) ?? fallback}catch{return fallback} }
@@ -258,12 +264,6 @@ async function initProductionMember() {
   let currentQuote;
   let serviceStateRevision = 0;
   const selectedService = () => catalogData.services.find((item) => item.service_id === planSelect.value);
-  const priceLabel = (item) => {
-    if (item.price_type === "custom_quote" || item.price === null) return "客製報價";
-    const amount = money(item.price).replace("NT$ ", "NT$");
-    const unit = item.price_unit === "hour" ? "／小時" : item.price_unit === "half_day" ? "／半日" : item.price_unit === "day" ? "／日" : item.price_unit === "project" ? "／專案" : item.included_hours ? `／${item.included_hours} 小時` : "";
-    return `${amount}${unit}${item.price_type === "starting_from" ? "起" : ""}`;
-  };
   serviceMenu.innerHTML = categoryDefinitions.map(([id, label, description]) => `<button class="service-choice ${id === category ? "active" : ""}" data-cat="${id}"><strong>${label}</strong><div class="muted">${description}</div></button>`).join("");
   const quotePayload = () => {
     const item = selectedService();
@@ -304,6 +304,7 @@ async function initProductionMember() {
     const hoursInput = document.querySelector("#bookingHours");
     hoursInput.min = String(item.min_hours || 1);
     hoursInput.value = String(item.included_hours || item.min_hours || 1);
+    const staleHint = document.querySelector("#bookingHoursHint"); if (staleHint) staleHint.textContent = "";
     document.querySelector("#companionMode").innerHTML = (item.companion_modes || []).map((mode) => `<option value="${mode}">${companionModeLabels[mode] || escapeHtml(mode)}</option>`).join("");
     const isInquiry = item.booking_type === "custom_quote";
     inquiryFields.classList.toggle("hidden", !isInquiry);
@@ -343,7 +344,22 @@ async function initProductionMember() {
   planSelect.addEventListener("change", () => { document.querySelectorAll("[data-service-id]").forEach((card) => card.classList.toggle("active", card.dataset.serviceId === planSelect.value)); updateServiceMode().catch((error) => alert(error.message)); });
   document.querySelector("#serviceOption")?.addEventListener("change", () => updateQuote().catch((error) => alert(error.message)));
   document.querySelector("#addonOptions")?.addEventListener("change", () => updateQuote().catch((error) => alert(error.message)));
-  document.querySelector("#bookingHours")?.addEventListener("input", () => updateQuote().catch((error) => alert(error.message)));
+  document.querySelector("#bookingHours")?.addEventListener("change", (event) => {
+    const input = event.target;
+    const item = selectedService();
+    const min = Number(item?.min_hours || input.min || 1);
+    const max = Number(input.max || 12);
+    let hint = document.querySelector("#bookingHoursHint");
+    if (!hint) { hint = document.createElement("small"); hint.id = "bookingHoursHint"; hint.className = "muted"; hint.setAttribute("role", "alert"); input.insertAdjacentElement("afterend", hint); }
+    const value = Number(input.value);
+    if (!Number.isFinite(value) || value < min || value > max) {
+      hint.textContent = `預約時數需介於 ${min} 至 ${max} 小時，請調整後再試。`;
+      if (document.querySelector("#checkoutButton")) document.querySelector("#checkoutButton").disabled = true;
+      return;
+    }
+    hint.textContent = "";
+    updateQuote().catch((error) => { hint.textContent = error.message; });
+  });
   document.querySelector("#companionMode")?.addEventListener("change", () => updateQuote().catch((error) => alert(error.message)));
   document.querySelector("#checkoutButton")?.addEventListener("click", async () => {
     try {
@@ -435,7 +451,7 @@ async function initProductionAdmin() {
   const categoryLabel = { temporary_staff: "臨時人力", recording_space: "錄音／空間", ai_digital: "AI／數位服務", venue_equipment: "空間／陪伴" };
   const priceTypeLabel = { fixed: "固定價", starting_from: "起價", custom_quote: "客製報價" };
   const bookingTypeLabel = { direct_booking: "直接預約", custom_quote: "先詢價" };
-  document.querySelector("#adminServiceRows").innerHTML = services.map((service) => `<tr><td><strong>${escapeHtml(service.service_id)}</strong><br>${escapeHtml(service.service_name)}</td><td>${categoryLabel[service.category_id] || escapeHtml(service.category_id)}</td><td>${service.price === null ? "客製報價" : money(service.price)}<br><small>${priceTypeLabel[service.price_type] || escapeHtml(service.price_type)}</small></td><td>${bookingTypeLabel[service.booking_type] || escapeHtml(service.booking_type)}</td><td><span class="badge neutral">${escapeHtml(service.service_status)}</span><br><small>#${service.sort_order}</small></td></tr>`).join("") || '<tr><td colspan="5">目前沒有服務資料</td></tr>';
+  document.querySelector("#adminServiceRows").innerHTML = services.map((service) => `<tr><td><strong>${escapeHtml(service.service_id)}</strong><br>${escapeHtml(service.service_name)}</td><td>${categoryLabel[service.category_id] || escapeHtml(service.category_id)}</td><td>${priceLabel(service)}<br><small>${priceTypeLabel[service.price_type] || escapeHtml(service.price_type)}</small></td><td>${bookingTypeLabel[service.booking_type] || escapeHtml(service.booking_type)}</td><td><span class="badge neutral">${escapeHtml(service.service_status)}</span><br><small>#${service.sort_order}</small></td></tr>`).join("") || '<tr><td colspan="5">目前沒有服務資料</td></tr>';
   const renderAdminInquiries = () => {
     document.querySelector("#adminInquiryRows").innerHTML = inquiries.map((item) => `<tr><td><strong>${escapeHtml(item.id.slice(0, 8))}</strong><br><small>${escapeHtml(item.members?.full_name || item.members?.name || item.members?.email || "會員")}</small></td><td><strong>${escapeHtml(item.service_name)}</strong><br><small>${item.preferred_date || "日期未定"} ${item.preferred_time || ""}</small></td><td>${escapeHtml(item.requirements)}</td><td><div class="admin-inquiry-actions"><select data-inquiry-status="${item.id}"><option value="pending" ${item.status === "pending" ? "selected" : ""}>待處理</option><option value="reviewing" ${item.status === "reviewing" ? "selected" : ""}>評估中</option><option value="quoted" ${item.status === "quoted" ? "selected" : ""}>已報價</option><option value="accepted" ${item.status === "accepted" ? "selected" : ""}>已接受</option><option value="closed" ${item.status === "closed" ? "selected" : ""}>已結案</option></select><input data-inquiry-amount="${item.id}" type="number" min="0" step="1" placeholder="報價金額" value="${item.quoted_amount ?? ""}" /><button class="btn ghost small" data-save-inquiry="${item.id}">儲存</button></div></td></tr>`).join("") || '<tr><td colspan="4">目前沒有詢價</td></tr>';
     document.querySelectorAll("[data-save-inquiry]").forEach((button) => button.addEventListener("click", async () => {
