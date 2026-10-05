@@ -128,3 +128,11 @@
 - 正式 Admin 驗證通過：角色標示、會員頁自動導向、首頁角色按鈕、預約營運工作區切換、console 無 error／warning。
 - ⚠️待使用者操作：點「切換帳號」後親自選擇 Developer 帳號；登入後應看到「開發者與營運工作台」「最高權限・Developer」與「系統狀態」。
 - ⚠️整案仍待 Claude Code fresh-context 最終驗收；不要把 Codex 自檢標成制度上的最終完成。
+
+## 2026-10-05 Developer 驗收完成＋首頁按鈕修正
+
+- `a2f348d`：已登入時首頁 header 只顯示一顆角色入口按鈕（原本兩顆同字）；正式站實測 PASS。
+- 「光言」帳號已升為 `developer`（role_assignments＋members 同步）；目前 Developer 2 名（光言、草槑兒），無 Admin。
+- Developer 正式站畫面驗收 PASS：開發者與營運工作台／最高權限・Developer／系統狀態可見。
+- Claude 的 Supabase MCP 連線不含本專案；DB 操作改用本機 Supabase CLI `db query --linked --project-ref tssvabclujwpljzupuvj`。
+- 下次優先：會員資料、地址 CRUD、直接預約、客製詢價、詢價管理的登入後流程驗收（仍 NOT RUN）。
