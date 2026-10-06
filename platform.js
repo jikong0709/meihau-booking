@@ -688,6 +688,7 @@ function showAdminPeopleMessage(text, isError = false) {
 }
 
 const actionFeedbackTimers = new WeakMap();
+const buttonSuccessTimers = new WeakMap();
 function showActionFeedback(root, text, isError = false, scrollIntoView = false) {
   if (!root) return;
   const previousTimer = actionFeedbackTimers.get(root);
@@ -741,6 +742,39 @@ async function withButtonPending(button, action) {
   }
 }
 
+function showButtonSuccess(button, restoreText, duration = 2500) {
+  if (!button) return;
+  const previousTimer = buttonSuccessTimers.get(button);
+  if (previousTimer) window.clearTimeout(previousTimer);
+  button.disabled = false;
+  button.classList.add("save-success");
+  button.textContent = "✓ 已儲存";
+  buttonSuccessTimers.set(button, window.setTimeout(() => {
+    button.classList.remove("save-success");
+    button.textContent = restoreText;
+    buttonSuccessTimers.delete(button);
+  }, duration));
+}
+
+async function withButtonSaveFeedback(button, action, resolveVisibleButton = () => button) {
+  const originalText = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "儲存中…";
+  }
+  try {
+    const result = await action();
+    showButtonSuccess(resolveVisibleButton() || button, originalText);
+    return result;
+  } catch (error) {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+    throw error;
+  }
+}
+
 const profileFieldLabels = {
   provider_id: "提供者編號", display_name: "顯示名稱", provider_type: "提供者類型", bio: "簡介", status: "上架狀態",
   entity_type: "身分型態", brand_name: "品牌／工作室名稱", service_area: "服務／合作地區", service_mode: "服務方式",
@@ -783,13 +817,12 @@ const accountStatusMeta = {
   active: ["啟用", "active"],
   suspended: ["停權", "suspended"],
 };
-const accountStatusLabel = (status) => Object.hasOwn(accountStatusMeta, status) ? accountStatusMeta[status][0] : String(status || "active");
 const accountStatusBadge = (status) => {
   const meta = Object.hasOwn(accountStatusMeta, status) ? accountStatusMeta[status] : [String(status || "active"), "unknown"];
   return `<span class="account-status-badge account-status-${escapeHtml(meta[1])}">${escapeHtml(meta[0])}</span>`;
 };
 
-async function initAdminPeople(isDeveloper) {
+async function initAdminPeople(isDeveloper, currentUserId) {
   const panels = [...document.querySelectorAll("[data-people-panel]")];
   const tabs = [...document.querySelectorAll("[data-people-tab]")];
   let allTags = [], peoplePage = 1, peopleTotal = 0;
@@ -829,23 +862,71 @@ async function initAdminPeople(isDeveloper) {
     const detailTags = (detail.tags || []).map(normalizeTag);
     const drawer = document.querySelector("#personDrawer"), backdrop = document.querySelector("#personDrawerBackdrop"), root = document.querySelector("#personDrawerBody");
     document.querySelector("#personDrawerTitle").textContent = member.full_name || member.name || member.email || "會員詳情";
+    const memberName = member.full_name || member.name || member.email || "未命名會員";
+    const accountStatus = member.account_status === "suspended" ? "suspended" : "active";
+    const accountStatusProtection = member.role === "developer"
+      ? "Developer 帳號受保護"
+      : (String(userId) === String(currentUserId) ? "不可停權自己" : "");
+    const accountStatusDisabled = Boolean(accountStatusProtection);
     const profileBlocks = [["服務提供者資料", detail.provider], ["合作夥伴資料", detail.partner], ["資源需求者資料", detail.seeker]].filter(([, value]) => value);
     root.innerHTML = `<section class="panel drawer-block"><h3>基本資料</h3><dl class="kv"><dt>Email</dt><dd>${escapeHtml(member.email)}</dd><dt>手機</dt><dd>${escapeHtml(member.phone || "—")}</dd><dt>LINE</dt><dd>${escapeHtml(member.line_id || "—")}</dd><dt>地區</dt><dd>${escapeHtml(member.region || "—")}</dd><dt>帳號狀態</dt><dd>${accountStatusBadge(member.account_status)}</dd></dl></section>
       <section class="panel drawer-block"><h3>角色審核</h3><div id="personRoleReviews">${(detail.roles || []).map((role) => `<div class="review-block"><div class="role-badge-row">${roleBadges([role], { roleData: detail })}</div><label class="field"><span>審核備註</span><textarea data-review-note="${escapeHtml(role.role_key)}">${escapeHtml(role.review_note || "")}</textarea></label><div class="review-actions"><button class="btn ghost small" type="button" data-role-decision="approved" data-role-key="${escapeHtml(role.role_key)}">通過</button><button class="btn ghost small" type="button" data-role-decision="rejected" data-role-key="${escapeHtml(role.role_key)}">不通過</button><button class="btn ghost small" type="button" data-role-decision="inactive" data-role-key="${escapeHtml(role.role_key)}">停用</button></div></div>`).join("") || '<p class="muted">尚無合作角色</p>'}</div></section>
       ${profileBlocks.map(([title, data]) => `<section class="panel drawer-block"><h3>${escapeHtml(title)}</h3><dl class="kv">${detailPairs(data)}</dl></section>`).join("")}
       <section class="panel drawer-block"><h3>標籤</h3><div id="personTags" class="tag-line">${detailTags.map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)} <button class="tag-remove" type="button" data-remove-person-tag="${escapeHtml(tag.tag_id)}" aria-label="移除 ${escapeHtml(tag.name)}">×</button></span>`).join("") || '<span class="muted">尚無標籤</span>'}</div><div class="field"><label for="personTagAdd">新增標籤</label><select id="personTagAdd"><option value="">請選擇</option>${allTags.filter((tag) => tag.status === "active" && !detailTags.some((assigned) => String(assigned.tag_id) === String(tag.tag_id))).map((tag) => `<option value="${escapeHtml(tag.tag_id)}">${escapeHtml(tag.name)}｜${escapeHtml(tag.tag_type)}</option>`).join("")}</select></div><button id="addPersonTag" class="btn ghost small" type="button">加入標籤</button></section>
-      <section class="panel drawer-block"><h3>內部資料</h3><form id="personAdminForm" class="inline-form"><div class="field"><label for="personAccountStatus">帳號狀態</label><select id="personAccountStatus" name="account_status"><option value="active" ${member.account_status !== "suspended" ? "selected" : ""}>啟用</option><option value="suspended" ${member.account_status === "suspended" ? "selected" : ""}>停權</option></select></div><div class="field"><label for="personAdminNote">內部備註</label><textarea id="personAdminNote" name="admin_note" rows="4">${escapeHtml(member.admin_note || "")}</textarea></div><button class="btn small" type="submit">儲存會員資料</button></form></section>
+      <section class="panel drawer-block"><h3>內部資料</h3><div class="field"><span id="personAccountStatusLabel">帳號狀態</span><div class="account-status-row"><div id="personAccountStatus" class="account-status-toggle" role="group" aria-labelledby="personAccountStatusLabel"><button type="button" data-account-status="suspended" aria-pressed="${accountStatus === "suspended"}" ${accountStatusDisabled ? "disabled" : ""}>停權</button><button type="button" data-account-status="active" aria-pressed="${accountStatus === "active"}" ${accountStatusDisabled ? "disabled" : ""}>啟用</button></div><span id="personAccountStatusFeedback" class="account-status-feedback${accountStatusProtection ? " protected" : ""}" role="status" aria-live="polite">${escapeHtml(accountStatusProtection)}</span></div></div><form id="personAdminForm" class="inline-form"><div class="field"><label for="personAdminNote">內部備註</label><textarea id="personAdminNote" name="admin_note" rows="4">${escapeHtml(member.admin_note || "")}</textarea></div><button class="btn small" type="submit">儲存會員資料</button></form></section>
       ${isDeveloper ? (member.role === "developer" ? `<section class="panel drawer-block" data-system-role-section><h3>系統權限（僅 Developer）</h3><p class="demo-note">Developer 帳號受保護</p></section>` : `<section class="panel drawer-block" data-system-role-section><h3>系統權限（僅 Developer）</h3><div class="field"><label for="personSystemRole">系統權限</label><select id="personSystemRole"><option value="member" ${member.role !== "admin" ? "selected" : ""}>member</option><option value="admin" ${member.role === "admin" ? "selected" : ""}>admin</option></select></div><button id="saveSystemRole" class="btn ghost small" type="button">更新系統權限</button></section>`) : ""}
       <section class="panel drawer-block"><h3>同意紀錄</h3><div class="table-scroll"><table class="table"><thead><tr><th>規範</th><th>版本</th><th>狀態</th></tr></thead><tbody>${(detail.agreement_records || []).map((record) => `<tr><td>${escapeHtml(record.agreement_key)}</td><td>v${escapeHtml(record.agreement_version)}</td><td>${escapeHtml(record.status)}</td></tr>`).join("") || '<tr><td colspan="3">尚無同意紀錄</td></tr>'}</tbody></table></div></section>`;
     drawer.hidden = false; backdrop.hidden = false;
     const showDrawerMessage = (text, isError = false) => showActionFeedback(document.querySelector("#personDrawerMessage"), text, isError, true);
+    const accountStatusButtons = [...root.querySelectorAll("[data-account-status]")];
+    const accountStatusFeedback = root.querySelector("#personAccountStatusFeedback");
+    let currentAccountStatus = accountStatus;
+    let accountStatusFeedbackTimer;
+    const renderAccountStatus = (isPending = false) => {
+      accountStatusButtons.forEach((button) => {
+        const isCurrent = button.dataset.accountStatus === currentAccountStatus;
+        button.setAttribute("aria-pressed", String(isCurrent));
+        button.disabled = accountStatusDisabled || isPending;
+      });
+    };
+    const showAccountStatusFeedback = (text, state = "") => {
+      if (accountStatusFeedbackTimer) window.clearTimeout(accountStatusFeedbackTimer);
+      accountStatusFeedback.textContent = text;
+      accountStatusFeedback.classList.toggle("success", state === "success");
+      accountStatusFeedback.classList.toggle("error", state === "error");
+      if (state === "success") {
+        accountStatusFeedbackTimer = window.setTimeout(() => {
+          accountStatusFeedback.textContent = "";
+          accountStatusFeedback.classList.remove("success");
+        }, 3000);
+      }
+    };
+    accountStatusButtons.forEach((button) => button.addEventListener("click", async () => {
+      const nextStatus = button.dataset.accountStatus;
+      if (accountStatusDisabled || nextStatus === currentAccountStatus) return;
+      if (nextStatus === "suspended" && !window.confirm(`確定停權「${memberName}」？停權後對方將無法使用網站。`)) return;
+      const previousStatus = currentAccountStatus;
+      renderAccountStatus(true);
+      showAccountStatusFeedback("儲存中…");
+      try {
+        await api("admin-person", { method: "PATCH", body: { user_id: userId, account_status: nextStatus } });
+        currentAccountStatus = nextStatus;
+        renderAccountStatus(false);
+        showAccountStatusFeedback("✓ 已儲存", "success");
+        loadPeople().catch((error) => showMessage(error.message, true));
+      } catch (error) {
+        currentAccountStatus = previousStatus;
+        renderAccountStatus(false);
+        showAccountStatusFeedback(error.message, "error");
+      }
+    }));
     root.querySelectorAll("[data-role-decision]").forEach((button) => button.addEventListener("click", async () => {
       const roleKey = button.dataset.roleKey;
       const reviewNote = root.querySelector(`[data-review-note="${roleKey}"]`).value.trim();
       const decision = button.dataset.roleDecision;
       const decisionLabel = { approved: "通過", rejected: "不通過", inactive: "停用" }[decision] || decision;
       try {
-        await withButtonPending(button, async () => { await api("admin-role-review", { method: "PATCH", body: { user_id: userId, role_key: roleKey, decision, review_note: reviewNote } }); await openPerson(userId); await loadPeople(); });
+        await withButtonSaveFeedback(button, async () => { await api("admin-role-review", { method: "PATCH", body: { user_id: userId, role_key: roleKey, decision, review_note: reviewNote } }); await openPerson(userId); await loadPeople(); }, () => [...root.querySelectorAll("[data-role-decision]")].find((candidate) => candidate.dataset.roleDecision === decision && candidate.dataset.roleKey === roleKey));
         showDrawerMessage(`✓ 已儲存：${Object.hasOwn(roleName, roleKey) ? roleName[roleKey] : roleKey}角色${decisionLabel}`);
       } catch (error) { showDrawerMessage(error.message, true); }
     }));
@@ -853,8 +934,8 @@ async function initAdminPeople(isDeveloper) {
       event.preventDefault();
       const form = event.currentTarget, button = form.querySelector('[type="submit"]'), data = Object.fromEntries(new FormData(form));
       try {
-        await withButtonPending(button, async () => { await api("admin-person", { method: "PATCH", body: { user_id: userId, admin_note: data.admin_note, account_status: data.account_status } }); await openPerson(userId); await loadPeople(); });
-        showDrawerMessage(`✓ 已儲存：帳號狀態改為${accountStatusLabel(data.account_status)}`);
+        await withButtonSaveFeedback(button, async () => { await api("admin-person", { method: "PATCH", body: { user_id: userId, admin_note: data.admin_note } }); });
+        showDrawerMessage("✓ 已儲存：內部備註");
       } catch (error) { showDrawerMessage(error.message, true); }
     });
     root.querySelectorAll("[data-remove-person-tag]").forEach((button) => button.addEventListener("click", async () => {
@@ -870,14 +951,14 @@ async function initAdminPeople(isDeveloper) {
       if (!tagId) return;
       const tagName = select.selectedOptions[0]?.textContent?.split("｜")[0] || "所選標籤";
       try {
-        await withButtonPending(button, async () => { await api("admin-person", { method: "PATCH", body: { user_id: userId, add_tag_ids: [tagId] } }); await openPerson(userId); await loadPeople(); });
+        await withButtonSaveFeedback(button, async () => { await api("admin-person", { method: "PATCH", body: { user_id: userId, add_tag_ids: [tagId] } }); await openPerson(userId); await loadPeople(); }, () => document.querySelector("#addPersonTag"));
         showDrawerMessage(`✓ 已加入標籤：${tagName}`);
       } catch (error) { showDrawerMessage(error.message, true); }
     });
     root.querySelector("#saveSystemRole")?.addEventListener("click", async (event) => {
       const button = event.currentTarget, role = root.querySelector("#personSystemRole").value;
       try {
-        await withButtonPending(button, async () => { await api("admin-system-role", { method: "PATCH", body: { user_id: userId, role } }); await openPerson(userId); await loadPeople(); });
+        await withButtonSaveFeedback(button, async () => { await api("admin-system-role", { method: "PATCH", body: { user_id: userId, role } }); await openPerson(userId); await loadPeople(); }, () => document.querySelector("#saveSystemRole"));
         showDrawerMessage(`✓ 已更新系統權限：${role === "admin" ? "管理員" : "一般會員"}`);
       } catch (error) { showDrawerMessage(error.message, true); }
     });
@@ -1041,7 +1122,7 @@ async function initProductionAdmin() {
   };
   renderAdminInquiries();
   renderCalendar(); renderDay(today); renderPayments();
-  try { await initAdminPeople(isDeveloper); }
+  try { await initAdminPeople(isDeveloper, member.user_id); }
   catch (error) { showAdminPeopleMessage(error instanceof Error ? error.message : "會員管理暫時無法載入", true); }
 }
 

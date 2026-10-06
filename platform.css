@@ -1132,6 +1132,30 @@ img, svg { max-width: 100%; }
 .account-status-active { background: #e7f3ee; color: #1f624d; border-color: #b8d9cc; }
 .account-status-suspended { background: #fff0ed; color: #9a2731; border-color: #e4a5aa; box-shadow: inset 4px 0 0 #c73f49; }
 .account-status-unknown { background: #efedee; color: #5e5659; border-color: #ccc5c8; }
+.account-status-row { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.account-status-toggle { display: inline-flex; min-width: 0; }
+.account-status-toggle button {
+  min-width: 88px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid #cfaeb7;
+  background: #fff8f6;
+  color: #805361;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+.account-status-toggle button:first-child { border-radius: 10px 0 0 10px; }
+.account-status-toggle button:last-child { margin-left: -1px; border-radius: 0 10px 10px 0; }
+.account-status-toggle button[data-account-status="suspended"][aria-pressed="true"] { position: relative; z-index: 1; background: #b92f3b; border-color: #b92f3b; color: #fff; }
+.account-status-toggle button[data-account-status="active"][aria-pressed="true"] { position: relative; z-index: 1; background: #28735a; border-color: #28735a; color: #fff; }
+.account-status-toggle button:focus-visible { position: relative; z-index: 2; outline: 3px solid var(--focus); outline-offset: 2px; }
+.account-status-toggle button:disabled { cursor: not-allowed; opacity: .62; }
+.account-status-feedback { color: var(--muted-strong); font-size: .82rem; font-weight: 800; overflow-wrap: anywhere; }
+.account-status-feedback.success { color: #176047; }
+.account-status-feedback.error { color: var(--danger-ink); }
+.account-status-feedback.protected { color: #6c5960; }
+.btn.save-success, .btn.save-success:hover { background: #28735a; border-color: #28735a; color: #fff; }
 .action-feedback { position: relative; margin-bottom: 14px; border-width: 2px; font-weight: 800; overflow-wrap: anywhere; }
 .action-feedback.success, #personDrawerMessage.success { background: #e8f4ee; color: #185f47; border-color: #9bcbb8; }
 .action-feedback.error, #personDrawerMessage.error { background: #fff0ed; color: #922b34; border-color: #e1a0a6; }
@@ -1178,6 +1202,9 @@ img, svg { max-width: 100%; }
   .kv { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .kv dd { margin-bottom: 8px; }
   .drawer { padding: 16px; }
+  .account-status-row { align-items: stretch; }
+  .account-status-toggle { width: 100%; }
+  .account-status-toggle button { flex: 1 1 50%; min-width: 0; }
   .role-card { padding: 16px; }
 }
 @media (hover: hover) and (pointer: fine) {
