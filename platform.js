@@ -35,7 +35,7 @@ function renderAgreementMarkdown(value, title = "") {
   };
 
   lines.forEach((line) => {
-    const heading = line.match(/^(#{1,3})\s+(.+?)\s*$/);
+    const heading = line.match(/^(#{1,6})\s+(.+?)\s*$/);
     const listItem = line.match(/^[-*]\s+(.+)$/);
     if (heading) {
       flushParagraph();
@@ -684,10 +684,61 @@ async function initProductionMember() {
 
 function showAdminPeopleMessage(text, isError = false) {
   const root = document.querySelector("#peopleMessage");
+  showActionFeedback(root, text, isError);
+}
+
+const actionFeedbackTimers = new WeakMap();
+function showActionFeedback(root, text, isError = false, scrollIntoView = false) {
   if (!root) return;
+  const previousTimer = actionFeedbackTimers.get(root);
+  if (previousTimer) {
+    window.clearTimeout(previousTimer);
+    actionFeedbackTimers.delete(root);
+  }
   root.textContent = text;
+  root.setAttribute("aria-live", isError ? "assertive" : "polite");
   root.classList.toggle("hidden", !text);
   root.classList.toggle("error", isError);
+  root.classList.toggle("success", Boolean(text) && !isError);
+  if (text && scrollIntoView) {
+    window.requestAnimationFrame(() => root.scrollIntoView?.({ block: "nearest", behavior: "smooth" }));
+  }
+  if (text) {
+    actionFeedbackTimers.set(root, window.setTimeout(() => {
+      root.classList.add("hidden");
+      actionFeedbackTimers.delete(root);
+    }, 7000));
+  }
+}
+
+function showAdminPanelMessage(text, isError, contextElement) {
+  const panel = contextElement?.closest?.("[data-people-panel]");
+  if (!panel) { showAdminPeopleMessage(text, isError); return; }
+  let root = panel.querySelector(":scope > [data-action-feedback]");
+  if (!root) {
+    root = document.createElement("div");
+    root.className = "demo-note action-feedback hidden";
+    root.dataset.actionFeedback = "";
+    root.setAttribute("role", "status");
+    root.setAttribute("aria-live", "polite");
+    panel.prepend(root);
+  }
+  showActionFeedback(root, text, isError, true);
+}
+
+async function withButtonPending(button, action) {
+  const originalText = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "儲存中…";
+  }
+  try { return await action(); }
+  finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
 }
 
 const profileFieldLabels = {
@@ -712,15 +763,30 @@ const profileEnumLabels = {
   supplier: "供應商", advertising: "廣告合作", cross_industry: "異業合作", channel: "通路", venue: "場地",
   lecturer: "講師", consultant: "顧問", other: "其他",
 };
-const formatProfileValue = (value) => {
+const profileFieldLabel = (key) => Object.hasOwn(profileFieldLabels, key) ? profileFieldLabels[key] : key;
+const profileEnumLabel = (value, fieldKey = "") => {
+  if (fieldKey === "availability_status" && value === "paused") return "暫停接案";
+  return Object.hasOwn(profileEnumLabels, value) ? profileEnumLabels[value] : String(value);
+};
+const formatProfileValue = (value, fieldKey = "") => {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return value ? "是" : "否";
-  if (Array.isArray(value)) return value.length ? value.map((item) => profileEnumLabels[item] || String(item)).join("、") : "—";
+  if (Array.isArray(value)) return value.length ? value.map((item) => profileEnumLabel(item, fieldKey)).join("、") : "—";
   if (typeof value === "object") {
-    const parts = Object.entries(value).filter(([, item]) => item !== null && item !== undefined && item !== "").map(([key, item]) => `${profileFieldLabels[key] || key}：${formatProfileValue(item)}`);
+    const parts = Object.entries(value).filter(([, item]) => item !== null && item !== undefined && item !== "").map(([key, item]) => `${profileFieldLabel(key)}：${formatProfileValue(item, key)}`);
     return parts.length ? parts.join("、") : "—";
   }
-  return profileEnumLabels[value] || String(value);
+  return profileEnumLabel(value, fieldKey);
+};
+
+const accountStatusMeta = {
+  active: ["啟用", "active"],
+  suspended: ["停權", "suspended"],
+};
+const accountStatusLabel = (status) => Object.hasOwn(accountStatusMeta, status) ? accountStatusMeta[status][0] : String(status || "active");
+const accountStatusBadge = (status) => {
+  const meta = Object.hasOwn(accountStatusMeta, status) ? accountStatusMeta[status] : [String(status || "active"), "unknown"];
+  return `<span class="account-status-badge account-status-${escapeHtml(meta[1])}">${escapeHtml(meta[0])}</span>`;
 };
 
 async function initAdminPeople(isDeveloper) {
@@ -747,23 +813,24 @@ async function initAdminPeople(isDeveloper) {
     const items = result.items || [];
     peopleTotal = Number(result.total || 0);
     const root = document.querySelector("#peopleRows");
-    root.innerHTML = items.map((person) => `<tr><td><div class="people-name"><button type="button" data-person-id="${escapeHtml(person.user_id)}">${escapeHtml(person.full_name || person.name || "未命名會員")}</button><small>${escapeHtml(person.email)}</small></div></td><td>${escapeHtml(person.account_status || "active")}</td><td><div class="role-badge-row">${roleBadges(person.partner_roles, { hideInactive: true })}</div></td><td>${(person.tags || []).map(normalizeTag).map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)}</span>`).join("") || "—"}</td><td>${escapeHtml(person.created_at ? new Date(person.created_at).toLocaleDateString("zh-TW") : "—")}</td></tr>`).join("") || '<tr><td colspan="5">沒有符合條件的會員</td></tr>';
+    root.innerHTML = items.map((person) => `<tr><td><div class="people-name"><button type="button" data-person-id="${escapeHtml(person.user_id)}">${escapeHtml(person.full_name || person.name || "未命名會員")}</button><small>${escapeHtml(person.email)}</small></div></td><td>${accountStatusBadge(person.account_status)}</td><td><div class="role-badge-row">${roleBadges(person.partner_roles, { hideInactive: true })}</div></td><td>${(person.tags || []).map(normalizeTag).map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)}</span>`).join("") || "—"}</td><td>${escapeHtml(person.created_at ? new Date(person.created_at).toLocaleDateString("zh-TW") : "—")}</td></tr>`).join("") || '<tr><td colspan="5">沒有符合條件的會員</td></tr>';
     root.querySelectorAll("[data-person-id]").forEach((button) => button.addEventListener("click", () => openPerson(button.dataset.personId).catch((error) => showMessage(error.message, true))));
     const pageSize = Number(result.page_size || 50);
     document.querySelector("#peoplePage").textContent = `第 ${Number(result.page || peoplePage)} 頁・共 ${peopleTotal} 人`;
     document.querySelector("#peoplePrev").disabled = peoplePage <= 1;
     document.querySelector("#peopleNext").disabled = peoplePage * pageSize >= peopleTotal;
   };
-  const detailPairs = (data) => Object.entries(data || {}).filter(([key]) => !["user_id", "created_at", "updated_at"].includes(key)).map(([key, value]) => `<dt>${escapeHtml(profileFieldLabels[key] || key)}</dt><dd>${escapeHtml(formatProfileValue(value))}</dd>`).join("");
+  const detailPairs = (data) => Object.entries(data || {}).filter(([key]) => !["user_id", "created_at", "updated_at"].includes(key)).map(([key, value]) => `<dt>${escapeHtml(profileFieldLabel(key))}</dt><dd>${escapeHtml(formatProfileValue(value, key))}</dd>`).join("");
   const closeDrawer = () => { document.querySelector("#personDrawer").hidden = true; document.querySelector("#personDrawerBackdrop").hidden = true; };
   const openPerson = async (userId) => {
+    showActionFeedback(document.querySelector("#personDrawerMessage"), "");
     const detail = await api("admin-person", { query: `&user_id=${encodeURIComponent(userId)}` });
     const member = detail.member || {};
     const detailTags = (detail.tags || []).map(normalizeTag);
     const drawer = document.querySelector("#personDrawer"), backdrop = document.querySelector("#personDrawerBackdrop"), root = document.querySelector("#personDrawerBody");
     document.querySelector("#personDrawerTitle").textContent = member.full_name || member.name || member.email || "會員詳情";
     const profileBlocks = [["服務提供者資料", detail.provider], ["合作夥伴資料", detail.partner], ["資源需求者資料", detail.seeker]].filter(([, value]) => value);
-    root.innerHTML = `<section class="panel drawer-block"><h3>基本資料</h3><dl class="kv"><dt>Email</dt><dd>${escapeHtml(member.email)}</dd><dt>手機</dt><dd>${escapeHtml(member.phone || "—")}</dd><dt>LINE</dt><dd>${escapeHtml(member.line_id || "—")}</dd><dt>地區</dt><dd>${escapeHtml(member.region || "—")}</dd><dt>帳號狀態</dt><dd>${escapeHtml(member.account_status || "active")}</dd></dl></section>
+    root.innerHTML = `<section class="panel drawer-block"><h3>基本資料</h3><dl class="kv"><dt>Email</dt><dd>${escapeHtml(member.email)}</dd><dt>手機</dt><dd>${escapeHtml(member.phone || "—")}</dd><dt>LINE</dt><dd>${escapeHtml(member.line_id || "—")}</dd><dt>地區</dt><dd>${escapeHtml(member.region || "—")}</dd><dt>帳號狀態</dt><dd>${accountStatusBadge(member.account_status)}</dd></dl></section>
       <section class="panel drawer-block"><h3>角色審核</h3><div id="personRoleReviews">${(detail.roles || []).map((role) => `<div class="review-block"><div class="role-badge-row">${roleBadges([role], { roleData: detail })}</div><label class="field"><span>審核備註</span><textarea data-review-note="${escapeHtml(role.role_key)}">${escapeHtml(role.review_note || "")}</textarea></label><div class="review-actions"><button class="btn ghost small" type="button" data-role-decision="approved" data-role-key="${escapeHtml(role.role_key)}">通過</button><button class="btn ghost small" type="button" data-role-decision="rejected" data-role-key="${escapeHtml(role.role_key)}">不通過</button><button class="btn ghost small" type="button" data-role-decision="inactive" data-role-key="${escapeHtml(role.role_key)}">停用</button></div></div>`).join("") || '<p class="muted">尚無合作角色</p>'}</div></section>
       ${profileBlocks.map(([title, data]) => `<section class="panel drawer-block"><h3>${escapeHtml(title)}</h3><dl class="kv">${detailPairs(data)}</dl></section>`).join("")}
       <section class="panel drawer-block"><h3>標籤</h3><div id="personTags" class="tag-line">${detailTags.map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)} <button class="tag-remove" type="button" data-remove-person-tag="${escapeHtml(tag.tag_id)}" aria-label="移除 ${escapeHtml(tag.name)}">×</button></span>`).join("") || '<span class="muted">尚無標籤</span>'}</div><div class="field"><label for="personTagAdd">新增標籤</label><select id="personTagAdd"><option value="">請選擇</option>${allTags.filter((tag) => tag.status === "active" && !detailTags.some((assigned) => String(assigned.tag_id) === String(tag.tag_id))).map((tag) => `<option value="${escapeHtml(tag.tag_id)}">${escapeHtml(tag.name)}｜${escapeHtml(tag.tag_type)}</option>`).join("")}</select></div><button id="addPersonTag" class="btn ghost small" type="button">加入標籤</button></section>
@@ -771,29 +838,82 @@ async function initAdminPeople(isDeveloper) {
       ${isDeveloper ? (member.role === "developer" ? `<section class="panel drawer-block" data-system-role-section><h3>系統權限（僅 Developer）</h3><p class="demo-note">Developer 帳號受保護</p></section>` : `<section class="panel drawer-block" data-system-role-section><h3>系統權限（僅 Developer）</h3><div class="field"><label for="personSystemRole">系統權限</label><select id="personSystemRole"><option value="member" ${member.role !== "admin" ? "selected" : ""}>member</option><option value="admin" ${member.role === "admin" ? "selected" : ""}>admin</option></select></div><button id="saveSystemRole" class="btn ghost small" type="button">更新系統權限</button></section>`) : ""}
       <section class="panel drawer-block"><h3>同意紀錄</h3><div class="table-scroll"><table class="table"><thead><tr><th>規範</th><th>版本</th><th>狀態</th></tr></thead><tbody>${(detail.agreement_records || []).map((record) => `<tr><td>${escapeHtml(record.agreement_key)}</td><td>v${escapeHtml(record.agreement_version)}</td><td>${escapeHtml(record.status)}</td></tr>`).join("") || '<tr><td colspan="3">尚無同意紀錄</td></tr>'}</tbody></table></div></section>`;
     drawer.hidden = false; backdrop.hidden = false;
+    const showDrawerMessage = (text, isError = false) => showActionFeedback(document.querySelector("#personDrawerMessage"), text, isError, true);
     root.querySelectorAll("[data-role-decision]").forEach((button) => button.addEventListener("click", async () => {
       const roleKey = button.dataset.roleKey;
       const reviewNote = root.querySelector(`[data-review-note="${roleKey}"]`).value.trim();
-      try { await api("admin-role-review", { method: "PATCH", body: { user_id: userId, role_key: roleKey, decision: button.dataset.roleDecision, review_note: reviewNote } }); await openPerson(userId); await loadPeople(); }
-      catch (error) { document.querySelector("#personDrawerMessage").textContent = error.message; document.querySelector("#personDrawerMessage").classList.remove("hidden"); }
+      const decision = button.dataset.roleDecision;
+      const decisionLabel = { approved: "通過", rejected: "不通過", inactive: "停用" }[decision] || decision;
+      try {
+        await withButtonPending(button, async () => { await api("admin-role-review", { method: "PATCH", body: { user_id: userId, role_key: roleKey, decision, review_note: reviewNote } }); await openPerson(userId); await loadPeople(); });
+        showDrawerMessage(`✓ 已儲存：${Object.hasOwn(roleName, roleKey) ? roleName[roleKey] : roleKey}角色${decisionLabel}`);
+      } catch (error) { showDrawerMessage(error.message, true); }
     }));
-    root.querySelector("#personAdminForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); try { await api("admin-person", { method: "PATCH", body: { user_id: userId, admin_note: data.admin_note, account_status: data.account_status } }); await openPerson(userId); await loadPeople(); } catch (error) { showMessage(error.message, true); } });
-    root.querySelectorAll("[data-remove-person-tag]").forEach((button) => button.addEventListener("click", async () => { try { await api("admin-person", { method: "PATCH", body: { user_id: userId, remove_tag_ids: [button.dataset.removePersonTag] } }); await openPerson(userId); await loadPeople(); } catch (error) { showMessage(error.message, true); } }));
-    root.querySelector("#addPersonTag")?.addEventListener("click", async () => { const tagId = root.querySelector("#personTagAdd").value; if (!tagId) return; try { await api("admin-person", { method: "PATCH", body: { user_id: userId, add_tag_ids: [tagId] } }); await openPerson(userId); await loadPeople(); } catch (error) { showMessage(error.message, true); } });
-    root.querySelector("#saveSystemRole")?.addEventListener("click", async () => { try { await api("admin-system-role", { method: "PATCH", body: { user_id: userId, role: root.querySelector("#personSystemRole").value } }); await openPerson(userId); await loadPeople(); } catch (error) { showMessage(error.message, true); } });
+    root.querySelector("#personAdminForm")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget, button = form.querySelector('[type="submit"]'), data = Object.fromEntries(new FormData(form));
+      try {
+        await withButtonPending(button, async () => { await api("admin-person", { method: "PATCH", body: { user_id: userId, admin_note: data.admin_note, account_status: data.account_status } }); await openPerson(userId); await loadPeople(); });
+        showDrawerMessage(`✓ 已儲存：帳號狀態改為${accountStatusLabel(data.account_status)}`);
+      } catch (error) { showDrawerMessage(error.message, true); }
+    });
+    root.querySelectorAll("[data-remove-person-tag]").forEach((button) => button.addEventListener("click", async () => {
+      const tagId = button.dataset.removePersonTag;
+      const tagName = detailTags.find((tag) => String(tag.tag_id) === String(tagId))?.name || "所選標籤";
+      try {
+        await withButtonPending(button, async () => { await api("admin-person", { method: "PATCH", body: { user_id: userId, remove_tag_ids: [tagId] } }); await openPerson(userId); await loadPeople(); });
+        showDrawerMessage(`✓ 已移除標籤：${tagName}`);
+      } catch (error) { showDrawerMessage(error.message, true); }
+    }));
+    root.querySelector("#addPersonTag")?.addEventListener("click", async (event) => {
+      const button = event.currentTarget, select = root.querySelector("#personTagAdd"), tagId = select.value;
+      if (!tagId) return;
+      const tagName = select.selectedOptions[0]?.textContent?.split("｜")[0] || "所選標籤";
+      try {
+        await withButtonPending(button, async () => { await api("admin-person", { method: "PATCH", body: { user_id: userId, add_tag_ids: [tagId] } }); await openPerson(userId); await loadPeople(); });
+        showDrawerMessage(`✓ 已加入標籤：${tagName}`);
+      } catch (error) { showDrawerMessage(error.message, true); }
+    });
+    root.querySelector("#saveSystemRole")?.addEventListener("click", async (event) => {
+      const button = event.currentTarget, role = root.querySelector("#personSystemRole").value;
+      try {
+        await withButtonPending(button, async () => { await api("admin-system-role", { method: "PATCH", body: { user_id: userId, role } }); await openPerson(userId); await loadPeople(); });
+        showDrawerMessage(`✓ 已更新系統權限：${role === "admin" ? "管理員" : "一般會員"}`);
+      } catch (error) { showDrawerMessage(error.message, true); }
+    });
   };
   const renderTagRows = () => {
     const root = document.querySelector("#tagRows");
     root.innerHTML = allTags.map((tag) => `<tr><td><input data-tag-name="${escapeHtml(tag.tag_id)}" value="${escapeHtml(tag.name)}" /></td><td>${escapeHtml(tag.tag_type)}</td><td>${escapeHtml(tag.slug)}</td><td><select data-tag-status="${escapeHtml(tag.tag_id)}"><option value="active" ${tag.status === "active" ? "selected" : ""}>active</option><option value="hidden" ${tag.status === "hidden" ? "selected" : ""}>hidden</option><option value="archived" ${tag.status === "archived" ? "selected" : ""}>archived</option></select><input data-tag-order="${escapeHtml(tag.tag_id)}" type="number" value="${escapeHtml(tag.sort_order ?? 0)}" aria-label="排序" /></td><td><button class="btn ghost small" type="button" data-save-tag="${escapeHtml(tag.tag_id)}">儲存</button></td></tr>`).join("") || '<tr><td colspan="5">目前沒有標籤</td></tr>';
-    root.querySelectorAll("[data-save-tag]").forEach((button) => button.addEventListener("click", async () => { const id = button.dataset.saveTag; try { await api("admin-tags", { method: "PATCH", body: { tag_id: id, name: root.querySelector(`[data-tag-name="${id}"]`).value.trim(), status: root.querySelector(`[data-tag-status="${id}"]`).value, sort_order: Number(root.querySelector(`[data-tag-order="${id}"]`).value) } }); await loadTags(); } catch (error) { showMessage(error.message, true); } }));
+    root.querySelectorAll("[data-save-tag]").forEach((button) => button.addEventListener("click", async () => {
+      const id = button.dataset.saveTag, name = root.querySelector(`[data-tag-name="${id}"]`).value.trim();
+      try {
+        await withButtonPending(button, async () => { await api("admin-tags", { method: "PATCH", body: { tag_id: id, name, status: root.querySelector(`[data-tag-status="${id}"]`).value, sort_order: Number(root.querySelector(`[data-tag-order="${id}"]`).value) } }); await loadTags(); });
+        showAdminPanelMessage(`✓ 已儲存標籤：${name}`, false, document.querySelector('[data-people-panel="tags"]'));
+      } catch (error) { showAdminPanelMessage(error.message, true, button); }
+    }));
   };
   const loadAgreements = async () => {
     const agreements = normalizeList(await api("admin-agreements"), "agreements");
     const root = document.querySelector("#agreementAdminList");
     root.innerHTML = agreements.map((agreement) => `<article class="card agr-card"><div class="agr-card-head"><div><strong>${escapeHtml(agreement.title)}</strong><div class="muted">${escapeHtml(agreement.agreement_key)}・v${escapeHtml(agreement.version)}</div></div><span class="badge neutral">${escapeHtml(agreement.status)}</span></div>${agreement.status === "draft" ? `<div class="inline-form"><div class="field"><label>標題</label><input data-agreement-title="${escapeHtml(agreement.agreement_id)}" value="${escapeHtml(agreement.title)}" /></div><div class="field"><label>規範全文</label><textarea rows="6" data-agreement-body="${escapeHtml(agreement.agreement_id)}">${escapeHtml(agreement.body_md)}</textarea></div><button class="btn ghost small" type="button" data-save-agreement="${escapeHtml(agreement.agreement_id)}">儲存草稿</button><label class="field-check"><input type="checkbox" data-publish-confirm="${escapeHtml(agreement.agreement_id)}" />我確認：舊版同意將失效、會員需重新同意</label><button class="btn small" type="button" data-publish-agreement="${escapeHtml(agreement.agreement_id)}" disabled>發布此版本</button></div>` : `<details><summary>查看內容</summary><div class="agreement-body">${renderAgreementMarkdown(agreement.body_md, agreement.title)}</div></details>`}</article>`).join("") || '<p class="muted">目前沒有規範版本</p>';
     root.querySelectorAll("[data-publish-confirm]").forEach((check) => check.addEventListener("change", () => { root.querySelector(`[data-publish-agreement="${check.dataset.publishConfirm}"]`).disabled = !check.checked; }));
-    root.querySelectorAll("[data-save-agreement]").forEach((button) => button.addEventListener("click", async () => { const id = button.dataset.saveAgreement; try { await api("admin-agreements", { method: "PATCH", body: { agreement_id: id, title: root.querySelector(`[data-agreement-title="${id}"]`).value.trim(), body_md: root.querySelector(`[data-agreement-body="${id}"]`).value } }); await loadAgreements(); } catch (error) { showMessage(error.message, true); } }));
-    root.querySelectorAll("[data-publish-agreement]").forEach((button) => button.addEventListener("click", async () => { if (!root.querySelector(`[data-publish-confirm="${button.dataset.publishAgreement}"]`).checked) return; try { await api("admin-agreements", { method: "PATCH", body: { agreement_id: button.dataset.publishAgreement, action: "publish" } }); await loadAgreements(); } catch (error) { showMessage(error.message, true); } }));
+    root.querySelectorAll("[data-save-agreement]").forEach((button) => button.addEventListener("click", async () => {
+      const id = button.dataset.saveAgreement, title = root.querySelector(`[data-agreement-title="${id}"]`).value.trim();
+      try {
+        await withButtonPending(button, async () => { await api("admin-agreements", { method: "PATCH", body: { agreement_id: id, title, body_md: root.querySelector(`[data-agreement-body="${id}"]`).value } }); await loadAgreements(); });
+        showAdminPanelMessage(`✓ 已儲存規範草稿：${title}`, false, document.querySelector('[data-people-panel="agreements"]'));
+      } catch (error) { showAdminPanelMessage(error.message, true, button); }
+    }));
+    root.querySelectorAll("[data-publish-agreement]").forEach((button) => button.addEventListener("click", async () => {
+      const id = button.dataset.publishAgreement, confirm = root.querySelector(`[data-publish-confirm="${id}"]`);
+      if (!confirm.checked) return;
+      const title = root.querySelector(`[data-agreement-title="${id}"]`).value.trim();
+      try {
+        await withButtonPending(button, async () => { await api("admin-agreements", { method: "PATCH", body: { agreement_id: id, action: "publish" } }); await loadAgreements(); });
+        showAdminPanelMessage(`✓ 已發布規範版本：${title}`, false, document.querySelector('[data-people-panel="agreements"]'));
+      } catch (error) { showAdminPanelMessage(error.message, true, button); }
+    }));
   };
   const loadRecords = async () => {
     const form = new FormData(document.querySelector("#agreementRecordFilters")); const params = new URLSearchParams();
@@ -811,8 +931,23 @@ async function initAdminPeople(isDeveloper) {
   document.querySelector("#peopleFilters")?.addEventListener("submit", (event) => { event.preventDefault(); peoplePage = 1; loadPeople().catch((error) => showMessage(error.message, true)); });
   document.querySelector("#peoplePrev")?.addEventListener("click", () => { if (peoplePage > 1) { peoplePage--; loadPeople().catch((error) => showMessage(error.message, true)); } });
   document.querySelector("#peopleNext")?.addEventListener("click", () => { peoplePage++; loadPeople().catch((error) => showMessage(error.message, true)); });
-  document.querySelector("#tagCreateForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); try { await api("admin-tags", { method: "POST", body: data }); event.currentTarget.reset(); await loadTags(); } catch (error) { showMessage(error.message, true); } });
-  document.querySelector("#agreementDraftForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); data.applies_to_roles = data.applies_to_roles.split(",").map((value) => value.trim()).filter(Boolean); try { await api("admin-agreements", { method: "POST", body: data }); event.currentTarget.reset(); await loadAgreements(); } catch (error) { showMessage(error.message, true); } });
+  document.querySelector("#tagCreateForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget, button = form.querySelector('[type="submit"]'), data = Object.fromEntries(new FormData(form));
+    try {
+      await withButtonPending(button, async () => { await api("admin-tags", { method: "POST", body: data }); form.reset(); await loadTags(); });
+      showAdminPanelMessage(`✓ 已新增標籤：${data.name}`, false, form);
+    } catch (error) { showAdminPanelMessage(error.message, true, form); }
+  });
+  document.querySelector("#agreementDraftForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget, button = form.querySelector('[type="submit"]'), data = Object.fromEntries(new FormData(form));
+    data.applies_to_roles = data.applies_to_roles.split(",").map((value) => value.trim()).filter(Boolean);
+    try {
+      await withButtonPending(button, async () => { await api("admin-agreements", { method: "POST", body: data }); form.reset(); await loadAgreements(); });
+      showAdminPanelMessage(`✓ 已新增規範草稿：${data.title}`, false, form);
+    } catch (error) { showAdminPanelMessage(error.message, true, form); }
+  });
   document.querySelector("#agreementRecordFilters")?.addEventListener("submit", (event) => { event.preventDefault(); loadRecords().catch((error) => showMessage(error.message, true)); });
   document.querySelector("#closePersonDrawer")?.addEventListener("click", closeDrawer);
   document.querySelector("#personDrawerBackdrop")?.addEventListener("click", closeDrawer);

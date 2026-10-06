@@ -1128,6 +1128,14 @@ img, svg { max-width: 100%; }
 .people-name button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .people-name small { color: var(--muted); overflow-wrap: anywhere; }
 .people-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.account-status-badge { display: inline-flex; align-items: center; min-height: 27px; padding: 4px 10px; border-radius: 9px; border: 1px solid transparent; font-size: .75rem; font-weight: 850; line-height: 1; white-space: nowrap; }
+.account-status-active { background: #e7f3ee; color: #1f624d; border-color: #b8d9cc; }
+.account-status-suspended { background: #fff0ed; color: #9a2731; border-color: #e4a5aa; box-shadow: inset 4px 0 0 #c73f49; }
+.account-status-unknown { background: #efedee; color: #5e5659; border-color: #ccc5c8; }
+.action-feedback { position: relative; margin-bottom: 14px; border-width: 2px; font-weight: 800; overflow-wrap: anywhere; }
+.action-feedback.success, #personDrawerMessage.success { background: #e8f4ee; color: #185f47; border-color: #9bcbb8; }
+.action-feedback.error, #personDrawerMessage.error { background: #fff0ed; color: #922b34; border-color: #e1a0a6; }
+#personDrawerMessage { position: sticky; top: 0; z-index: 2; margin-bottom: 14px; border-width: 2px; box-shadow: var(--shadow-sm); font-weight: 800; }
 .mini-tag { display: inline-block; padding: 3px 8px; margin: 2px 4px 2px 0; border-radius: var(--radius-pill); background: var(--sage-100); color: var(--success-ink); font-size: .72rem; font-weight: 700; }
 .drawer-backdrop { position: fixed; inset: 0; background: rgba(36,27,30,.5); z-index: 60; }
 .drawer-backdrop[hidden], .drawer[hidden] { display: none; }
