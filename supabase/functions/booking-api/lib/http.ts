@@ -9,7 +9,7 @@ export function cors(origin: string | null) {
   return {
     "Access-Control-Allow-Origin": value,
     "Access-Control-Allow-Headers": "authorization, content-type, apikey",
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     Vary: "Origin",
   };
 }

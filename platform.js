@@ -251,10 +251,13 @@ function readRoleFields(card) {
   return result;
 }
 
-function fillRoleFields(card, data = {}) {
+function fillRoleFields(card, data = {}, defaultFirstValid = false) {
   card?.querySelectorAll("[data-f]").forEach((field) => {
     const value = data?.[field.dataset.f];
     if (field.type === "checkbox") field.checked = field.dataset.f === "accept_matching" && value === undefined ? true : Boolean(value);
+    else if (defaultFirstValid && field.tagName === "SELECT" && (value === undefined || value === null || value === "")) {
+      field.value = [...field.options].find((option) => !option.disabled && option.value)?.value ?? "";
+    }
     else field.value = value ?? "";
   });
   card?.querySelectorAll("[data-s]").forEach((field) => { field.value = data?.social_links?.[field.dataset.s] ?? ""; });
@@ -281,7 +284,10 @@ async function initMemberRoles(mePayload) {
     const selectedTagIds = new Set((roleData.tag_ids || []).map(String));
     const agreedById = new Map((roleData.agreements || []).map((agreement) => [String(agreement.agreement_id), Boolean(agreement.agreed)]));
     const checks = [...form.querySelectorAll("[data-role-check]")];
-    checks.forEach((check) => { check.checked = statusByRole.has(check.dataset.roleCheck) && statusByRole.get(check.dataset.roleCheck).status !== "inactive"; });
+    checks.forEach((check) => {
+      if (check.dataset.roleCheck === "member") { check.checked = true; check.disabled = true; return; }
+      check.checked = statusByRole.has(check.dataset.roleCheck) && statusByRole.get(check.dataset.roleCheck).status !== "inactive";
+    });
     for (const [key, role] of statusByRole) {
       const target = form.querySelector(`[data-role-status="${key}"]`);
       const meta = roleStatusMeta[role.status] || [role.status, "role-st-inactive"];
@@ -289,7 +295,7 @@ async function initMemberRoles(mePayload) {
       const note = form.querySelector(`[data-role-note="${key}"]`);
       if (note && role.review_note_public) { note.textContent = `審核說明：${role.review_note_public}`; note.classList.remove("hidden"); }
     }
-    fillRoleFields(form.querySelector('[data-role-card="provider"]'), roleData.provider);
+    fillRoleFields(form.querySelector('[data-role-card="provider"]'), roleData.provider, true);
     fillRoleFields(form.querySelector('[data-role-card="partner"]'), roleData.partner);
     fillRoleFields(form.querySelector('[data-role-card="resource_seeker"]'), roleData.seeker);
     renderChoiceChips(document.querySelector("#pvServices"), services, new Set((roleData.provider?.service_ids || []).map(String)), "provider_service", "service_id", "service_name");
@@ -580,16 +586,19 @@ async function initProductionMember() {
   renderPlans();
 }
 
+function showAdminPeopleMessage(text, isError = false) {
+  const root = document.querySelector("#peopleMessage");
+  if (!root) return;
+  root.textContent = text;
+  root.classList.toggle("hidden", !text);
+  root.classList.toggle("error", isError);
+}
+
 async function initAdminPeople(isDeveloper) {
   const panels = [...document.querySelectorAll("[data-people-panel]")];
   const tabs = [...document.querySelectorAll("[data-people-tab]")];
   let allTags = [], peoplePage = 1, peopleTotal = 0;
-  const showMessage = (text, isError = false) => {
-    const root = document.querySelector("#peopleMessage");
-    root.textContent = text;
-    root.classList.toggle("hidden", !text);
-    root.classList.toggle("error", isError);
-  };
+  const showMessage = showAdminPeopleMessage;
   const loadTags = async () => {
     allTags = normalizeList(await api("admin-tags"), "tags");
     const select = document.querySelector("#peopleTag");
@@ -766,8 +775,9 @@ async function initProductionAdmin() {
     }));
   };
   renderAdminInquiries();
-  await initAdminPeople(isDeveloper);
   renderCalendar(); renderDay(today); renderPayments();
+  try { await initAdminPeople(isDeveloper); }
+  catch (error) { showAdminPeopleMessage(error instanceof Error ? error.message : "會員管理暫時無法載入", true); }
 }
 
 document.addEventListener('DOMContentLoaded',()=>{

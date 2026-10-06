@@ -64,7 +64,7 @@ async function activeAgreements(db: any, roles?: string[]) {
 
 export async function getMyRoles(ctx: RequestContext) {
   const { db, origin, user } = ctx;
-  const [{ data: roles, error: roleError }, { data: provider }, { data: partner }, { data: seeker }, { data: tags }, { data: agreements, error: agreementError }, { data: records }, { data: links }] = await Promise.all([
+  const [{ data: roles, error: roleError }, { data: provider, error: providerError }, { data: partner, error: partnerError }, { data: seeker, error: seekerError }, { data: tags, error: tagsError }, { data: agreements, error: agreementError }, { data: records, error: recordsError }, { data: links, error: linksError }] = await Promise.all([
     db.schema("booking").from("member_roles").select("role_key,status").eq("user_id", user.id).order("role_key"),
     db.schema("booking").from("providers").select(PROVIDER_FIELDS).eq("user_id", user.id).maybeSingle(),
     db.schema("booking").from("partners").select(PARTNER_FIELDS).eq("user_id", user.id).maybeSingle(),
@@ -74,7 +74,9 @@ export async function getMyRoles(ctx: RequestContext) {
     db.schema("booking").from("member_agreements").select("agreement_id,status").eq("user_id", user.id).eq("status", "agreed"),
     db.schema("booking").from("service_providers").select("service_id,providers!inner(user_id)").eq("providers.user_id", user.id),
   ]);
-  if (roleError || agreementError) return contractError(origin, 400, "roles_unavailable", "角色資料暫時無法讀取");
+  if (roleError || providerError || partnerError || seekerError || tagsError || agreementError || recordsError || linksError) {
+    return contractError(origin, 500, "roles_unavailable", "角色資料暫時無法讀取");
+  }
   const agreed = new Set((records || []).map((row: any) => row.agreement_id));
   return reply(origin, 200, {
     roles: (roles || []).map((row: any) => ({ ...row, review_note_public: null })),
@@ -166,14 +168,16 @@ export async function putMyRoles(ctx: RequestContext) {
     if (missing.length) return contractError(ctx.origin, 400, "agreements_required", `尚未同意：${missing.map((row: any) => row.title).join("、")}`);
 
     const now = new Date().toISOString();
-    const [{ data: existingRoles, error: existingError }, { data: existingProvider, error: providerLookupError }, tagCheck, serviceCheck] = await Promise.all([
+    const [{ data: existingRoles, error: existingError }, { data: existingProvider, error: providerLookupError }, { data: existingTags, error: existingTagsError }, tagCheck, serviceCheck] = await Promise.all([
       ctx.db.schema("booking").from("member_roles").select("role_key,status,applied_at,reviewed_at,reviewed_by,review_note").eq("user_id", ctx.user.id),
       ctx.db.schema("booking").from("providers").select("provider_id").eq("user_id", ctx.user.id).maybeSingle(),
+      ctx.db.schema("booking").from("member_tags").select("tag_id,source").eq("user_id", ctx.user.id),
       tagIds.length ? ctx.db.schema("booking").from("tags").select("tag_id").in("tag_id", tagIds).eq("status", "active") : Promise.resolve({ data: [], error: null }),
       profiles.serviceIds.length ? ctx.db.schema("booking").from("services").select("service_id").in("service_id", profiles.serviceIds).in("service_status", ["active", "coming_soon"]) : Promise.resolve({ data: [], error: null }),
     ]);
     if (existingError) throw new Error("roles_save_failed");
     if (providerLookupError) throw new Error("provider_save_failed");
+    if (existingTagsError) throw new Error("tags_save_failed");
     if (tagCheck.error || tagCheck.data?.length !== tagIds.length) throw new Error("invalid_tags");
     if (serviceCheck.error || serviceCheck.data?.length !== profiles.serviceIds.length) throw new Error("invalid_services");
     if (roles.includes("provider") && existingProvider?.provider_id === "PRV-MEIHAU") throw new Error("protected_provider");
@@ -197,8 +201,10 @@ export async function putMyRoles(ctx: RequestContext) {
     const statusByRole = new Map(rows.map((row) => [row.role_key, row.status]));
     const providerId = existingProvider?.provider_id || `PRV-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
     if (profiles.provider) {
-      const providerRow = { ...profiles.provider, provider_id: providerId, user_id: ctx.user.id, status: "hidden", approval_status: statusByRole.get("provider") === "approved" ? "approved" : "pending", updated_at: now };
-      const { error } = await ctx.db.schema("booking").from("providers").upsert(providerRow, { onConflict: "provider_id" });
+      const providerValues = { ...profiles.provider, user_id: ctx.user.id, approval_status: statusByRole.get("provider") === "approved" ? "approved" : "pending", updated_at: now };
+      const { error } = existingProvider
+        ? await ctx.db.schema("booking").from("providers").update(providerValues).eq("provider_id", providerId)
+        : await ctx.db.schema("booking").from("providers").insert({ ...providerValues, provider_id: providerId, status: "hidden" });
       if (error) throw new Error("provider_save_failed");
       if (profiles.serviceIds.length) {
         const { error: linkError } = await ctx.db.schema("booking").from("service_providers").upsert(profiles.serviceIds.map((serviceId) => ({ service_id: serviceId, provider_id: providerId, status: "hidden" })), { onConflict: "service_id,provider_id", ignoreDuplicates: true });
@@ -238,8 +244,10 @@ export async function putMyRoles(ctx: RequestContext) {
     }
     const { error: deactivateTagsError } = await ctx.db.schema("booking").from("member_tags").update({ status: "inactive", updated_at: now }).eq("user_id", ctx.user.id).eq("source", "self").eq("status", "active");
     if (deactivateTagsError) throw new Error("tags_save_failed");
-    if (tagIds.length) {
-      const { error } = await ctx.db.schema("booking").from("member_tags").upsert(tagIds.map((tagId) => ({ user_id: ctx.user.id, tag_id: tagId, source: "self", status: "active", updated_at: now })), { onConflict: "user_id,tag_id" });
+    const adminTagIds = new Set((existingTags || []).filter((row: any) => row.source === "admin").map((row: any) => String(row.tag_id)));
+    const selfTagIds = tagIds.filter((tagId) => !adminTagIds.has(tagId));
+    if (selfTagIds.length) {
+      const { error } = await ctx.db.schema("booking").from("member_tags").upsert(selfTagIds.map((tagId) => ({ user_id: ctx.user.id, tag_id: tagId, source: "self", status: "active", updated_at: now })), { onConflict: "user_id,tag_id" });
       if (error) throw new Error("tags_save_failed");
     }
     const submittedRequired = required.filter((row: any) => submittedIds.includes(row.agreement_id));

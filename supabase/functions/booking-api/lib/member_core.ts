@@ -33,7 +33,7 @@ export async function handleAddresses(ctx: RequestContext, method: string) {
   }
   const id = url.searchParams.get("id");
   // Preserve the pre-Phase-1 address DELETE route without introducing deletion into new role flows.
-  const { error } = await db.schema("booking").from("addresses")["delete"]().eq("id", id).eq("user_id", user.id);
+  const { error } = await db.schema("booking").from("addresses").delete().eq("id", id).eq("user_id", user.id);
   return reply(origin, error ? 400 : 200, error ? { error: error.message } : { ok: true });
 }
 

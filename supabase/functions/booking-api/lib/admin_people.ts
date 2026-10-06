@@ -31,7 +31,7 @@ export async function adminPeople(ctx: RequestContext) {
   const tagId = ctx.url.searchParams.get("tag_id");
   const multiRole = ctx.url.searchParams.get("multi_role") === "1";
   const [{ data: members, error }, { data: roles, error: rolesError }, { data: memberTags, error: tagsError }] = await Promise.all([
-    loadAll((from, to) => ctx.db.schema("booking").from("members").select("user_id,name,full_name,email,role,account_status,admin_note,created_at").order("created_at", { ascending: false }).order("user_id").range(from, to)),
+    loadAll((from, to) => ctx.db.schema("booking").from("members").select("user_id,name,full_name,email,phone,role,account_status,admin_note,created_at").order("created_at", { ascending: false }).order("user_id").range(from, to)),
     loadAll((from, to) => ctx.db.schema("booking").from("member_roles").select("user_id,role_key,status").order("user_id").order("role_key").range(from, to)),
     loadAll((from, to) => ctx.db.schema("booking").from("member_tags").select("user_id,tag_id,tags!inner(name,tag_type)").eq("status", "active").order("user_id").order("tag_id").range(from, to)),
   ]);
@@ -41,7 +41,7 @@ export async function adminPeople(ctx: RequestContext) {
   const tagsByUser = new Map<string, any[]>();
   for (const row of memberTags || []) tagsByUser.set(row.user_id, [...(tagsByUser.get(row.user_id) || []), { tag_id: row.tag_id, name: row.tags.name, tag_type: row.tags.tag_type }]);
   let items = (members || []).map((member: any) => ({ ...member, partner_roles: rolesByUser.get(member.user_id) || [], tags: tagsByUser.get(member.user_id) || [] }));
-  if (q) items = items.filter((item: any) => [item.name, item.full_name, item.email].some((value) => String(value || "").toLowerCase().includes(q)));
+  if (q) items = items.filter((item: any) => [item.name, item.full_name, item.email, item.phone].some((value) => String(value || "").toLowerCase().includes(q)));
   if (roleKey) items = items.filter((item: any) => item.partner_roles.some((role: any) => role.role_key === roleKey && (!roleStatus || role.status === roleStatus)));
   else if (roleStatus) items = items.filter((item: any) => item.partner_roles.some((role: any) => role.status === roleStatus));
   if (tagId) items = items.filter((item: any) => item.tags.some((tag: any) => tag.tag_id === tagId));
@@ -101,6 +101,13 @@ export async function adminPersonPatch(ctx: RequestContext) {
 export async function adminRoleReview(ctx: RequestContext) {
   const userId = String(ctx.body.user_id || ""); const roleKey = String(ctx.body.role_key || ""); const decision = String(ctx.body.decision || "");
   if (!userId || !ROLE_KEYS.includes(roleKey) || !["approved", "rejected", "inactive"].includes(decision)) return contractError(ctx.origin, 400, "invalid_role_review", "角色審核資料不正確");
+  const profileTables: Record<string, string> = { provider: "providers", partner: "partners", resource_seeker: "seeker_profiles" };
+  const profileTable = profileTables[roleKey];
+  if (profileTable) {
+    const { data: profile, error: profileError } = await ctx.db.schema("booking").from(profileTable).select("user_id").eq("user_id", userId).maybeSingle();
+    if (profileError) return contractError(ctx.origin, 400, "role_profile_unavailable", "角色資料暫時無法讀取");
+    if (!profile) return contractError(ctx.origin, 400, "role_profile_missing", "角色資料尚未建立，無法進行審核");
+  }
   const now = new Date().toISOString();
   const { data, error } = await ctx.db.schema("booking").from("member_roles").update({ status: decision, review_note: String(ctx.body.review_note || "").slice(0, 2000), reviewed_at: now, reviewed_by: ctx.user.id, updated_at: now }).eq("user_id", userId).eq("role_key", roleKey).select("*").maybeSingle();
   if (error || !data) return contractError(ctx.origin, 404, "role_not_found", "找不到角色申請");
@@ -178,7 +185,17 @@ export async function adminAgreements(ctx: RequestContext, method: string) {
       if (retireError) return contractError(ctx.origin, 400, "agreement_publish_failed", "舊版規範退役失敗");
     }
     const { data, error } = await ctx.db.schema("booking").from("agreements").update({ status: "active", published_at: now, updated_at: now }).eq("agreement_id", agreementId).eq("status", "draft").select("*").maybeSingle();
-    if (error || !data) return contractError(ctx.origin, 400, "agreement_publish_failed", "新版規範啟用失敗");
+    if (error || !data) {
+      let restoreError = null;
+      if (oldIds.length) {
+        const restored = await ctx.db.schema("booking").from("agreements").update({ status: "active", updated_at: new Date().toISOString() }).in("agreement_id", oldIds);
+        restoreError = restored.error;
+      }
+      const message = restoreError
+        ? "新版規範啟用失敗，且舊版規範恢復失敗"
+        : oldIds.length ? "新版規範啟用失敗，舊版規範已恢復" : "新版規範啟用失敗";
+      return contractError(ctx.origin, 400, "agreement_publish_failed", message);
+    }
     if (oldIds.length) {
       const { error: supersedeError } = await ctx.db.schema("booking").from("member_agreements").update({ status: "superseded", updated_at: now }).in("agreement_id", oldIds).eq("status", "agreed");
       if (supersedeError) return contractError(ctx.origin, 400, "agreement_publish_failed", "舊版同意紀錄更新失敗");
