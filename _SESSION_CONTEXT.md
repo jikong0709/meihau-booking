@@ -182,5 +182,5 @@
 
 - 安裝包 `C:\Users\User\Documents\Codex\分潤系統\網站輪播模組\通用主題式橫式分潤輪播_完整安裝包_合規過濾版_20261006.zip`（SHA256 核對一致）→ `assets/affiliate/` 三檔原樣；三頁頁尾前（member/admin 無 footer 則主內容末）各一個 `.affiliate-strip`，背景 rgba alpha 0.2。工單 `docs/AFFILIATE_INSTALL_ORDER_K.md`；fresh-reviewer GO。
 - 正式 `main`＝`0a89326`；正式站讀回：首頁輪播 12 商品、背景 rgba(245,229,226,0.2)、位於 footer 前、無錯誤。
-- 主題用 learning-center（無預約站專屬主題鍵，模組回退熱門商品）。🔵 核心模組未驗證外部商品 URL 協定（資料源 collshp.com，風險低，升級安裝包時處理）。
-- 待使用者決定：後台是否也要顯示廣告（目前有）。
+- 主題改 `data-theme="all"`（使用者定案：不限分類，只擋名稱含「蝦皮／Shopee」的商品，依銷量排序）；標題「莓好生活精選推薦」正確；廣告全部頁面（含後台）都要有。🔵 核心模組未驗證外部商品 URL 協定（資料源 collshp.com，風險低，升級安裝包時處理）。
+
