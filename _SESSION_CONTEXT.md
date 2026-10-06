@@ -177,3 +177,10 @@
 - 前端修正工單 F～J（`docs/PHASE1_FIX_ORDER_F～J.md`）：規範 Markdown 安全渲染、標籤名稱、未申請徽章、後台欄位中文化、儲存可見回饋、「停權｜啟用」雙鍵開關、按鈕成功變綠；fresh-reviewer 皆 GO。正式 `main`＝`e58c8b6`，Pages 成功，正式站讀回確認。
 - 測試資料：光言帳號保有 provider（PRV-B107BD1D，hidden／approved，「測試提供者（Claude 驗收用）」）與「設計師」標籤，待使用者決定是否停用。
 - 已知（未修，可列 Phase 2）：admin-person 回傳 tags 為巢狀（前端已相容，下次部署後端時攤平）。
+
+## 2026-10-07 蝦皮分潤輪播上線
+
+- 安裝包 `C:\Users\User\Documents\Codex\分潤系統\網站輪播模組\通用主題式橫式分潤輪播_完整安裝包_合規過濾版_20261006.zip`（SHA256 核對一致）→ `assets/affiliate/` 三檔原樣；三頁頁尾前（member/admin 無 footer 則主內容末）各一個 `.affiliate-strip`，背景 rgba alpha 0.2。工單 `docs/AFFILIATE_INSTALL_ORDER_K.md`；fresh-reviewer GO。
+- 正式 `main`＝`0a89326`；正式站讀回：首頁輪播 12 商品、背景 rgba(245,229,226,0.2)、位於 footer 前、無錯誤。
+- 主題用 learning-center（無預約站專屬主題鍵，模組回退熱門商品）。🔵 核心模組未驗證外部商品 URL 協定（資料源 collshp.com，風險低，升級安裝包時處理）。
+- 待使用者決定：後台是否也要顯示廣告（目前有）。
