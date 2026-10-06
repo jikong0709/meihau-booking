@@ -229,6 +229,22 @@ const roleStatusMeta = {
 };
 const roleName = { member: "一般會員", provider: "服務提供者", partner: "合作夥伴", resource_seeker: "資源需求者" };
 const normalizeList = (payload, key) => Array.isArray(payload) ? payload : (payload?.[key] || []);
+const normalizeTag = (tag = {}) => ({
+  ...tag,
+  name: tag.name ?? tag.tags?.name ?? "",
+  tag_type: tag.tag_type ?? tag.tags?.tag_type ?? "",
+  slug: tag.slug ?? tag.tags?.slug ?? "",
+});
+const profileForRole = (roleKey, roleData = {}) => ({
+  provider: roleData.provider,
+  partner: roleData.partner,
+  resource_seeker: roleData.seeker,
+})[roleKey];
+const displayRoleStatusMeta = (role, roleData = {}) => (
+  role?.status === "inactive" && ["provider", "partner", "resource_seeker"].includes(role.role_key) && !profileForRole(role.role_key, roleData)
+    ? ["未申請", "role-st-inactive"]
+    : (roleStatusMeta[role?.status] || [role?.status || "—", "role-st-inactive"])
+);
 const joinMemberUrl = "member.html?mode=member#roles";
 async function initProductionPublic() {
   const client = await getProductionClient();
@@ -358,7 +374,7 @@ async function initMemberRoles(mePayload) {
   try {
     const [rolePayload, tagPayload, servicePayload] = await Promise.all([api("my-roles"), api("tags"), api("services-for-providers")]);
     let roleData = rolePayload;
-    const tags = normalizeList(tagPayload, "tags");
+    const tags = normalizeList(tagPayload, "tags").map(normalizeTag);
     const services = normalizeList(servicePayload, "services");
     const statusByRole = new Map((roleData.roles || []).map((role) => [role.role_key, role]));
     const selectedTagIds = new Set((roleData.tag_ids || []).map(String));
@@ -370,7 +386,7 @@ async function initMemberRoles(mePayload) {
     });
     for (const [key, role] of statusByRole) {
       const target = form.querySelector(`[data-role-status="${key}"]`);
-      const meta = roleStatusMeta[role.status] || [role.status, "role-st-inactive"];
+      const meta = displayRoleStatusMeta(role, roleData);
       if (target) target.innerHTML = `<span class="role-badge ${meta[1]}">${escapeHtml(meta[0])}</span>`;
       const note = form.querySelector(`[data-role-note="${key}"]`);
       if (note && role.review_note_public) { note.textContent = `審核說明：${role.review_note_public}`; note.classList.remove("hidden"); }
@@ -454,7 +470,7 @@ async function initMemberRoles(mePayload) {
         message.textContent = "合作角色資料已送出。";
         (roleData.roles || []).forEach((role) => {
           const target = form.querySelector(`[data-role-status="${role.role_key}"]`);
-          const meta = roleStatusMeta[role.status] || [role.status, "role-st-inactive"];
+          const meta = displayRoleStatusMeta(role, roleData);
           if (target) target.innerHTML = `<span class="role-badge ${meta[1]}">${escapeHtml(meta[0])}</span>`;
         });
       } catch (error) { message.textContent = error.message; }
@@ -674,19 +690,52 @@ function showAdminPeopleMessage(text, isError = false) {
   root.classList.toggle("error", isError);
 }
 
+const profileFieldLabels = {
+  provider_id: "提供者編號", display_name: "顯示名稱", provider_type: "提供者類型", bio: "簡介", status: "上架狀態",
+  entity_type: "身分型態", brand_name: "品牌／工作室名稱", service_area: "服務／合作地區", service_mode: "服務方式",
+  website: "官方網站", instagram: "Instagram", facebook: "Facebook", line: "LINE", portfolio_urls: "作品集網址",
+  pricing_description: "價格說明", quote_method: "報價方式", member_discount: "會員優惠", accept_projects: "接受專案合作",
+  accept_long_term: "接受長期合作", available_hours: "可服務時段", availability_status: "接案狀態", approval_status: "審核狀態",
+  admin_note: "內部備註", service_ids: "提供服務", partner_id: "合作夥伴編號", organization_name: "單位／品牌名稱",
+  partner_types: "夥伴類型", introduction: "簡介", social_links: "社群連結", location: "所在地點", resources: "可提供資源",
+  cooperation_methods: "合作方式", cooperation_conditions: "合作條件", price_description: "價格說明", advertising_interest: "廣告合作意願",
+  matching_interest: "媒合意願", looking_for: "想找什麼", need_categories: "需求類別", budget_min: "預算下限",
+  budget_max: "預算上限", region: "地區", timeline: "時程", cooperation_type: "合作型態", is_public: "公開顯示",
+  accept_matching: "接受媒合",
+};
+const profileEnumLabels = {
+  individual: "個人", brand: "品牌", store: "店家", person: "個人", team: "團隊",
+  online: "線上", offline: "實體", both: "線上＋實體",
+  active: "啟用", paused: "暫停", hidden: "不公開", archived: "已封存",
+  available: "可接案", partial: "部分時段可接", internal_only: "僅限內部", standby: "待命",
+  pending: "審核中", approved: "已通過", rejected: "未通過", suspended: "已停用",
+  supplier: "供應商", advertising: "廣告合作", cross_industry: "異業合作", channel: "通路", venue: "場地",
+  lecturer: "講師", consultant: "顧問", other: "其他",
+};
+const formatProfileValue = (value) => {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "是" : "否";
+  if (Array.isArray(value)) return value.length ? value.map((item) => profileEnumLabels[item] || String(item)).join("、") : "—";
+  if (typeof value === "object") {
+    const parts = Object.entries(value).filter(([, item]) => item !== null && item !== undefined && item !== "").map(([key, item]) => `${profileFieldLabels[key] || key}：${formatProfileValue(item)}`);
+    return parts.length ? parts.join("、") : "—";
+  }
+  return profileEnumLabels[value] || String(value);
+};
+
 async function initAdminPeople(isDeveloper) {
   const panels = [...document.querySelectorAll("[data-people-panel]")];
   const tabs = [...document.querySelectorAll("[data-people-tab]")];
   let allTags = [], peoplePage = 1, peopleTotal = 0;
   const showMessage = showAdminPeopleMessage;
   const loadTags = async () => {
-    allTags = normalizeList(await api("admin-tags"), "tags");
+    allTags = normalizeList(await api("admin-tags"), "tags").map(normalizeTag);
     const select = document.querySelector("#peopleTag");
     select.innerHTML = '<option value="">全部標籤</option>' + allTags.map((tag) => `<option value="${escapeHtml(tag.tag_id)}">${escapeHtml(tag.name)}｜${escapeHtml(tag.tag_type)}</option>`).join("");
     renderTagRows();
   };
-  const roleBadges = (roles = []) => roles.map((role) => {
-    const meta = roleStatusMeta[role.status] || [role.status, "role-st-inactive"];
+  const roleBadges = (roles = [], options = {}) => roles.filter((role) => !options.hideInactive || role.status !== "inactive").map((role) => {
+    const meta = displayRoleStatusMeta(role, options.roleData);
     return `<span class="role-badge ${meta[1]}">${escapeHtml(roleName[role.role_key] || role.role_key)}・${escapeHtml(meta[0])}</span>`;
   }).join("") || '<span class="muted">尚無合作角色</span>';
   const loadPeople = async () => {
@@ -698,25 +747,26 @@ async function initAdminPeople(isDeveloper) {
     const items = result.items || [];
     peopleTotal = Number(result.total || 0);
     const root = document.querySelector("#peopleRows");
-    root.innerHTML = items.map((person) => `<tr><td><div class="people-name"><button type="button" data-person-id="${escapeHtml(person.user_id)}">${escapeHtml(person.full_name || person.name || "未命名會員")}</button><small>${escapeHtml(person.email)}</small></div></td><td>${escapeHtml(person.account_status || "active")}</td><td><div class="role-badge-row">${roleBadges(person.partner_roles)}</div></td><td>${(person.tags || []).map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)}</span>`).join("") || "—"}</td><td>${escapeHtml(person.created_at ? new Date(person.created_at).toLocaleDateString("zh-TW") : "—")}</td></tr>`).join("") || '<tr><td colspan="5">沒有符合條件的會員</td></tr>';
+    root.innerHTML = items.map((person) => `<tr><td><div class="people-name"><button type="button" data-person-id="${escapeHtml(person.user_id)}">${escapeHtml(person.full_name || person.name || "未命名會員")}</button><small>${escapeHtml(person.email)}</small></div></td><td>${escapeHtml(person.account_status || "active")}</td><td><div class="role-badge-row">${roleBadges(person.partner_roles, { hideInactive: true })}</div></td><td>${(person.tags || []).map(normalizeTag).map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)}</span>`).join("") || "—"}</td><td>${escapeHtml(person.created_at ? new Date(person.created_at).toLocaleDateString("zh-TW") : "—")}</td></tr>`).join("") || '<tr><td colspan="5">沒有符合條件的會員</td></tr>';
     root.querySelectorAll("[data-person-id]").forEach((button) => button.addEventListener("click", () => openPerson(button.dataset.personId).catch((error) => showMessage(error.message, true))));
     const pageSize = Number(result.page_size || 50);
     document.querySelector("#peoplePage").textContent = `第 ${Number(result.page || peoplePage)} 頁・共 ${peopleTotal} 人`;
     document.querySelector("#peoplePrev").disabled = peoplePage <= 1;
     document.querySelector("#peopleNext").disabled = peoplePage * pageSize >= peopleTotal;
   };
-  const detailPairs = (data) => Object.entries(data || {}).filter(([key]) => !["admin_note", "user_id", "created_at", "updated_at"].includes(key)).map(([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(Array.isArray(value) ? value.join("、") : typeof value === "object" && value !== null ? JSON.stringify(value) : value ?? "—")}</dd>`).join("");
+  const detailPairs = (data) => Object.entries(data || {}).filter(([key]) => !["user_id", "created_at", "updated_at"].includes(key)).map(([key, value]) => `<dt>${escapeHtml(profileFieldLabels[key] || key)}</dt><dd>${escapeHtml(formatProfileValue(value))}</dd>`).join("");
   const closeDrawer = () => { document.querySelector("#personDrawer").hidden = true; document.querySelector("#personDrawerBackdrop").hidden = true; };
   const openPerson = async (userId) => {
     const detail = await api("admin-person", { query: `&user_id=${encodeURIComponent(userId)}` });
     const member = detail.member || {};
+    const detailTags = (detail.tags || []).map(normalizeTag);
     const drawer = document.querySelector("#personDrawer"), backdrop = document.querySelector("#personDrawerBackdrop"), root = document.querySelector("#personDrawerBody");
     document.querySelector("#personDrawerTitle").textContent = member.full_name || member.name || member.email || "會員詳情";
     const profileBlocks = [["服務提供者資料", detail.provider], ["合作夥伴資料", detail.partner], ["資源需求者資料", detail.seeker]].filter(([, value]) => value);
     root.innerHTML = `<section class="panel drawer-block"><h3>基本資料</h3><dl class="kv"><dt>Email</dt><dd>${escapeHtml(member.email)}</dd><dt>手機</dt><dd>${escapeHtml(member.phone || "—")}</dd><dt>LINE</dt><dd>${escapeHtml(member.line_id || "—")}</dd><dt>地區</dt><dd>${escapeHtml(member.region || "—")}</dd><dt>帳號狀態</dt><dd>${escapeHtml(member.account_status || "active")}</dd></dl></section>
-      <section class="panel drawer-block"><h3>角色審核</h3><div id="personRoleReviews">${(detail.roles || []).map((role) => `<div class="review-block"><div class="role-badge-row">${roleBadges([role])}</div><label class="field"><span>審核備註</span><textarea data-review-note="${escapeHtml(role.role_key)}">${escapeHtml(role.review_note || "")}</textarea></label><div class="review-actions"><button class="btn ghost small" type="button" data-role-decision="approved" data-role-key="${escapeHtml(role.role_key)}">通過</button><button class="btn ghost small" type="button" data-role-decision="rejected" data-role-key="${escapeHtml(role.role_key)}">不通過</button><button class="btn ghost small" type="button" data-role-decision="inactive" data-role-key="${escapeHtml(role.role_key)}">停用</button></div></div>`).join("") || '<p class="muted">尚無合作角色</p>'}</div></section>
-      ${profileBlocks.map(([title, data]) => `<section class="panel drawer-block"><h3>${title}</h3><dl class="kv">${detailPairs(data)}</dl></section>`).join("")}
-      <section class="panel drawer-block"><h3>標籤</h3><div id="personTags" class="tag-line">${(detail.tags || []).map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)} <button class="tag-remove" type="button" data-remove-person-tag="${escapeHtml(tag.tag_id)}" aria-label="移除 ${escapeHtml(tag.name)}">×</button></span>`).join("") || '<span class="muted">尚無標籤</span>'}</div><div class="field"><label for="personTagAdd">新增標籤</label><select id="personTagAdd"><option value="">請選擇</option>${allTags.filter((tag) => tag.status === "active" && !(detail.tags || []).some((assigned) => assigned.tag_id === tag.tag_id)).map((tag) => `<option value="${escapeHtml(tag.tag_id)}">${escapeHtml(tag.name)}｜${escapeHtml(tag.tag_type)}</option>`).join("")}</select></div><button id="addPersonTag" class="btn ghost small" type="button">加入標籤</button></section>
+      <section class="panel drawer-block"><h3>角色審核</h3><div id="personRoleReviews">${(detail.roles || []).map((role) => `<div class="review-block"><div class="role-badge-row">${roleBadges([role], { roleData: detail })}</div><label class="field"><span>審核備註</span><textarea data-review-note="${escapeHtml(role.role_key)}">${escapeHtml(role.review_note || "")}</textarea></label><div class="review-actions"><button class="btn ghost small" type="button" data-role-decision="approved" data-role-key="${escapeHtml(role.role_key)}">通過</button><button class="btn ghost small" type="button" data-role-decision="rejected" data-role-key="${escapeHtml(role.role_key)}">不通過</button><button class="btn ghost small" type="button" data-role-decision="inactive" data-role-key="${escapeHtml(role.role_key)}">停用</button></div></div>`).join("") || '<p class="muted">尚無合作角色</p>'}</div></section>
+      ${profileBlocks.map(([title, data]) => `<section class="panel drawer-block"><h3>${escapeHtml(title)}</h3><dl class="kv">${detailPairs(data)}</dl></section>`).join("")}
+      <section class="panel drawer-block"><h3>標籤</h3><div id="personTags" class="tag-line">${detailTags.map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)} <button class="tag-remove" type="button" data-remove-person-tag="${escapeHtml(tag.tag_id)}" aria-label="移除 ${escapeHtml(tag.name)}">×</button></span>`).join("") || '<span class="muted">尚無標籤</span>'}</div><div class="field"><label for="personTagAdd">新增標籤</label><select id="personTagAdd"><option value="">請選擇</option>${allTags.filter((tag) => tag.status === "active" && !detailTags.some((assigned) => String(assigned.tag_id) === String(tag.tag_id))).map((tag) => `<option value="${escapeHtml(tag.tag_id)}">${escapeHtml(tag.name)}｜${escapeHtml(tag.tag_type)}</option>`).join("")}</select></div><button id="addPersonTag" class="btn ghost small" type="button">加入標籤</button></section>
       <section class="panel drawer-block"><h3>內部資料</h3><form id="personAdminForm" class="inline-form"><div class="field"><label for="personAccountStatus">帳號狀態</label><select id="personAccountStatus" name="account_status"><option value="active" ${member.account_status !== "suspended" ? "selected" : ""}>啟用</option><option value="suspended" ${member.account_status === "suspended" ? "selected" : ""}>停權</option></select></div><div class="field"><label for="personAdminNote">內部備註</label><textarea id="personAdminNote" name="admin_note" rows="4">${escapeHtml(member.admin_note || "")}</textarea></div><button class="btn small" type="submit">儲存會員資料</button></form></section>
       ${isDeveloper ? (member.role === "developer" ? `<section class="panel drawer-block" data-system-role-section><h3>系統權限（僅 Developer）</h3><p class="demo-note">Developer 帳號受保護</p></section>` : `<section class="panel drawer-block" data-system-role-section><h3>系統權限（僅 Developer）</h3><div class="field"><label for="personSystemRole">系統權限</label><select id="personSystemRole"><option value="member" ${member.role !== "admin" ? "selected" : ""}>member</option><option value="admin" ${member.role === "admin" ? "selected" : ""}>admin</option></select></div><button id="saveSystemRole" class="btn ghost small" type="button">更新系統權限</button></section>`) : ""}
       <section class="panel drawer-block"><h3>同意紀錄</h3><div class="table-scroll"><table class="table"><thead><tr><th>規範</th><th>版本</th><th>狀態</th></tr></thead><tbody>${(detail.agreement_records || []).map((record) => `<tr><td>${escapeHtml(record.agreement_key)}</td><td>v${escapeHtml(record.agreement_version)}</td><td>${escapeHtml(record.status)}</td></tr>`).join("") || '<tr><td colspan="3">尚無同意紀錄</td></tr>'}</tbody></table></div></section>`;
