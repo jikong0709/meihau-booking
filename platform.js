@@ -742,34 +742,54 @@ async function withButtonPending(button, action) {
   }
 }
 
-function showButtonSuccess(button, restoreText, duration = 2500) {
-  if (!button) return;
+function rememberButtonRestoreText(button, fallbackText = "") {
+  if (!button) return fallbackText;
+  if (!Object.hasOwn(button.dataset, "restoreText")) button.dataset.restoreText = fallbackText || button.textContent || "";
+  return button.dataset.restoreText;
+}
+
+function resetButtonSuccess(button) {
+  if (!button) return "";
+  const restoreText = rememberButtonRestoreText(button);
   const previousTimer = buttonSuccessTimers.get(button);
   if (previousTimer) window.clearTimeout(previousTimer);
+  buttonSuccessTimers.delete(button);
+  button.classList.remove("save-success");
+  button.textContent = restoreText;
+  return restoreText;
+}
+
+function showButtonSuccess(button, restoreText, duration = 2500) {
+  if (!button) return;
+  rememberButtonRestoreText(button, restoreText);
+  const previousTimer = buttonSuccessTimers.get(button);
+  if (previousTimer) window.clearTimeout(previousTimer);
+  buttonSuccessTimers.delete(button);
   button.disabled = false;
   button.classList.add("save-success");
   button.textContent = "✓ 已儲存";
   buttonSuccessTimers.set(button, window.setTimeout(() => {
     button.classList.remove("save-success");
-    button.textContent = restoreText;
+    button.textContent = button.dataset.restoreText;
     buttonSuccessTimers.delete(button);
   }, duration));
 }
 
 async function withButtonSaveFeedback(button, action, resolveVisibleButton = () => button) {
-  const originalText = button?.textContent || "";
+  const restoreText = rememberButtonRestoreText(button);
   if (button) {
+    resetButtonSuccess(button);
     button.disabled = true;
     button.textContent = "儲存中…";
   }
   try {
     const result = await action();
-    showButtonSuccess(resolveVisibleButton() || button, originalText);
+    showButtonSuccess(resolveVisibleButton() || button, restoreText);
     return result;
   } catch (error) {
     if (button) {
+      resetButtonSuccess(button);
       button.disabled = false;
-      button.textContent = originalText;
     }
     throw error;
   }
@@ -869,7 +889,7 @@ async function initAdminPeople(isDeveloper, currentUserId) {
       : (String(userId) === String(currentUserId) ? "不可停權自己" : "");
     const accountStatusDisabled = Boolean(accountStatusProtection);
     const profileBlocks = [["服務提供者資料", detail.provider], ["合作夥伴資料", detail.partner], ["資源需求者資料", detail.seeker]].filter(([, value]) => value);
-    root.innerHTML = `<section class="panel drawer-block"><h3>基本資料</h3><dl class="kv"><dt>Email</dt><dd>${escapeHtml(member.email)}</dd><dt>手機</dt><dd>${escapeHtml(member.phone || "—")}</dd><dt>LINE</dt><dd>${escapeHtml(member.line_id || "—")}</dd><dt>地區</dt><dd>${escapeHtml(member.region || "—")}</dd><dt>帳號狀態</dt><dd>${accountStatusBadge(member.account_status)}</dd></dl></section>
+    root.innerHTML = `<section class="panel drawer-block"><h3>基本資料</h3><dl class="kv"><dt>Email</dt><dd>${escapeHtml(member.email)}</dd><dt>手機</dt><dd>${escapeHtml(member.phone || "—")}</dd><dt>LINE</dt><dd>${escapeHtml(member.line_id || "—")}</dd><dt>地區</dt><dd>${escapeHtml(member.region || "—")}</dd><dt>帳號狀態</dt><dd id="personAccountStatusBadge">${accountStatusBadge(member.account_status)}</dd></dl></section>
       <section class="panel drawer-block"><h3>角色審核</h3><div id="personRoleReviews">${(detail.roles || []).map((role) => `<div class="review-block"><div class="role-badge-row">${roleBadges([role], { roleData: detail })}</div><label class="field"><span>審核備註</span><textarea data-review-note="${escapeHtml(role.role_key)}">${escapeHtml(role.review_note || "")}</textarea></label><div class="review-actions"><button class="btn ghost small" type="button" data-role-decision="approved" data-role-key="${escapeHtml(role.role_key)}">通過</button><button class="btn ghost small" type="button" data-role-decision="rejected" data-role-key="${escapeHtml(role.role_key)}">不通過</button><button class="btn ghost small" type="button" data-role-decision="inactive" data-role-key="${escapeHtml(role.role_key)}">停用</button></div></div>`).join("") || '<p class="muted">尚無合作角色</p>'}</div></section>
       ${profileBlocks.map(([title, data]) => `<section class="panel drawer-block"><h3>${escapeHtml(title)}</h3><dl class="kv">${detailPairs(data)}</dl></section>`).join("")}
       <section class="panel drawer-block"><h3>標籤</h3><div id="personTags" class="tag-line">${detailTags.map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)} <button class="tag-remove" type="button" data-remove-person-tag="${escapeHtml(tag.tag_id)}" aria-label="移除 ${escapeHtml(tag.name)}">×</button></span>`).join("") || '<span class="muted">尚無標籤</span>'}</div><div class="field"><label for="personTagAdd">新增標籤</label><select id="personTagAdd"><option value="">請選擇</option>${allTags.filter((tag) => tag.status === "active" && !detailTags.some((assigned) => String(assigned.tag_id) === String(tag.tag_id))).map((tag) => `<option value="${escapeHtml(tag.tag_id)}">${escapeHtml(tag.name)}｜${escapeHtml(tag.tag_type)}</option>`).join("")}</select></div><button id="addPersonTag" class="btn ghost small" type="button">加入標籤</button></section>
@@ -879,6 +899,7 @@ async function initAdminPeople(isDeveloper, currentUserId) {
     drawer.hidden = false; backdrop.hidden = false;
     const showDrawerMessage = (text, isError = false) => showActionFeedback(document.querySelector("#personDrawerMessage"), text, isError, true);
     const accountStatusButtons = [...root.querySelectorAll("[data-account-status]")];
+    const accountStatusBadgeRoot = root.querySelector("#personAccountStatusBadge");
     const accountStatusFeedback = root.querySelector("#personAccountStatusFeedback");
     let currentAccountStatus = accountStatus;
     let accountStatusFeedbackTimer;
@@ -911,6 +932,7 @@ async function initAdminPeople(isDeveloper, currentUserId) {
       try {
         await api("admin-person", { method: "PATCH", body: { user_id: userId, account_status: nextStatus } });
         currentAccountStatus = nextStatus;
+        accountStatusBadgeRoot.innerHTML = accountStatusBadge(nextStatus);
         renderAccountStatus(false);
         showAccountStatusFeedback("✓ 已儲存", "success");
         loadPeople().catch((error) => showMessage(error.message, true));
@@ -925,10 +947,13 @@ async function initAdminPeople(isDeveloper, currentUserId) {
       const reviewNote = root.querySelector(`[data-review-note="${roleKey}"]`).value.trim();
       const decision = button.dataset.roleDecision;
       const decisionLabel = { approved: "通過", rejected: "不通過", inactive: "停用" }[decision] || decision;
+      const roleDecisionButtons = [...root.querySelectorAll("[data-role-decision]")].filter((candidate) => candidate.dataset.roleKey === roleKey);
+      roleDecisionButtons.forEach((candidate) => { candidate.disabled = true; });
       try {
         await withButtonSaveFeedback(button, async () => { await api("admin-role-review", { method: "PATCH", body: { user_id: userId, role_key: roleKey, decision, review_note: reviewNote } }); await openPerson(userId); await loadPeople(); }, () => [...root.querySelectorAll("[data-role-decision]")].find((candidate) => candidate.dataset.roleDecision === decision && candidate.dataset.roleKey === roleKey));
         showDrawerMessage(`✓ 已儲存：${Object.hasOwn(roleName, roleKey) ? roleName[roleKey] : roleKey}角色${decisionLabel}`);
       } catch (error) { showDrawerMessage(error.message, true); }
+      finally { roleDecisionButtons.forEach((candidate) => { candidate.disabled = false; }); }
     }));
     root.querySelector("#personAdminForm")?.addEventListener("submit", async (event) => {
       event.preventDefault();
