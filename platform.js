@@ -205,7 +205,7 @@ async function initProductionPublic() {
       }
       const { error } = await client.auth.signInWithOAuth({ provider: "google", options: { redirectTo: cfg.redirectUrl } });
       if (error) throw error;
-    } catch (error) { alert(`目前無法啟動 Google 登入：${error.message}`); }
+    } catch (error) { alert(error.code === "account_suspended" ? error.message : `目前無法啟動 Google 登入：${error.message}`); }
   }));
   document.querySelectorAll("[data-join]").forEach((button) => button.addEventListener("click", async (event) => {
     event.preventDefault();
@@ -217,7 +217,7 @@ async function initProductionPublic() {
       redirect.hash = "roles";
       const { error } = await client.auth.signInWithOAuth({ provider: "google", options: { redirectTo: redirect.href } });
       if (error) throw error;
-    } catch (error) { alert(`目前無法啟動 Google 登入：${error.message}`); }
+    } catch (error) { alert(error.code === "account_suspended" ? error.message : `目前無法啟動 Google 登入：${error.message}`); }
   }));
 }
 async function requireSession() {
