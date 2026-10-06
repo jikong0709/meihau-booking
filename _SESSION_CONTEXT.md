@@ -170,3 +170,10 @@
 - 暫存 SQL：`../p1_dryrun.sql`、`../p1_apply.sql`、`../p1_register_verify.sql`（未刪，待使用者決定）。
 - ⚠️待使用者登入驗證：合作角色送出／規範勾選、後台審核、標籤、停權與復權、陪工作派單仍為 PRV-MEIHAU。
 - 下一階段：Phase 2 整合服務計畫（服務分類擴充、service_tags、服務↔提供者上架管理）。
+
+## 2026-10-07 Phase 1 正式站驗收＋前端修正上線
+
+- 使用者登入、Claude 於 Chrome 驗收：角色送出／讀回、後台審核同步、加標籤、停權提示（使用者截圖）、恢復啟用皆 PASS。停權／恢復寫入被 auto mode 擋，由使用者操作。
+- 前端修正工單 F～J（`docs/PHASE1_FIX_ORDER_F～J.md`）：規範 Markdown 安全渲染、標籤名稱、未申請徽章、後台欄位中文化、儲存可見回饋、「停權｜啟用」雙鍵開關、按鈕成功變綠；fresh-reviewer 皆 GO。正式 `main`＝`e58c8b6`，Pages 成功，正式站讀回確認。
+- 測試資料：光言帳號保有 provider（PRV-B107BD1D，hidden／approved，「測試提供者（Claude 驗收用）」）與「設計師」標籤，待使用者決定是否停用。
+- 已知（未修，可列 Phase 2）：admin-person 回傳 tags 為巢狀（前端已相容，下次部署後端時攤平）。
