@@ -158,3 +158,15 @@
 - NOT RUN：會員取消／改期、後台改服務狀態（需有陪工作訂單）。
 - ⚠️環境：PowerShell 執行原則擋 `npx.ps1`，請用 `npx.cmd`；git 需加 `-c safe.directory=*`。Claude 端 production deploy／DB 讀取會被 auto mode 安全機制擋，需使用者執行或授權。
 - 下一個任務：後台「人員身分管理」（帳號備註、顧客服務類別、服務提供者提供哪些服務）＋網站招募資訊，作為媒合地基。草案已寫 `docs/PEOPLE_ROLES_MATCHING_PLAN_V1.md`，**暫停等使用者提供完整資訊**；已定案「只有 developer 可設 admin」。
+
+## 2026-10-06 人力・合作・資源媒合 Phase 1 已上線（最新）
+
+- 依使用者兩份計畫書（整合服務＋人力合作資源媒合）施工；Phase 0 盤點 `docs/PHASE0_SYSTEM_INVENTORY.md`、Phase 1 設計＋API 合約 `docs/PHASE1_MEMBER_ROLES_DESIGN.md`、規範草案 `docs/AGREEMENTS_DRAFT_V1.md`（§11 使用者決定）。舊草案 `PEOPLE_ROLES_MATCHING_PLAN_V1.md` 已被取代。
+- 正式 `main`＝`db69bfb`；回滾 tag `rollback-people-p1-pre-20261006-1ab8f4f`（前端），舊版 booking-api 可從 `../meihau-companion-wt`（1ab8f4f）重新部署。
+- 正式 DB：migration `20261006090000` 已套用（dry-run→套用→重跑 dry-run 無錯）並手動登記 schema_migrations；讀回 6 份規範 v1 active、PRV-MEIHAU active/approved、tags 27、members 3、orders 3。
+- booking-api 新版已部署（CORS 含 PUT 實測）；Pages 成功，首頁 #join 與頁尾連結、console 0 error、390px 無溢位。
+- fresh-reviewer 三輪：NO-GO（applied_at NULL）→ NO-GO（CORS 缺 PUT）→ GO-條件式；修正工單 `docs/PHASE1_FIX_ORDER_C/D/E.md`。
+- ⚠️地雷：本資料夾 `supabase db push --linked` 會報 project ref not linked，**`db query --linked --project-ref tssvabclujwpljzupuvj --file` 才可用**；部署前必須先確認 migration 已套用（本次曾先部署函式導致短暫故障，已用舊版函式救回）。
+- 暫存 SQL：`../p1_dryrun.sql`、`../p1_apply.sql`、`../p1_register_verify.sql`（未刪，待使用者決定）。
+- ⚠️待使用者登入驗證：合作角色送出／規範勾選、後台審核、標籤、停權與復權、陪工作派單仍為 PRV-MEIHAU。
+- 下一階段：Phase 2 整合服務計畫（服務分類擴充、service_tags、服務↔提供者上架管理）。
