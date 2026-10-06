@@ -1210,3 +1210,21 @@ img, svg { max-width: 100%; }
 @media (hover: hover) and (pointer: fine) {
   .chip:hover span { border-color: var(--berry-300); }
 }
+
+/* 主題式分潤輪播：背景使用莓好色票 80% 透明，內容本身維持不透明。 */
+.affiliate-strip {
+  box-sizing: border-box;
+  width: 100%;
+  padding: clamp(20px, 4vw, 48px);
+  background-color: rgba(245, 229, 226, 0.2);
+  opacity: 1;
+}
+.affiliate-strip > [data-affiliate-carousel] {
+  width: min(1180px, 100%);
+  margin-inline: auto;
+}
+.layout .affiliate-strip {
+  margin-top: var(--space-10);
+  padding: clamp(16px, 2vw, 24px);
+  border-radius: var(--radius-xl);
+}

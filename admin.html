@@ -9,6 +9,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=Noto+Serif+TC:wght@600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="platform.css" />
+    <link rel="stylesheet" href="assets/affiliate/affiliate-carousel.css" />
+    <script defer src="assets/affiliate/affiliate-carousel.config.js"></script>
+    <script defer src="assets/affiliate/affiliate-carousel.js"></script>
     <script src="config.js"></script>
     <script defer src="platform.js"></script>
   </head>
@@ -76,6 +79,9 @@
         </section>
         <section id="servicesAdmin" class="admin-view hidden" data-admin-view="services"><div class="page-head"><div><p class="eyebrow">SERVICES & PRICING</p><h2>服務資料</h2><p class="muted">正式 services 單一來源；歷史服務保留 archived，不回算舊訂單成交價</p></div><span class="badge neutral"><span id="adminServiceCount">—</span> 項服務</span></div><div class="table-scroll"><table class="table"><thead><tr><th>服務 ID／名稱</th><th>分類</th><th>價格</th><th>流程</th><th>狀態／排序</th></tr></thead><tbody id="adminServiceRows"></tbody></table></div></section>
         <section id="uiStates" class="admin-view hidden" data-admin-view="system" data-developer-only><div class="page-head"><div><p class="eyebrow">DEVELOPER SYSTEM</p><h2>系統狀態</h2><p class="muted">只對 developer 顯示的正式環境讀取狀態</p></div><span class="badge ok">API 已連線</span></div><div class="system-status-grid"><article class="panel"><span>執行環境</span><strong>Production</strong><small>GitHub Pages + Supabase</small></article><article class="panel"><span>目前角色</span><strong id="systemRole">—</strong><small>由伺服器會員資料驗證</small></article><article class="panel"><span>正式服務</span><strong id="systemServiceCount">—</strong><small>包含 active、coming soon 與歷史封存</small></article><article class="panel"><span>後端狀態</span><strong id="systemApiStatus">檢查中</strong><small>booking-api 權限與資料載入</small></article></div><div class="panel admin-subsection"><h3>權限邊界</h3><p class="muted">Developer 可使用完整營運工作台與系統狀態；Admin 可使用營運、詢價、會員與服務資料；Member 僅能進入會員中心。</p></div></section>
+        <section class="affiliate-strip" aria-label="合作購物平台推薦">
+          <div data-affiliate-carousel data-storefront-url="https://collshp.com/sberrychang?view=storefront" data-theme="learning-center" data-limit="12" data-site-style="meihau-booking"></div>
+        </section>
       </main>
     </div>
     <div id="eventModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="eventModalTitle"><div class="card modal-card"><div class="modal-head"><div><p class="eyebrow">BOOKING DETAIL</p><h2 id="eventModalTitle">排程明細</h2></div><button id="closeModal" class="icon-btn" aria-label="關閉排程明細">×</button></div><div id="eventModalBody"></div></div></div>
