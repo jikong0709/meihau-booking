@@ -109,19 +109,19 @@ export async function adminRoleReview(ctx: RequestContext) {
     const providerPatch: Record<string, unknown> = { approval_status: profileStatus, updated_at: now };
     if (decision !== "approved") providerPatch.status = "hidden";
     const { data: provider, error: providerError } = await ctx.db.schema("booking").from("providers").update(providerPatch).eq("user_id", userId).select("provider_id").maybeSingle();
-    if (providerError) return contractError(ctx.origin, 400, "role_profile_sync_failed", "服務提供者審核狀態同步失敗");
+    if (providerError || !provider) return contractError(ctx.origin, 400, "role_profile_sync_failed", "服務提供者審核狀態同步失敗");
     if (provider && decision !== "approved") {
       const { error: linksError } = await ctx.db.schema("booking").from("service_providers").update({ status: "hidden", updated_at: now }).eq("provider_id", provider.provider_id);
       if (linksError) return contractError(ctx.origin, 400, "role_profile_sync_failed", "提供服務狀態同步失敗");
     }
   }
   if (roleKey === "partner") {
-    const { error: partnerError } = await ctx.db.schema("booking").from("partners").update({ approval_status: profileStatus, updated_at: now }).eq("user_id", userId);
-    if (partnerError) return contractError(ctx.origin, 400, "role_profile_sync_failed", "合作夥伴審核狀態同步失敗");
+    const { data: partner, error: partnerError } = await ctx.db.schema("booking").from("partners").update({ approval_status: profileStatus, updated_at: now }).eq("user_id", userId).select("partner_id").maybeSingle();
+    if (partnerError || !partner) return contractError(ctx.origin, 400, "role_profile_sync_failed", "合作夥伴審核狀態同步失敗");
   }
   if (roleKey === "resource_seeker") {
-    const { error: seekerError } = await ctx.db.schema("booking").from("seeker_profiles").update({ approval_status: profileStatus, updated_at: now }).eq("user_id", userId);
-    if (seekerError) return contractError(ctx.origin, 400, "role_profile_sync_failed", "資源需求者審核狀態同步失敗");
+    const { data: seeker, error: seekerError } = await ctx.db.schema("booking").from("seeker_profiles").update({ approval_status: profileStatus, updated_at: now }).eq("user_id", userId).select("user_id").maybeSingle();
+    if (seekerError || !seeker) return contractError(ctx.origin, 400, "role_profile_sync_failed", "資源需求者審核狀態同步失敗");
   }
   return reply(ctx.origin, 200, data);
 }
