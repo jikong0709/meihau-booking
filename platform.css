@@ -1105,7 +1105,16 @@ img, svg { max-width: 100%; }
 .private-note { color: #5a5558; font-size: .76rem; }
 .agreement-item { border: 1px solid var(--line); border-radius: var(--radius-md); padding: 12px 14px; background: var(--surface-raised); min-width: 0; }
 .agreement-item summary { cursor: pointer; font-weight: 700; color: var(--ink-strong); min-height: 32px; overflow-wrap: anywhere; }
-.agreement-body { margin-top: 10px; max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .84rem; color: var(--muted-strong); line-height: 1.7; padding: 10px 12px; background: var(--bg); border-radius: 8px; }
+.agreement-body { margin-top: 10px; max-height: 260px; overflow: auto; overflow-wrap: anywhere; font-size: .84rem; color: var(--muted-strong); line-height: 1.75; padding: 12px 14px; background: var(--bg); border-radius: 8px; }
+.agreement-body h4, .agreement-body h5, .agreement-body h6 { margin: 1.15em 0 .45em; color: var(--ink-strong); line-height: 1.4; }
+.agreement-body h4:first-child, .agreement-body h5:first-child, .agreement-body h6:first-child { margin-top: 0; }
+.agreement-body h4 { font-size: 1rem; }
+.agreement-body h5 { font-size: .92rem; color: var(--berry-700); }
+.agreement-body h6 { font-size: .86rem; }
+.agreement-body p { margin: 0 0 .8em; }
+.agreement-body p:last-child { margin-bottom: 0; }
+.agreement-body ul { margin: .45em 0 .9em; padding-left: 1.4em; }
+.agreement-body li + li { margin-top: .3em; }
 .agreement-confirm { margin-top: 10px; }
 .roles-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
 .roles-error { color: var(--danger-ink); font-size: .86rem; overflow-wrap: anywhere; }

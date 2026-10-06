@@ -15,6 +15,58 @@ const priceLabel = (item) => {
 };
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 
+function renderAgreementMarkdown(value, title = "") {
+  const lines = escapeHtml(value).replace(/\r\n?/g, "\n").split("\n");
+  const escapedTitle = escapeHtml(title).trim();
+  const output = [];
+  let paragraph = [];
+  let listItems = [];
+  let firstHeadingSeen = false;
+  const renderInline = (text) => text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    output.push(`<p>${paragraph.map(renderInline).join("<br>")}</p>`);
+    paragraph = [];
+  };
+  const flushList = () => {
+    if (!listItems.length) return;
+    output.push(`<ul>${listItems.map((item) => `<li>${renderInline(item)}</li>`).join("")}</ul>`);
+    listItems = [];
+  };
+
+  lines.forEach((line) => {
+    const heading = line.match(/^(#{1,3})\s+(.+?)\s*$/);
+    const listItem = line.match(/^[-*]\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      flushList();
+      const headingText = heading[2].replace(/^\s*\d+(?:\.\d+)*(?:[.．、）)]|\s+)\s*/, "").trim();
+      const isRepeatedTitle = !firstHeadingSeen && headingText === escapedTitle;
+      firstHeadingSeen = true;
+      if (!isRepeatedTitle) {
+        const level = Math.min(6, heading[1].length + 3);
+        output.push(`<h${level}>${renderInline(headingText)}</h${level}>`);
+      }
+      return;
+    }
+    if (listItem) {
+      flushParagraph();
+      listItems.push(listItem[1]);
+      return;
+    }
+    if (!line.trim()) {
+      flushParagraph();
+      flushList();
+      return;
+    }
+    flushList();
+    paragraph.push(line);
+  });
+  flushParagraph();
+  flushList();
+  return output.join("");
+}
+
 function readStore(key,fallback){ try{return JSON.parse(localStorage.getItem(key)) ?? fallback}catch{return fallback} }
 function writeStore(key,value){ localStorage.setItem(key,JSON.stringify(value)); }
 
@@ -355,7 +407,7 @@ async function initMemberRoles(mePayload) {
       batches.flatMap((batch) => normalizeList(batch, "agreements")).forEach((agreement) => unique.set(String(agreement.agreement_id), agreement));
       visibleAgreements = [...unique.values()];
       const root = document.querySelector("#agreementList");
-      root.innerHTML = visibleAgreements.map((agreement) => `<article class="agreement-item"><details><summary>${escapeHtml(agreement.title)} <span class="muted">v${escapeHtml(agreement.version)}</span></summary><div class="agreement-body">${escapeHtml(agreement.body_md)}</div></details><label class="field-check agreement-confirm"><input type="checkbox" data-agreement-confirm value="${escapeHtml(agreement.agreement_id)}" ${agreedById.get(String(agreement.agreement_id)) ? "checked" : ""} />我已閱讀並同意此版本</label></article>`).join("") || '<span class="muted">目前沒有可用規範，請稍後再試。</span>';
+      root.innerHTML = visibleAgreements.map((agreement) => `<article class="agreement-item"><details><summary>${escapeHtml(agreement.title)} <span class="muted">v${escapeHtml(agreement.version)}</span></summary><div class="agreement-body">${renderAgreementMarkdown(agreement.body_md, agreement.title)}</div></details><label class="field-check agreement-confirm"><input type="checkbox" data-agreement-confirm value="${escapeHtml(agreement.agreement_id)}" ${agreedById.get(String(agreement.agreement_id)) ? "checked" : ""} />我已閱讀並同意此版本</label></article>`).join("") || '<span class="muted">目前沒有可用規範，請稍後再試。</span>';
       root.querySelectorAll("[data-agreement-confirm]").forEach((check) => check.addEventListener("change", updateSubmit));
       updateSubmit();
     };
@@ -688,7 +740,7 @@ async function initAdminPeople(isDeveloper) {
   const loadAgreements = async () => {
     const agreements = normalizeList(await api("admin-agreements"), "agreements");
     const root = document.querySelector("#agreementAdminList");
-    root.innerHTML = agreements.map((agreement) => `<article class="card agr-card"><div class="agr-card-head"><div><strong>${escapeHtml(agreement.title)}</strong><div class="muted">${escapeHtml(agreement.agreement_key)}・v${escapeHtml(agreement.version)}</div></div><span class="badge neutral">${escapeHtml(agreement.status)}</span></div>${agreement.status === "draft" ? `<div class="inline-form"><div class="field"><label>標題</label><input data-agreement-title="${escapeHtml(agreement.agreement_id)}" value="${escapeHtml(agreement.title)}" /></div><div class="field"><label>規範全文</label><textarea rows="6" data-agreement-body="${escapeHtml(agreement.agreement_id)}">${escapeHtml(agreement.body_md)}</textarea></div><button class="btn ghost small" type="button" data-save-agreement="${escapeHtml(agreement.agreement_id)}">儲存草稿</button><label class="field-check"><input type="checkbox" data-publish-confirm="${escapeHtml(agreement.agreement_id)}" />我確認：舊版同意將失效、會員需重新同意</label><button class="btn small" type="button" data-publish-agreement="${escapeHtml(agreement.agreement_id)}" disabled>發布此版本</button></div>` : `<details><summary>查看內容</summary><div class="agreement-body">${escapeHtml(agreement.body_md)}</div></details>`}</article>`).join("") || '<p class="muted">目前沒有規範版本</p>';
+    root.innerHTML = agreements.map((agreement) => `<article class="card agr-card"><div class="agr-card-head"><div><strong>${escapeHtml(agreement.title)}</strong><div class="muted">${escapeHtml(agreement.agreement_key)}・v${escapeHtml(agreement.version)}</div></div><span class="badge neutral">${escapeHtml(agreement.status)}</span></div>${agreement.status === "draft" ? `<div class="inline-form"><div class="field"><label>標題</label><input data-agreement-title="${escapeHtml(agreement.agreement_id)}" value="${escapeHtml(agreement.title)}" /></div><div class="field"><label>規範全文</label><textarea rows="6" data-agreement-body="${escapeHtml(agreement.agreement_id)}">${escapeHtml(agreement.body_md)}</textarea></div><button class="btn ghost small" type="button" data-save-agreement="${escapeHtml(agreement.agreement_id)}">儲存草稿</button><label class="field-check"><input type="checkbox" data-publish-confirm="${escapeHtml(agreement.agreement_id)}" />我確認：舊版同意將失效、會員需重新同意</label><button class="btn small" type="button" data-publish-agreement="${escapeHtml(agreement.agreement_id)}" disabled>發布此版本</button></div>` : `<details><summary>查看內容</summary><div class="agreement-body">${renderAgreementMarkdown(agreement.body_md, agreement.title)}</div></details>`}</article>`).join("") || '<p class="muted">目前沒有規範版本</p>';
     root.querySelectorAll("[data-publish-confirm]").forEach((check) => check.addEventListener("change", () => { root.querySelector(`[data-publish-agreement="${check.dataset.publishConfirm}"]`).disabled = !check.checked; }));
     root.querySelectorAll("[data-save-agreement]").forEach((button) => button.addEventListener("click", async () => { const id = button.dataset.saveAgreement; try { await api("admin-agreements", { method: "PATCH", body: { agreement_id: id, title: root.querySelector(`[data-agreement-title="${id}"]`).value.trim(), body_md: root.querySelector(`[data-agreement-body="${id}"]`).value } }); await loadAgreements(); } catch (error) { showMessage(error.message, true); } }));
     root.querySelectorAll("[data-publish-agreement]").forEach((button) => button.addEventListener("click", async () => { if (!root.querySelector(`[data-publish-confirm="${button.dataset.publishAgreement}"]`).checked) return; try { await api("admin-agreements", { method: "PATCH", body: { agreement_id: button.dataset.publishAgreement, action: "publish" } }); await loadAgreements(); } catch (error) { showMessage(error.message, true); } }));
