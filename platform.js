@@ -24,6 +24,11 @@ function initPublic(){
     if(cfg.auth?.googleLoginUrl){ location.href=cfg.auth.googleLoginUrl; return; }
     location.href='member.html?demo=1';
   }));
+  document.querySelectorAll('[data-join]').forEach(btn=>btn.addEventListener('click',e=>{
+    e.preventDefault();
+    if(cfg.auth?.googleLoginUrl){ location.href=cfg.auth.googleLoginUrl; return; }
+    location.href=joinMemberUrl;
+  }));
 }
 
 function initMember(){
@@ -31,7 +36,7 @@ function initMember(){
   const nav=[...document.querySelectorAll('[data-show]')];
   function show(id){ sections.forEach(s=>s.classList.toggle('hidden',s.dataset.section!==id)); nav.forEach(n=>n.classList.toggle('active',n.dataset.show===id)); }
   nav.forEach(n=>n.addEventListener('click',()=>show(n.dataset.show)));
-  show('home');
+  show(location.hash === '#roles' ? 'roles' : 'home');
 
   const profile=readStore('meihau-profile',{name:'測試會員',email:'demo@example.com',phone:'',line:'',contactEmail:''});
   ['name','email','phone','line','contactEmail'].forEach(k=>{const el=document.querySelector(`[name="${k}"]`);if(el)el.value=profile[k]||''});
@@ -121,6 +126,29 @@ async function getProductionClient() {
   });
   return productionClient;
 }
+function showAccountSuspended() {
+  const page = document.body?.dataset.page;
+  if (!["member", "admin"].includes(page) || document.querySelector("#accountSuspendedNotice")) return;
+  const notice = document.createElement("main");
+  notice.id = "accountSuspendedNotice";
+  notice.className = "main";
+  notice.innerHTML = `<section class="state-box error" role="alert"><h1>此帳號已停權</h1><p>此帳號已停權，如有疑問請聯繫莓好客服。</p><button type="button" class="btn primary" data-suspended-switch-account>切換帳號</button></section>`;
+  document.body.replaceChildren(notice);
+  notice.querySelector("[data-suspended-switch-account]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.textContent = "正在登出…";
+    const client = await getProductionClient();
+    const { error } = await client.auth.signOut({ scope: "local" });
+    if (error) {
+      button.disabled = false;
+      button.textContent = "切換帳號";
+      alert(`目前無法切換帳號：${error.message}`);
+      return;
+    }
+    location.replace("index.html?login=1");
+  });
+}
 async function api(action, options = {}) {
   const client = await getProductionClient();
   const { data: { session } } = await client.auth.getSession();
@@ -131,18 +159,31 @@ async function api(action, options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "API_ERROR");
+  if (!response.ok) {
+    const error = new Error(data.message || data.error || "API_ERROR");
+    error.code = data.error;
+    if (data.error === "account_suspended") showAccountSuspended();
+    throw error;
+  }
   return data;
 }
 const privilegedRoles = new Set(["admin", "developer"]);
 const isPrivilegedMember = (member) => privilegedRoles.has(member?.role);
 const destinationForMember = (member) => isPrivilegedMember(member) ? "admin.html" : "member.html";
+const memberFromMe = (payload) => payload?.member || payload;
+const roleStatusMeta = {
+  pending: ["審核中", "role-st-pending"], approved: ["已通過", "role-st-approved"],
+  rejected: ["未通過", "role-st-rejected"], inactive: ["已停用", "role-st-inactive"],
+};
+const roleName = { member: "一般會員", provider: "服務提供者", partner: "合作夥伴", resource_seeker: "資源需求者" };
+const normalizeList = (payload, key) => Array.isArray(payload) ? payload : (payload?.[key] || []);
+const joinMemberUrl = "member.html?mode=member#roles";
 async function initProductionPublic() {
   const client = await getProductionClient();
   const { data: { session } } = await client.auth.getSession();
   let currentMember = null;
   if (session) {
-    try { currentMember = await api("me"); } catch (error) { console.warn("Unable to resolve signed-in destination", error); }
+    try { currentMember = memberFromMe(await api("me")); } catch (error) { console.warn("Unable to resolve signed-in destination", error); }
   }
   const roleLabel = currentMember?.role === "developer" ? "進入開發者後台" : currentMember?.role === "admin" ? "進入管理後台" : "進入會員中心";
   if (currentMember) {
@@ -158,13 +199,25 @@ async function initProductionPublic() {
     try {
       const { data: { session: activeSession } } = await client.auth.getSession();
       if (activeSession) {
-        const member = currentMember || await api("me");
+        const member = currentMember || memberFromMe(await api("me"));
         location.href = destinationForMember(member);
         return;
       }
       const { error } = await client.auth.signInWithOAuth({ provider: "google", options: { redirectTo: cfg.redirectUrl } });
       if (error) throw error;
-    } catch (error) { alert(`目前無法啟動 Google 登入：${error.message}`); }
+    } catch (error) { alert(error.code === "account_suspended" ? error.message : `目前無法啟動 Google 登入：${error.message}`); }
+  }));
+  document.querySelectorAll("[data-join]").forEach((button) => button.addEventListener("click", async (event) => {
+    event.preventDefault();
+    try {
+      const { data: { session: activeSession } } = await client.auth.getSession();
+      if (activeSession) { location.href = joinMemberUrl; return; }
+      const redirect = new URL(cfg.redirectUrl, location.href);
+      redirect.searchParams.set("mode", "member");
+      redirect.hash = "roles";
+      const { error } = await client.auth.signInWithOAuth({ provider: "google", options: { redirectTo: redirect.href } });
+      if (error) throw error;
+    } catch (error) { alert(error.code === "account_suspended" ? error.message : `目前無法啟動 Google 登入：${error.message}`); }
   }));
 }
 async function requireSession() {
@@ -187,14 +240,190 @@ function bindAccountSwitch(client) {
     location.replace("index.html?login=1");
   }));
 }
+
+function renderChoiceChips(root, items, selectedIds, name, valueKey = "tag_id", labelKey = "name") {
+  if (!root) return;
+  root.innerHTML = items.map((item) => {
+    const value = String(item[valueKey] ?? "");
+    return `<label class="chip"><input type="checkbox" name="${escapeHtml(name)}" value="${escapeHtml(value)}" ${selectedIds.has(value) ? "checked" : ""} /><span>${escapeHtml(item[labelKey])}</span></label>`;
+  }).join("") || '<span class="muted">目前沒有可選項目</span>';
+}
+
+function setupListEditor(root, values = [], options = {}) {
+  if (!root) return;
+  const max = options.max || 20;
+  const placeholder = options.placeholder || "輸入內容";
+  const inputType = options.type || "text";
+  const render = () => {
+    const current = values.length ? values : [""];
+    root.innerHTML = current.map((value, index) => `<div class="list-editor-row"><input type="${escapeHtml(inputType)}" inputmode="${inputType === "url" ? "url" : "text"}" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}" data-list-value /><button class="btn ghost small" type="button" data-list-remove="${index}" aria-label="移除此筆">移除</button></div>`).join("") + `<div class="list-editor-actions"><button class="btn ghost small" type="button" data-list-add>＋新增一筆</button><span class="muted">最多 ${max} 筆</span></div>`;
+    root.querySelectorAll("[data-list-value]").forEach((input, index) => input.addEventListener("input", () => { values[index] = input.value; }));
+    root.querySelectorAll("[data-list-remove]").forEach((button) => button.addEventListener("click", () => { values.splice(Number(button.dataset.listRemove), 1); render(); }));
+    root.querySelector("[data-list-add]")?.addEventListener("click", () => { if (values.length >= max) return; values.push(""); render(); });
+  };
+  render();
+  return () => [...root.querySelectorAll("[data-list-value]")].map((input) => input.value.trim()).filter(Boolean);
+}
+
+function readRoleFields(card) {
+  const result = {};
+  card?.querySelectorAll("[data-f]").forEach((field) => {
+    const key = field.dataset.f;
+    if (field.type === "checkbox") result[key] = field.checked;
+    else if (field.hasAttribute("data-num")) result[key] = field.value === "" ? null : Number(field.value);
+    else result[key] = field.value.trim();
+  });
+  const social = {};
+  card?.querySelectorAll("[data-s]").forEach((field) => { social[field.dataset.s] = field.value.trim(); });
+  if (Object.keys(social).length) result.social_links = social;
+  return result;
+}
+
+function fillRoleFields(card, data = {}, defaultFirstValid = false) {
+  card?.querySelectorAll("[data-f]").forEach((field) => {
+    const value = data?.[field.dataset.f];
+    if (field.type === "checkbox") field.checked = field.dataset.f === "accept_matching" && value === undefined ? true : Boolean(value);
+    else if (defaultFirstValid && field.tagName === "SELECT" && (value === undefined || value === null || value === "")) {
+      field.value = [...field.options].find((option) => !option.disabled && option.value)?.value ?? "";
+    }
+    else field.value = value ?? "";
+  });
+  card?.querySelectorAll("[data-s]").forEach((field) => { field.value = data?.social_links?.[field.dataset.s] ?? ""; });
+}
+
+async function initMemberRoles(mePayload) {
+  const form = document.querySelector("#rolesForm");
+  if (!form) return;
+  const message = document.querySelector("#rolesMessage");
+  const submit = document.querySelector("#rolesSubmit");
+  const pending = mePayload?.pending_agreements || [];
+  const banner = document.querySelector("#pendingAgreementBanner");
+  if (pending.length && banner) {
+    banner.classList.remove("hidden");
+    banner.innerHTML = `<div><strong>有 ${pending.length} 份規範需要重新同意</strong><span>${pending.map((item) => escapeHtml(`${item.title} v${item.version}`)).join("、")}</span></div><button class="btn ghost small" type="button" data-open-roles>前往確認</button>`;
+    banner.querySelector("[data-open-roles]")?.addEventListener("click", () => document.querySelector('[data-show="roles"]')?.click());
+  }
+  try {
+    const [rolePayload, tagPayload, servicePayload] = await Promise.all([api("my-roles"), api("tags"), api("services-for-providers")]);
+    let roleData = rolePayload;
+    const tags = normalizeList(tagPayload, "tags");
+    const services = normalizeList(servicePayload, "services");
+    const statusByRole = new Map((roleData.roles || []).map((role) => [role.role_key, role]));
+    const selectedTagIds = new Set((roleData.tag_ids || []).map(String));
+    const agreedById = new Map((roleData.agreements || []).map((agreement) => [String(agreement.agreement_id), Boolean(agreement.agreed)]));
+    const checks = [...form.querySelectorAll("[data-role-check]")];
+    checks.forEach((check) => {
+      if (check.dataset.roleCheck === "member") { check.checked = true; check.disabled = true; return; }
+      check.checked = statusByRole.has(check.dataset.roleCheck) && statusByRole.get(check.dataset.roleCheck).status !== "inactive";
+    });
+    for (const [key, role] of statusByRole) {
+      const target = form.querySelector(`[data-role-status="${key}"]`);
+      const meta = roleStatusMeta[role.status] || [role.status, "role-st-inactive"];
+      if (target) target.innerHTML = `<span class="role-badge ${meta[1]}">${escapeHtml(meta[0])}</span>`;
+      const note = form.querySelector(`[data-role-note="${key}"]`);
+      if (note && role.review_note_public) { note.textContent = `審核說明：${role.review_note_public}`; note.classList.remove("hidden"); }
+    }
+    fillRoleFields(form.querySelector('[data-role-card="provider"]'), roleData.provider, true);
+    fillRoleFields(form.querySelector('[data-role-card="partner"]'), roleData.partner);
+    fillRoleFields(form.querySelector('[data-role-card="resource_seeker"]'), roleData.seeker);
+    renderChoiceChips(document.querySelector("#pvServices"), services, new Set((roleData.provider?.service_ids || []).map(String)), "provider_service", "service_id", "service_name");
+    renderChoiceChips(document.querySelector("#pvSkills"), tags.filter((tag) => tag.tag_type === "skill"), selectedTagIds, "member_tag");
+    renderChoiceChips(document.querySelector("#ptTags"), tags.filter((tag) => ["resource_type", "region", "cooperation_type"].includes(tag.tag_type)), selectedTagIds, "member_tag");
+    renderChoiceChips(document.querySelector("#skTags"), tags.filter((tag) => ["skill", "resource_type", "region"].includes(tag.tag_type)), selectedTagIds, "member_tag");
+    const partnerTypes = ["store", "brand", "supplier", "advertising", "cross_industry", "channel", "venue", "lecturer", "consultant", "other"].map((value) => ({ value, label: { store:"店家", brand:"品牌", supplier:"供應商", advertising:"廣告合作", cross_industry:"異業合作", channel:"通路", venue:"場地", lecturer:"講師", consultant:"顧問", other:"其他" }[value] }));
+    renderChoiceChips(document.querySelector("#ptTypes"), partnerTypes, new Set(roleData.partner?.partner_types || []), "partner_type", "value", "label");
+    const getPortfolio = setupListEditor(document.querySelector("#pvPortfolio"), [...(roleData.provider?.portfolio_urls || [])], { max: 10, type: "url", placeholder: "https://作品網址" });
+    const getResources = setupListEditor(document.querySelector("#ptResources"), [...(roleData.partner?.resources || [])], { placeholder: "例如：場地、商品、通路" });
+    const getMethods = setupListEditor(document.querySelector("#ptMethods"), [...(roleData.partner?.cooperation_methods || [])], { placeholder: "例如：聯名活動" });
+    const getNeeds = setupListEditor(document.querySelector("#skNeeds"), [...(roleData.seeker?.need_categories || [])], { placeholder: "例如：攝影、活動人力" });
+    let visibleAgreements = [], agreementRevision = 0;
+    const updateSubmit = () => {
+      const agreementChecks = [...document.querySelectorAll("[data-agreement-confirm]")];
+      submit.disabled = !checks.some((check) => check.checked) || !visibleAgreements.length || agreementChecks.some((check) => !check.checked);
+    };
+    const renderAgreements = async () => {
+      const revision = ++agreementRevision;
+      const selectedRoles = checks.filter((check) => check.checked).map((check) => check.dataset.roleCheck);
+      checks.forEach((check) => {
+        form.querySelector(`[data-role-fields="${check.dataset.roleCheck}"]`)?.classList.toggle("hidden", !check.checked);
+        const wasActive = statusByRole.get(check.dataset.roleCheck)?.status !== "inactive" && statusByRole.has(check.dataset.roleCheck);
+        form.querySelector(`[data-role-hint="${check.dataset.roleCheck}"]`)?.classList.toggle("hidden", check.checked || !wasActive);
+      });
+      const batches = await Promise.all(selectedRoles.map((role) => api("agreements", { query: `&role=${encodeURIComponent(role)}` })));
+      if (revision !== agreementRevision) return;
+      const unique = new Map();
+      batches.flatMap((batch) => normalizeList(batch, "agreements")).forEach((agreement) => unique.set(String(agreement.agreement_id), agreement));
+      visibleAgreements = [...unique.values()];
+      const root = document.querySelector("#agreementList");
+      root.innerHTML = visibleAgreements.map((agreement) => `<article class="agreement-item"><details><summary>${escapeHtml(agreement.title)} <span class="muted">v${escapeHtml(agreement.version)}</span></summary><div class="agreement-body">${escapeHtml(agreement.body_md)}</div></details><label class="field-check agreement-confirm"><input type="checkbox" data-agreement-confirm value="${escapeHtml(agreement.agreement_id)}" ${agreedById.get(String(agreement.agreement_id)) ? "checked" : ""} />我已閱讀並同意此版本</label></article>`).join("") || '<span class="muted">目前沒有可用規範，請稍後再試。</span>';
+      root.querySelectorAll("[data-agreement-confirm]").forEach((check) => check.addEventListener("change", updateSubmit));
+      updateSubmit();
+    };
+    checks.forEach((check) => check.addEventListener("change", () => renderAgreements().catch((error) => { message.textContent = error.message; submit.disabled = true; })));
+    await renderAgreements();
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      message.className = "roles-error";
+      message.textContent = "";
+      const selectedRoles = checks.filter((check) => check.checked).map((check) => check.dataset.roleCheck);
+      const portfolio = getPortfolio();
+      const urlValues = [...form.querySelectorAll("[data-url]")].filter((field) => !field.closest("[data-role-fields]")?.classList.contains("hidden")).map((field) => field.value.trim()).filter(Boolean).concat(portfolio);
+      const invalidUrlField = [...form.querySelectorAll("[data-url]")].filter((field) => !field.closest("[data-role-fields]")?.classList.contains("hidden")).find((field) => { const value = field.value.trim(); if (!value) return false; try { return !["http:", "https:"].includes(new URL(value).protocol); } catch { return true; } });
+      const invalidPortfolioUrl = portfolio.find((value) => { try { return !["http:", "https:"].includes(new URL(value).protocol); } catch { return true; } });
+      if (invalidUrlField) { message.textContent = `${invalidUrlField.labels?.[0]?.textContent || "網址欄位"}僅接受 http／https 網址。`; invalidUrlField.focus(); return; }
+      if (invalidPortfolioUrl) { message.textContent = "作品集網址僅接受 http／https 網址。"; return; }
+      if (portfolio.length > 10) { message.textContent = "作品集網址最多 10 筆。"; return; }
+      const budgetMin = Number(document.querySelector("#skBudgetMin")?.value || 0), budgetMax = Number(document.querySelector("#skBudgetMax")?.value || 0);
+      if (selectedRoles.includes("resource_seeker") && budgetMax && budgetMin > budgetMax) { message.textContent = "預算下限不可高於預算上限。"; return; }
+      const requiredChecks = [...document.querySelectorAll("[data-agreement-confirm]")];
+      if (requiredChecks.some((check) => !check.checked)) { message.textContent = "請逐份勾選所有必要規範後再送出。"; return; }
+      const provider = readRoleFields(form.querySelector('[data-role-card="provider"]'));
+      provider.service_ids = [...form.querySelectorAll('[name="provider_service"]:checked')].map((input) => input.value);
+      provider.portfolio_urls = portfolio;
+      const partner = readRoleFields(form.querySelector('[data-role-card="partner"]'));
+      partner.partner_types = [...form.querySelectorAll('[name="partner_type"]:checked')].map((input) => input.value);
+      if (selectedRoles.includes("partner") && !String(partner.organization_name || "").trim()) { message.textContent = "請填寫合作夥伴的單位／品牌名稱。"; document.querySelector("#ptOrg")?.focus(); return; }
+      if (selectedRoles.includes("partner") && !partner.partner_types.length) { message.textContent = "請至少選擇一項夥伴類型。"; document.querySelector("#ptTypes")?.scrollIntoView({ block: "center" }); return; }
+      partner.resources = getResources(); partner.cooperation_methods = getMethods();
+      const seeker = readRoleFields(form.querySelector('[data-role-card="resource_seeker"]'));
+      seeker.need_categories = getNeeds();
+      const body = {
+        roles: selectedRoles,
+        provider: selectedRoles.includes("provider") ? provider : null,
+        partner: selectedRoles.includes("partner") ? partner : null,
+        seeker: selectedRoles.includes("resource_seeker") ? seeker : null,
+        tag_ids: [...new Set([...form.querySelectorAll('[name="member_tag"]:checked')].map((input) => input.value))],
+        agree_agreement_ids: requiredChecks.filter((check) => check.checked).map((check) => check.value),
+      };
+      submit.disabled = true;
+      try {
+        roleData = await api("my-roles", { method: "PUT", body });
+        message.className = "roles-ok";
+        message.textContent = "合作角色資料已送出。";
+        (roleData.roles || []).forEach((role) => {
+          const target = form.querySelector(`[data-role-status="${role.role_key}"]`);
+          const meta = roleStatusMeta[role.status] || [role.status, "role-st-inactive"];
+          if (target) target.innerHTML = `<span class="role-badge ${meta[1]}">${escapeHtml(meta[0])}</span>`;
+        });
+      } catch (error) { message.textContent = error.message; }
+      finally { updateSubmit(); }
+    });
+  } catch (error) {
+    const target = document.querySelector("#rolesLoadError");
+    target.textContent = error.message;
+    target.classList.remove("hidden");
+  }
+}
+
 async function initProductionMember() {
   const { client } = await requireSession();
   bindAccountSwitch(client);
   const sections = [...document.querySelectorAll("[data-section]")];
   const nav = [...document.querySelectorAll("[data-show]")];
   const show = (id) => { sections.forEach((section) => section.classList.toggle("hidden", section.dataset.section !== id)); nav.forEach((item) => item.classList.toggle("active", item.dataset.show === id)); };
-  nav.forEach((item) => item.addEventListener("click", () => show(item.dataset.show))); show("home");
-  const member = await api("me");
+  nav.forEach((item) => item.addEventListener("click", () => show(item.dataset.show)));
+  const mePayload = await api("me");
+  const member = memberFromMe(mePayload);
   if (!member) throw new Error("會員資料初始化失敗，請重新整理後再試。");
   const stayInMemberCenter = new URLSearchParams(location.search).get("mode") === "member";
   if (isPrivilegedMember(member) && !stayInMemberCenter) {
@@ -202,9 +431,12 @@ async function initProductionMember() {
     return;
   }
   const profileForm = document.querySelector("#profileForm");
-  const profileMap = { name: member.name, fullName: member.full_name, email: member.email, phone: member.phone, line: member.line_id, contactEmail: member.contact_email };
+  const profileMap = { name: member.name, fullName: member.full_name, email: member.email, phone: member.phone, line: member.line_id, contactEmail: member.contact_email, avatarUrl: member.avatar_url, region: member.region, bio: member.bio };
   Object.entries(profileMap).forEach(([key, value]) => { const field = profileForm?.querySelector(`[name="${key}"]`); if (field) field.value = value || ""; });
-  profileForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(profileForm)); await api("profile", { method: "PATCH", body: { name: form.name, full_name: form.fullName, phone: form.phone, line_id: form.line, contact_email: form.contactEmail } }); document.querySelector("#profileStatus").textContent = "已更新"; });
+  if (profileForm?.querySelector('[name="isPublic"]')) profileForm.querySelector('[name="isPublic"]').checked = Boolean(member.is_public);
+  profileForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(profileForm)); try { await api("profile", { method: "PATCH", body: { name: form.name, full_name: form.fullName, phone: form.phone, line_id: form.line, contact_email: form.contactEmail, avatar_url: form.avatarUrl, region: form.region, bio: form.bio, is_public: Boolean(form.isPublic) } }); document.querySelector("#profileStatus").textContent = "已更新"; } catch (error) { document.querySelector("#profileStatus").textContent = error.message; } });
+  await initMemberRoles(mePayload);
+  show(location.hash === "#roles" ? "roles" : "home");
   let addresses = await api("addresses");
   const list = document.querySelector("#addressList"); const pickup = document.querySelector("#pickupAddress"); const dropoff = document.querySelector("#dropoffAddress");
   const addressTypeLabel = { home: "住家", company: "公司", other: "其他" };
@@ -381,8 +613,112 @@ async function initProductionMember() {
   });
   renderPlans();
 }
+
+function showAdminPeopleMessage(text, isError = false) {
+  const root = document.querySelector("#peopleMessage");
+  if (!root) return;
+  root.textContent = text;
+  root.classList.toggle("hidden", !text);
+  root.classList.toggle("error", isError);
+}
+
+async function initAdminPeople(isDeveloper) {
+  const panels = [...document.querySelectorAll("[data-people-panel]")];
+  const tabs = [...document.querySelectorAll("[data-people-tab]")];
+  let allTags = [], peoplePage = 1, peopleTotal = 0;
+  const showMessage = showAdminPeopleMessage;
+  const loadTags = async () => {
+    allTags = normalizeList(await api("admin-tags"), "tags");
+    const select = document.querySelector("#peopleTag");
+    select.innerHTML = '<option value="">全部標籤</option>' + allTags.map((tag) => `<option value="${escapeHtml(tag.tag_id)}">${escapeHtml(tag.name)}｜${escapeHtml(tag.tag_type)}</option>`).join("");
+    renderTagRows();
+  };
+  const roleBadges = (roles = []) => roles.map((role) => {
+    const meta = roleStatusMeta[role.status] || [role.status, "role-st-inactive"];
+    return `<span class="role-badge ${meta[1]}">${escapeHtml(roleName[role.role_key] || role.role_key)}・${escapeHtml(meta[0])}</span>`;
+  }).join("") || '<span class="muted">尚無合作角色</span>';
+  const loadPeople = async () => {
+    const form = new FormData(document.querySelector("#peopleFilters"));
+    const params = new URLSearchParams();
+    for (const [key, value] of form) if (value) params.set(key, value);
+    params.set("page", String(peoplePage));
+    const result = await api("admin-people", { query: `&${params.toString()}` });
+    const items = result.items || [];
+    peopleTotal = Number(result.total || 0);
+    const root = document.querySelector("#peopleRows");
+    root.innerHTML = items.map((person) => `<tr><td><div class="people-name"><button type="button" data-person-id="${escapeHtml(person.user_id)}">${escapeHtml(person.full_name || person.name || "未命名會員")}</button><small>${escapeHtml(person.email)}</small></div></td><td>${escapeHtml(person.account_status || "active")}</td><td><div class="role-badge-row">${roleBadges(person.partner_roles)}</div></td><td>${(person.tags || []).map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)}</span>`).join("") || "—"}</td><td>${escapeHtml(person.created_at ? new Date(person.created_at).toLocaleDateString("zh-TW") : "—")}</td></tr>`).join("") || '<tr><td colspan="5">沒有符合條件的會員</td></tr>';
+    root.querySelectorAll("[data-person-id]").forEach((button) => button.addEventListener("click", () => openPerson(button.dataset.personId).catch((error) => showMessage(error.message, true))));
+    const pageSize = Number(result.page_size || 50);
+    document.querySelector("#peoplePage").textContent = `第 ${Number(result.page || peoplePage)} 頁・共 ${peopleTotal} 人`;
+    document.querySelector("#peoplePrev").disabled = peoplePage <= 1;
+    document.querySelector("#peopleNext").disabled = peoplePage * pageSize >= peopleTotal;
+  };
+  const detailPairs = (data) => Object.entries(data || {}).filter(([key]) => !["admin_note", "user_id", "created_at", "updated_at"].includes(key)).map(([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(Array.isArray(value) ? value.join("、") : typeof value === "object" && value !== null ? JSON.stringify(value) : value ?? "—")}</dd>`).join("");
+  const closeDrawer = () => { document.querySelector("#personDrawer").hidden = true; document.querySelector("#personDrawerBackdrop").hidden = true; };
+  const openPerson = async (userId) => {
+    const detail = await api("admin-person", { query: `&user_id=${encodeURIComponent(userId)}` });
+    const member = detail.member || {};
+    const drawer = document.querySelector("#personDrawer"), backdrop = document.querySelector("#personDrawerBackdrop"), root = document.querySelector("#personDrawerBody");
+    document.querySelector("#personDrawerTitle").textContent = member.full_name || member.name || member.email || "會員詳情";
+    const profileBlocks = [["服務提供者資料", detail.provider], ["合作夥伴資料", detail.partner], ["資源需求者資料", detail.seeker]].filter(([, value]) => value);
+    root.innerHTML = `<section class="panel drawer-block"><h3>基本資料</h3><dl class="kv"><dt>Email</dt><dd>${escapeHtml(member.email)}</dd><dt>手機</dt><dd>${escapeHtml(member.phone || "—")}</dd><dt>LINE</dt><dd>${escapeHtml(member.line_id || "—")}</dd><dt>地區</dt><dd>${escapeHtml(member.region || "—")}</dd><dt>帳號狀態</dt><dd>${escapeHtml(member.account_status || "active")}</dd></dl></section>
+      <section class="panel drawer-block"><h3>角色審核</h3><div id="personRoleReviews">${(detail.roles || []).map((role) => `<div class="review-block"><div class="role-badge-row">${roleBadges([role])}</div><label class="field"><span>審核備註</span><textarea data-review-note="${escapeHtml(role.role_key)}">${escapeHtml(role.review_note || "")}</textarea></label><div class="review-actions"><button class="btn ghost small" type="button" data-role-decision="approved" data-role-key="${escapeHtml(role.role_key)}">通過</button><button class="btn ghost small" type="button" data-role-decision="rejected" data-role-key="${escapeHtml(role.role_key)}">不通過</button><button class="btn ghost small" type="button" data-role-decision="inactive" data-role-key="${escapeHtml(role.role_key)}">停用</button></div></div>`).join("") || '<p class="muted">尚無合作角色</p>'}</div></section>
+      ${profileBlocks.map(([title, data]) => `<section class="panel drawer-block"><h3>${title}</h3><dl class="kv">${detailPairs(data)}</dl></section>`).join("")}
+      <section class="panel drawer-block"><h3>標籤</h3><div id="personTags" class="tag-line">${(detail.tags || []).map((tag) => `<span class="mini-tag">${escapeHtml(tag.name)} <button class="tag-remove" type="button" data-remove-person-tag="${escapeHtml(tag.tag_id)}" aria-label="移除 ${escapeHtml(tag.name)}">×</button></span>`).join("") || '<span class="muted">尚無標籤</span>'}</div><div class="field"><label for="personTagAdd">新增標籤</label><select id="personTagAdd"><option value="">請選擇</option>${allTags.filter((tag) => tag.status === "active" && !(detail.tags || []).some((assigned) => assigned.tag_id === tag.tag_id)).map((tag) => `<option value="${escapeHtml(tag.tag_id)}">${escapeHtml(tag.name)}｜${escapeHtml(tag.tag_type)}</option>`).join("")}</select></div><button id="addPersonTag" class="btn ghost small" type="button">加入標籤</button></section>
+      <section class="panel drawer-block"><h3>內部資料</h3><form id="personAdminForm" class="inline-form"><div class="field"><label for="personAccountStatus">帳號狀態</label><select id="personAccountStatus" name="account_status"><option value="active" ${member.account_status !== "suspended" ? "selected" : ""}>啟用</option><option value="suspended" ${member.account_status === "suspended" ? "selected" : ""}>停權</option></select></div><div class="field"><label for="personAdminNote">內部備註</label><textarea id="personAdminNote" name="admin_note" rows="4">${escapeHtml(member.admin_note || "")}</textarea></div><button class="btn small" type="submit">儲存會員資料</button></form></section>
+      ${isDeveloper ? (member.role === "developer" ? `<section class="panel drawer-block" data-system-role-section><h3>系統權限（僅 Developer）</h3><p class="demo-note">Developer 帳號受保護</p></section>` : `<section class="panel drawer-block" data-system-role-section><h3>系統權限（僅 Developer）</h3><div class="field"><label for="personSystemRole">系統權限</label><select id="personSystemRole"><option value="member" ${member.role !== "admin" ? "selected" : ""}>member</option><option value="admin" ${member.role === "admin" ? "selected" : ""}>admin</option></select></div><button id="saveSystemRole" class="btn ghost small" type="button">更新系統權限</button></section>`) : ""}
+      <section class="panel drawer-block"><h3>同意紀錄</h3><div class="table-scroll"><table class="table"><thead><tr><th>規範</th><th>版本</th><th>狀態</th></tr></thead><tbody>${(detail.agreement_records || []).map((record) => `<tr><td>${escapeHtml(record.agreement_key)}</td><td>v${escapeHtml(record.agreement_version)}</td><td>${escapeHtml(record.status)}</td></tr>`).join("") || '<tr><td colspan="3">尚無同意紀錄</td></tr>'}</tbody></table></div></section>`;
+    drawer.hidden = false; backdrop.hidden = false;
+    root.querySelectorAll("[data-role-decision]").forEach((button) => button.addEventListener("click", async () => {
+      const roleKey = button.dataset.roleKey;
+      const reviewNote = root.querySelector(`[data-review-note="${roleKey}"]`).value.trim();
+      try { await api("admin-role-review", { method: "PATCH", body: { user_id: userId, role_key: roleKey, decision: button.dataset.roleDecision, review_note: reviewNote } }); await openPerson(userId); await loadPeople(); }
+      catch (error) { document.querySelector("#personDrawerMessage").textContent = error.message; document.querySelector("#personDrawerMessage").classList.remove("hidden"); }
+    }));
+    root.querySelector("#personAdminForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); try { await api("admin-person", { method: "PATCH", body: { user_id: userId, admin_note: data.admin_note, account_status: data.account_status } }); await openPerson(userId); await loadPeople(); } catch (error) { showMessage(error.message, true); } });
+    root.querySelectorAll("[data-remove-person-tag]").forEach((button) => button.addEventListener("click", async () => { try { await api("admin-person", { method: "PATCH", body: { user_id: userId, remove_tag_ids: [button.dataset.removePersonTag] } }); await openPerson(userId); await loadPeople(); } catch (error) { showMessage(error.message, true); } }));
+    root.querySelector("#addPersonTag")?.addEventListener("click", async () => { const tagId = root.querySelector("#personTagAdd").value; if (!tagId) return; try { await api("admin-person", { method: "PATCH", body: { user_id: userId, add_tag_ids: [tagId] } }); await openPerson(userId); await loadPeople(); } catch (error) { showMessage(error.message, true); } });
+    root.querySelector("#saveSystemRole")?.addEventListener("click", async () => { try { await api("admin-system-role", { method: "PATCH", body: { user_id: userId, role: root.querySelector("#personSystemRole").value } }); await openPerson(userId); await loadPeople(); } catch (error) { showMessage(error.message, true); } });
+  };
+  const renderTagRows = () => {
+    const root = document.querySelector("#tagRows");
+    root.innerHTML = allTags.map((tag) => `<tr><td><input data-tag-name="${escapeHtml(tag.tag_id)}" value="${escapeHtml(tag.name)}" /></td><td>${escapeHtml(tag.tag_type)}</td><td>${escapeHtml(tag.slug)}</td><td><select data-tag-status="${escapeHtml(tag.tag_id)}"><option value="active" ${tag.status === "active" ? "selected" : ""}>active</option><option value="hidden" ${tag.status === "hidden" ? "selected" : ""}>hidden</option><option value="archived" ${tag.status === "archived" ? "selected" : ""}>archived</option></select><input data-tag-order="${escapeHtml(tag.tag_id)}" type="number" value="${escapeHtml(tag.sort_order ?? 0)}" aria-label="排序" /></td><td><button class="btn ghost small" type="button" data-save-tag="${escapeHtml(tag.tag_id)}">儲存</button></td></tr>`).join("") || '<tr><td colspan="5">目前沒有標籤</td></tr>';
+    root.querySelectorAll("[data-save-tag]").forEach((button) => button.addEventListener("click", async () => { const id = button.dataset.saveTag; try { await api("admin-tags", { method: "PATCH", body: { tag_id: id, name: root.querySelector(`[data-tag-name="${id}"]`).value.trim(), status: root.querySelector(`[data-tag-status="${id}"]`).value, sort_order: Number(root.querySelector(`[data-tag-order="${id}"]`).value) } }); await loadTags(); } catch (error) { showMessage(error.message, true); } }));
+  };
+  const loadAgreements = async () => {
+    const agreements = normalizeList(await api("admin-agreements"), "agreements");
+    const root = document.querySelector("#agreementAdminList");
+    root.innerHTML = agreements.map((agreement) => `<article class="card agr-card"><div class="agr-card-head"><div><strong>${escapeHtml(agreement.title)}</strong><div class="muted">${escapeHtml(agreement.agreement_key)}・v${escapeHtml(agreement.version)}</div></div><span class="badge neutral">${escapeHtml(agreement.status)}</span></div>${agreement.status === "draft" ? `<div class="inline-form"><div class="field"><label>標題</label><input data-agreement-title="${escapeHtml(agreement.agreement_id)}" value="${escapeHtml(agreement.title)}" /></div><div class="field"><label>規範全文</label><textarea rows="6" data-agreement-body="${escapeHtml(agreement.agreement_id)}">${escapeHtml(agreement.body_md)}</textarea></div><button class="btn ghost small" type="button" data-save-agreement="${escapeHtml(agreement.agreement_id)}">儲存草稿</button><label class="field-check"><input type="checkbox" data-publish-confirm="${escapeHtml(agreement.agreement_id)}" />我確認：舊版同意將失效、會員需重新同意</label><button class="btn small" type="button" data-publish-agreement="${escapeHtml(agreement.agreement_id)}" disabled>發布此版本</button></div>` : `<details><summary>查看內容</summary><div class="agreement-body">${escapeHtml(agreement.body_md)}</div></details>`}</article>`).join("") || '<p class="muted">目前沒有規範版本</p>';
+    root.querySelectorAll("[data-publish-confirm]").forEach((check) => check.addEventListener("change", () => { root.querySelector(`[data-publish-agreement="${check.dataset.publishConfirm}"]`).disabled = !check.checked; }));
+    root.querySelectorAll("[data-save-agreement]").forEach((button) => button.addEventListener("click", async () => { const id = button.dataset.saveAgreement; try { await api("admin-agreements", { method: "PATCH", body: { agreement_id: id, title: root.querySelector(`[data-agreement-title="${id}"]`).value.trim(), body_md: root.querySelector(`[data-agreement-body="${id}"]`).value } }); await loadAgreements(); } catch (error) { showMessage(error.message, true); } }));
+    root.querySelectorAll("[data-publish-agreement]").forEach((button) => button.addEventListener("click", async () => { if (!root.querySelector(`[data-publish-confirm="${button.dataset.publishAgreement}"]`).checked) return; try { await api("admin-agreements", { method: "PATCH", body: { agreement_id: button.dataset.publishAgreement, action: "publish" } }); await loadAgreements(); } catch (error) { showMessage(error.message, true); } }));
+  };
+  const loadRecords = async () => {
+    const form = new FormData(document.querySelector("#agreementRecordFilters")); const params = new URLSearchParams();
+    for (const [key, value] of form) if (value) params.set(key, value);
+    const items = normalizeList(await api("admin-agreement-records", { query: params.toString() ? `&${params.toString()}` : "" }), "items");
+    document.querySelector("#agreementRecordRows").innerHTML = items.map((record) => `<tr><td>${escapeHtml(record.user_id || record.email || "—")}</td><td>${escapeHtml(record.agreement_key)}</td><td>v${escapeHtml(record.agreement_version)}</td><td>${escapeHtml(record.agreed_at ? new Date(record.agreed_at).toLocaleString("zh-TW") : "—")}</td><td>${escapeHtml(record.status)}</td></tr>`).join("") || '<tr><td colspan="5">沒有符合條件的同意紀錄</td></tr>';
+  };
+  const showPanel = async (id) => {
+    panels.forEach((panel) => panel.classList.toggle("hidden", panel.dataset.peoplePanel !== id));
+    tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.peopleTab === id));
+    if (id === "agreements") await loadAgreements();
+    if (id === "records") await loadRecords();
+  };
+  tabs.forEach((tab) => tab.addEventListener("click", () => showPanel(tab.dataset.peopleTab).catch((error) => showMessage(error.message, true))));
+  document.querySelector("#peopleFilters")?.addEventListener("submit", (event) => { event.preventDefault(); peoplePage = 1; loadPeople().catch((error) => showMessage(error.message, true)); });
+  document.querySelector("#peoplePrev")?.addEventListener("click", () => { if (peoplePage > 1) { peoplePage--; loadPeople().catch((error) => showMessage(error.message, true)); } });
+  document.querySelector("#peopleNext")?.addEventListener("click", () => { peoplePage++; loadPeople().catch((error) => showMessage(error.message, true)); });
+  document.querySelector("#tagCreateForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); try { await api("admin-tags", { method: "POST", body: data }); event.currentTarget.reset(); await loadTags(); } catch (error) { showMessage(error.message, true); } });
+  document.querySelector("#agreementDraftForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); data.applies_to_roles = data.applies_to_roles.split(",").map((value) => value.trim()).filter(Boolean); try { await api("admin-agreements", { method: "POST", body: data }); event.currentTarget.reset(); await loadAgreements(); } catch (error) { showMessage(error.message, true); } });
+  document.querySelector("#agreementRecordFilters")?.addEventListener("submit", (event) => { event.preventDefault(); loadRecords().catch((error) => showMessage(error.message, true)); });
+  document.querySelector("#closePersonDrawer")?.addEventListener("click", closeDrawer);
+  document.querySelector("#personDrawerBackdrop")?.addEventListener("click", closeDrawer);
+  await loadTags(); await loadPeople();
+}
+
 async function initProductionAdmin() {
-  const { client } = await requireSession(); bindAccountSwitch(client); const member = await api("me");
+  const { client } = await requireSession(); bindAccountSwitch(client); const member = memberFromMe(await api("me"));
   if (!["admin", "developer"].includes(member.role)) { document.querySelector(".main").innerHTML = '<div class="demo-note">此帳號沒有管理員權限。</div>'; return; }
   const isDeveloper = member.role === "developer";
   document.title = `${isDeveloper ? "開發者" : "管理"}後台｜莓好預約站`;
@@ -468,12 +804,14 @@ async function initProductionAdmin() {
   };
   renderAdminInquiries();
   renderCalendar(); renderDay(today); renderPayments();
+  try { await initAdminPeople(isDeveloper); }
+  catch (error) { showAdminPeopleMessage(error instanceof Error ? error.message : "會員管理暫時無法載入", true); }
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
   const page=document.body.dataset.page;
   const production = cfg.mode === "production";
   if(page==='public')(production ? initProductionPublic() : initPublic());
-  if(page==='member')(production ? initProductionMember().catch((error) => { if (error.message !== "LOGIN_REQUIRED") alert(error.message); }) : initMember());
-  if(page==='admin')(production ? initProductionAdmin().catch((error) => { if (error.message !== "LOGIN_REQUIRED") alert(error.message); }) : initAdmin());
+  if(page==='member')(production ? initProductionMember().catch((error) => { if (error.message !== "LOGIN_REQUIRED" && error.code !== "account_suspended") alert(error.message); }) : initMember());
+  if(page==='admin')(production ? initProductionAdmin().catch((error) => { if (error.message !== "LOGIN_REQUIRED" && error.code !== "account_suspended") alert(error.message); }) : initAdmin());
 });
