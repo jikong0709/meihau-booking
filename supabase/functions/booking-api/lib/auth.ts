@@ -30,6 +30,9 @@ export async function authenticate(request: Request, origin: string | null): Pro
   const { data: member, error: readError } = await db.schema("booking").from("members")
     .select("*").eq("user_id", user.id).single();
   if (readError || !member) return reply(origin, 500, { error: "Member profile unavailable" });
+  if (member.account_status === "suspended") {
+    return reply(origin, 403, { error: "account_suspended", message: "此帳號已停權，如有疑問請聯繫莓好客服。" });
+  }
   const { error: memberRoleError } = await db.schema("booking").from("member_roles")
     .upsert({ user_id: user.id, role_key: "member", status: "approved" }, { onConflict: "user_id,role_key", ignoreDuplicates: true });
   if (memberRoleError) return reply(origin, 500, { error: "Member role initialization failed" });

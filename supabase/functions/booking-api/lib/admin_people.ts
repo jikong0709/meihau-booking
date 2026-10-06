@@ -77,12 +77,14 @@ export async function adminPersonPatch(ctx: RequestContext) {
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if ("admin_note" in ctx.body) patch.admin_note = String(ctx.body.admin_note || "").slice(0, 4000);
   if ("account_status" in ctx.body) {
-    if (!["active", "suspended"].includes(String(ctx.body.account_status))) return contractError(ctx.origin, 400, "invalid_account_status", "帳號狀態不正確");
+    const accountStatus = String(ctx.body.account_status);
+    if (!["active", "suspended"].includes(accountStatus)) return contractError(ctx.origin, 400, "invalid_account_status", "帳號狀態不正確");
     const { data: target, error: targetError } = await ctx.db.schema("booking").from("members").select("role").eq("user_id", userId).maybeSingle();
     if (targetError) return contractError(ctx.origin, 400, "person_unavailable", "會員資料暫時無法讀取");
     if (!target) return contractError(ctx.origin, 404, "person_not_found", "找不到會員");
-    if (target.role === "developer" && ctx.member.role !== "developer") return contractError(ctx.origin, 403, "developer_protected", "Admin 不可變更 Developer 帳號狀態");
-    patch.account_status = ctx.body.account_status;
+    if (accountStatus === "suspended" && userId === ctx.user.id) return contractError(ctx.origin, 403, "cannot_suspend_self", "不可停權自己的帳號");
+    if (accountStatus === "suspended" && target.role === "developer") return contractError(ctx.origin, 403, "developer_protected", "Developer 帳號不可被停權");
+    patch.account_status = accountStatus;
   }
   const { data, error } = await ctx.db.schema("booking").from("members").update(patch).eq("user_id", userId).select("*").maybeSingle();
   if (error) return contractError(ctx.origin, 400, "person_save_failed", "會員資料更新失敗");

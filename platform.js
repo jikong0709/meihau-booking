@@ -126,6 +126,29 @@ async function getProductionClient() {
   });
   return productionClient;
 }
+function showAccountSuspended() {
+  const page = document.body?.dataset.page;
+  if (!["member", "admin"].includes(page) || document.querySelector("#accountSuspendedNotice")) return;
+  const notice = document.createElement("main");
+  notice.id = "accountSuspendedNotice";
+  notice.className = "main";
+  notice.innerHTML = `<section class="state-box error" role="alert"><h1>此帳號已停權</h1><p>此帳號已停權，如有疑問請聯繫莓好客服。</p><button type="button" class="btn primary" data-suspended-switch-account>切換帳號</button></section>`;
+  document.body.replaceChildren(notice);
+  notice.querySelector("[data-suspended-switch-account]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.textContent = "正在登出…";
+    const client = await getProductionClient();
+    const { error } = await client.auth.signOut({ scope: "local" });
+    if (error) {
+      button.disabled = false;
+      button.textContent = "切換帳號";
+      alert(`目前無法切換帳號：${error.message}`);
+      return;
+    }
+    location.replace("index.html?login=1");
+  });
+}
 async function api(action, options = {}) {
   const client = await getProductionClient();
   const { data: { session } } = await client.auth.getSession();
@@ -136,7 +159,12 @@ async function api(action, options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || data.error || "API_ERROR");
+  if (!response.ok) {
+    const error = new Error(data.message || data.error || "API_ERROR");
+    error.code = data.error;
+    if (data.error === "account_suspended") showAccountSuspended();
+    throw error;
+  }
   return data;
 }
 const privilegedRoles = new Set(["admin", "developer"]);
@@ -784,6 +812,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   const page=document.body.dataset.page;
   const production = cfg.mode === "production";
   if(page==='public')(production ? initProductionPublic() : initPublic());
-  if(page==='member')(production ? initProductionMember().catch((error) => { if (error.message !== "LOGIN_REQUIRED") alert(error.message); }) : initMember());
-  if(page==='admin')(production ? initProductionAdmin().catch((error) => { if (error.message !== "LOGIN_REQUIRED") alert(error.message); }) : initAdmin());
+  if(page==='member')(production ? initProductionMember().catch((error) => { if (error.message !== "LOGIN_REQUIRED" && error.code !== "account_suspended") alert(error.message); }) : initMember());
+  if(page==='admin')(production ? initProductionAdmin().catch((error) => { if (error.message !== "LOGIN_REQUIRED" && error.code !== "account_suspended") alert(error.message); }) : initAdmin());
 });
