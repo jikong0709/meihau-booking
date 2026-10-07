@@ -4,6 +4,8 @@ import { handleAddresses, handleInquiries, handleOrderChange, handleOrders, hand
 import { getMyRoles, handleAgreements, handleServicesForProviders, handleTags, mePayload, putMyRoles } from "./lib/roles.ts";
 import { handleExistingAdmin } from "./lib/admin_existing.ts";
 import { adminAgreementRecords, adminAgreements, adminPeople, adminPersonGet, adminPersonPatch, adminRoleReview, adminSystemRole, adminTags } from "./lib/admin_people.ts";
+import { handleIdentityAdmin, handleIdentityMember } from "./lib/identity_verification.ts";
+import { handleMatchingAdmin, handleMatchingMember } from "./lib/matching.ts";
 
 Deno.serve(async (request) => {
   const origin = request.headers.get("origin");
@@ -32,6 +34,11 @@ Deno.serve(async (request) => {
   if (action === "agreements" && method === "GET") return await handleAgreements(ctx);
   if (action === "services-for-providers" && method === "GET") return await handleServicesForProviders(ctx);
 
+  const identityMemberResponse = await handleIdentityMember(ctx, action, method);
+  if (identityMemberResponse) return identityMemberResponse;
+  const matchingMemberResponse = await handleMatchingMember(ctx, action, method);
+  if (matchingMemberResponse) return matchingMemberResponse;
+
   if (action.startsWith("admin-")) {
     const denied = requireAdmin(ctx);
     if (denied) return denied;
@@ -45,6 +52,10 @@ Deno.serve(async (request) => {
     if (action === "admin-agreements" && ["GET", "POST", "PATCH"].includes(method)) return await adminAgreements(ctx, method);
     if (action === "admin-agreement-records" && method === "GET") return await adminAgreementRecords(ctx);
     if (action === "admin-system-role" && method === "PATCH") return await adminSystemRole(ctx);
+    const identityAdminResponse = await handleIdentityAdmin(ctx, action, method);
+    if (identityAdminResponse) return identityAdminResponse;
+    const matchingAdminResponse = await handleMatchingAdmin(ctx, action, method);
+    if (matchingAdminResponse) return matchingAdminResponse;
   }
   return reply(origin, 404, { error: "Not found" });
 });

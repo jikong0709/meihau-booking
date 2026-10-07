@@ -29,6 +29,10 @@
           ><button data-show="inquiries">我的詢價</button
           ><button data-show="profile">我的資料</button
           ><button data-show="roles">我的合作角色</button
+          ><button data-show="identity">身份與認證</button
+          ><button data-show="matching-profile">我的媒合頁</button
+          ><button data-show="matching-records">媒合紀錄</button
+          ><button data-show="matching-feature">媒合輪播申請</button
           ><button data-show="addresses">常用地址</button
           ><button type="button" data-switch-account>切換帳號</button
           ><a href="index.html">回公開網站</a>
@@ -341,6 +345,31 @@
               <span id="rolesMessage" class="roles-error" role="status" aria-live="polite"></span>
             </div>
           </form>
+        </section>
+        <section data-section="identity" id="identity" class="hidden phase2-section">
+          <div class="page-head"><div><p class="eyebrow">IDENTITY</p><h1>身份與認證</h1><p class="muted">提出新的身份標籤，並依平台規則送出文字、網址或證書資料。</p></div></div>
+          <div id="identityMessage" class="demo-note hidden" role="status"></div>
+          <div class="phase2-grid">
+            <form id="identityTagApplicationForm" class="panel stack"><h2>申請自訂身份</h2><div class="field"><label for="identityProposedName">身份名稱</label><input id="identityProposedName" name="proposed_name" maxlength="80" required /></div><div class="field"><label for="identityPurpose">申請用途</label><textarea id="identityPurpose" name="purpose" rows="3" required></textarea></div><div class="field"><label for="identityServiceDescription">服務說明</label><textarea id="identityServiceDescription" name="service_description" rows="3"></textarea></div><div class="field"><label for="identityQualification">資格摘要</label><textarea id="identityQualification" name="qualification_summary" rows="3"></textarea></div><div class="field"><label for="identityEvidenceUrls">佐證網址（每行一筆）</label><textarea id="identityEvidenceUrls" name="evidence_urls" rows="3" inputmode="url"></textarea></div><button class="btn" type="submit">送出身份提案</button></form>
+            <div class="panel"><h2>我的身份提案</h2><div id="identityApplicationList" class="stack"><p class="muted">載入中…</p></div></div>
+          </div>
+          <div class="panel phase2-block"><div class="toolbar"><div><h2>身份認證</h2><p class="muted">認證只表示平台已核對指定資料，不代表服務品質或履約保證。</p></div><button id="refreshIdentityVerifications" class="btn ghost small" type="button">重新載入</button></div><div id="availableVerificationRules" class="phase2-card-list"><p class="muted">載入可申請的認證規則…</p></div><h3>已建立的認證申請</h3><div id="identityVerificationList" class="phase2-card-list"><p class="muted">載入中…</p></div></div>
+        </section>
+        <section data-section="matching-profile" id="matching-profile" class="hidden phase2-section">
+          <div class="page-head"><div><p class="eyebrow">MATCHING PROFILE</p><h1>我的媒合頁</h1><p class="muted">公開頁只顯示允許公開的資料，不顯示手機、Email、LINE 或地址。</p></div><a id="matchingProfilePreview" class="btn ghost hidden" target="_blank" rel="noopener noreferrer">預覽公開頁</a></div>
+          <div id="matchingProfileMessage" class="demo-note hidden" role="status"></div>
+          <form id="matchingProfileForm" class="panel form-grid"><div class="field"><label for="matchingDisplayName">公開名稱</label><input id="matchingDisplayName" name="display_name" maxlength="100" required /></div><div class="field"><label for="matchingHeadline">一句介紹</label><input id="matchingHeadline" name="headline" maxlength="160" /></div><div class="field full"><label for="matchingIntro">公開簡介</label><textarea id="matchingIntro" name="public_intro" rows="6"></textarea></div><div class="field"><label for="matchingRegion">服務地區</label><input id="matchingRegion" name="service_region" maxlength="120" /></div><div class="field"><label for="matchingAvailability">可合作時間</label><input id="matchingAvailability" name="availability_summary" maxlength="200" /></div><div class="field"><label for="matchingPublishStatus">頁面狀態</label><select id="matchingPublishStatus" name="publish_status"><option value="draft">草稿</option><option value="pending_review">送審</option><option value="hidden">隱藏</option></select></div><div class="field full phase2-actions"><button class="btn" type="submit">儲存媒合頁</button><button id="copyMatchingProfileLink" class="btn ghost hidden" type="button">複製分享連結</button></div></form>
+        </section>
+        <section data-section="matching-records" id="matching-records" class="hidden phase2-section">
+          <div class="page-head"><div><p class="eyebrow">MATCHING RECORDS</p><h1>媒合紀錄與問題回報</h1><p class="muted">雙方確認同一版內容後才成立；約定金額不代表已付款。</p></div></div>
+          <div id="matchingRecordMessage" class="demo-note hidden" role="status"></div>
+          <form id="matchingRecordForm" class="panel form-grid"><div class="field"><label for="matchCounterparty">對方會員 ID</label><input id="matchCounterparty" name="counterparty_user_id" required /></div><div class="field"><label for="matchSubjectType">媒合類型</label><select id="matchSubjectType" name="subject_type"><option value="service">服務</option><option value="need">需求</option><option value="cooperation">合作</option><option value="resource">資源</option></select></div><div class="field full"><label for="matchSubjectTitle">主旨</label><input id="matchSubjectTitle" name="subject_title" maxlength="160" required /></div><div class="field"><label for="matchScheduledAt">預定時間</label><input id="matchScheduledAt" name="scheduled_at" type="datetime-local" /></div><div class="field"><label for="matchLocation">地點</label><input id="matchLocation" name="location_text" maxlength="200" /></div><div class="field"><label for="matchAmount">約定金額（非付款狀態）</label><input id="matchAmount" name="agreed_amount" type="number" min="0" step="1" /></div><div class="field"><label for="matchPaymentText">付款方式文字</label><input id="matchPaymentText" name="payment_method_text" maxlength="100" /></div><div class="field full"><button class="btn" type="submit">建立媒合草稿</button></div></form>
+          <div id="matchingRecordList" class="phase2-card-list phase2-block"><p class="muted">載入中…</p></div>
+        </section>
+        <section data-section="matching-feature" id="matching-feature" class="hidden phase2-section">
+          <div class="page-head"><div><p class="eyebrow">MATCHING FEATURE</p><h1>媒合輪播申請</h1><p class="muted">此區與合作購物平台推薦完全分離；本期不收取曝光費用。</p></div></div>
+          <div id="matchingFeatureMessage" class="demo-note hidden" role="status"></div>
+          <form id="matchingFeatureForm" class="panel form-grid"><div class="field"><label for="featureStart">希望開始時間（選填）</label><input id="featureStart" name="requested_start_at" type="datetime-local" /></div><div class="field"><label for="featureEnd">希望結束時間（選填）</label><input id="featureEnd" name="requested_end_at" type="datetime-local" /></div><div class="field full"><button class="btn" type="submit">申請加入媒合輪播</button></div></form><div id="matchingFeatureList" class="phase2-card-list phase2-block"><p class="muted">載入中…</p></div>
         </section>
         <section data-section="addresses" class="hidden">
           <div class="page-head">

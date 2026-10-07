@@ -1,5 +1,7 @@
 window.MEIHAU_CONFIG = {
   mode: 'mock',
+  apiBase: '',
+  matchingPublicApiBase: '',
   auth: {
     googleLoginUrl: '',
     logoutUrl: ''

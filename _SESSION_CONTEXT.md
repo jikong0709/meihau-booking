@@ -192,3 +192,20 @@
 - 使用者可自行操作：後台按一次「停權→啟用」雙鍵開關，確認視覺回饋。
 - 工兵：指揮官模式，codex 直呼 `node .../codex-companion.mjs task --write`，工作目錄必須是本資料夾；codex 額度用完即暫停、不換工兵（使用者定案）。
 
+## 2026-10-07 媒合服務補充計畫已排程（未施工）
+
+- 已讀取 `C:\Users\User\Downloads\莓好預約站_媒合服務補充計畫書.docx`，並對照 Phase 1、目前 migration、booking-api 與三頁前端。
+- 新修改計畫：`docs/PHASE2_MATCHING_SERVICE_SUPPLEMENT_PLAN.md`；切為身份提案／認證、公開媒合頁、雙方確認／問題回報、媒合輪播四個施工 Wave，分享頁正式美術另案。
+- 本輪只新增規劃文件與本段交接摘要，未改程式、未部署、未 commit／push、未寫正式 DB。
+- 既有鎖定仍有效：第一版附件只收網址、不開 Storage；補充計畫提到的文件上傳須使用者另行解鎖後才能施工。
+- 下一步：先由使用者確認計畫 §9 五個決策，再製作 Wave 0 API 合約與逐工單驗收矩陣。
+
+## 2026-10-07 媒合服務補充計畫 Phase 2 已施工（部署中）
+
+- 已套用正式 migration `20261007120000_matching_service_phase2.sql`：11 張表、強制 RLS、前端角色無表權限、service_role 無 DELETE，正式讀回通過。
+- 已部署 `booking-api`（保留 Gateway JWT）與獨立唯讀 `matching-public`；公開 200／400／404、會員無 token 401 正式 smoke 通過。
+- 已完成身份提案／認證、公開媒合頁、媒合紀錄雙方確認、問題回報、獨立媒合輪播及後台審核 UI；首頁新增獨立媒合推薦區，不合併分潤輪播。
+- 本機首頁與 `match.html` 於 320／390／768／1440px 無水平溢位；Playwright CLI 因 npm cache EPERM 改用 in-app browser。
+- 待辦：提交並推送前端到 GitHub Pages、確認 workflow、跑正式匿名 Pages smoke。
+- 登入後會員／後台完整流程 `NOT RUN`（客戶帳號紅線）；仍須 Claude Code fresh-context 最終驗收，Codex 自檢不算制度完成。
+

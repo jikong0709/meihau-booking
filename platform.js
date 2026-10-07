@@ -14,6 +14,27 @@ const priceLabel = (item) => {
   return `${amount}${unit}${item.price_type === "starting_from" ? "起" : ""}`;
 };
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+const safeHttpUrl = (value) => {
+  try {
+    const url = new URL(String(value || "").trim());
+    return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+  } catch { return null; }
+};
+const phase2StatusLabel = {
+  draft: "草稿", pending: "審核中", pending_review: "審核中", approved: "已核准", rejected: "未通過",
+  withdrawn: "已撤回", verified: "已驗證", expired: "已到期", revoked: "已撤銷", published: "已發布",
+  hidden: "已隱藏", suspended: "已停權", inactive: "已停用", proposed: "待確認", partially_confirmed: "單方已確認",
+  confirmed: "雙方已確認", declined: "已拒絕", cancelled: "已取消", disputed: "爭議中", closed: "已結案",
+  open: "待處理", reviewing: "處理中", resolved: "已處理", dismissed: "不受理", scheduled: "已排程",
+  active: "曝光中", paused: "已暫停", ended: "已結束", retired: "已退役",
+};
+const phase2Status = (status) => `<span class="badge neutral">${escapeHtml(phase2StatusLabel[status] || status || "—")}</span>`;
+const phase2Items = (payload, ...keys) => {
+  if (Array.isArray(payload)) return payload;
+  for (const key of keys) if (Array.isArray(payload?.[key])) return payload[key];
+  return [];
+};
+const phase2Date = (value) => value ? new Date(value).toLocaleString("zh-TW") : "—";
 
 function renderAgreementMarkdown(value, title = "") {
   const lines = escapeHtml(value).replace(/\r\n?/g, "\n").split("\n");
@@ -88,7 +109,7 @@ function initMember(){
   const nav=[...document.querySelectorAll('[data-show]')];
   function show(id){ sections.forEach(s=>s.classList.toggle('hidden',s.dataset.section!==id)); nav.forEach(n=>n.classList.toggle('active',n.dataset.show===id)); }
   nav.forEach(n=>n.addEventListener('click',()=>show(n.dataset.show)));
-  show(location.hash === '#roles' ? 'roles' : 'home');
+  show(sections.some((section) => `#${section.dataset.section}` === location.hash) ? location.hash.slice(1) : 'home');
 
   const profile=readStore('meihau-profile',{name:'測試會員',email:'demo@example.com',phone:'',line:'',contactEmail:''});
   ['name','email','phone','line','contactEmail'].forEach(k=>{const el=document.querySelector(`[name="${k}"]`);if(el)el.value=profile[k]||''});
@@ -287,6 +308,7 @@ async function initProductionPublic() {
       if (error) throw error;
     } catch (error) { alert(error.code === "account_suspended" ? error.message : `目前無法啟動 Google 登入：${error.message}`); }
   }));
+  await initMatchingHomeFeed();
 }
 async function requireSession() {
   const client = await getProductionClient();
@@ -504,7 +526,9 @@ async function initProductionMember() {
   if (profileForm?.querySelector('[name="isPublic"]')) profileForm.querySelector('[name="isPublic"]').checked = Boolean(member.is_public);
   profileForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(profileForm)); try { await api("profile", { method: "PATCH", body: { name: form.name, full_name: form.fullName, phone: form.phone, line_id: form.line, contact_email: form.contactEmail, avatar_url: form.avatarUrl, region: form.region, bio: form.bio, is_public: Boolean(form.isPublic) } }); document.querySelector("#profileStatus").textContent = "已更新"; } catch (error) { document.querySelector("#profileStatus").textContent = error.message; } });
   await initMemberRoles(mePayload);
-  show(location.hash === "#roles" ? "roles" : "home");
+  const requestedSection = location.hash.slice(1);
+  show(sections.some((section) => section.dataset.section === requestedSection) ? requestedSection : "home");
+  await initPhase2Member().catch((error) => console.warn("Phase 2 member modules unavailable", error));
   let addresses = await api("addresses");
   const list = document.querySelector("#addressList"); const pickup = document.querySelector("#pickupAddress"); const dropoff = document.querySelector("#dropoffAddress");
   const addressTypeLabel = { home: "住家", company: "公司", other: "其他" };
@@ -682,6 +706,101 @@ async function initProductionMember() {
   renderPlans();
 }
 
+async function initPhase2Member() {
+  const showMessage = (selector, text, isError = false) => showActionFeedback(document.querySelector(selector), text, isError, true);
+  const identityRoot = document.querySelector("#identityApplicationList");
+  const verificationRoot = document.querySelector("#identityVerificationList");
+  const availableRulesRoot = document.querySelector("#availableVerificationRules");
+  const loadIdentity = async () => {
+    const [applicationPayload, verificationPayload, rolePayload, tagPayload] = await Promise.all([
+      api("identity-tag-applications"), api("my-identity-verifications"), api("my-roles"), api("tags"),
+    ]);
+    const applications = phase2Items(applicationPayload, "items", "applications");
+    identityRoot.innerHTML = applications.map((item) => `<article class="phase2-card"><div class="phase2-card-head"><strong>${escapeHtml(item.proposed_name)}</strong>${phase2Status(item.status)}</div><p>${escapeHtml(item.purpose || "未填申請用途")}</p>${item.review_note ? `<p class="muted">審核說明：${escapeHtml(item.review_note)}</p>` : ""}</article>`).join("") || '<p class="muted">目前沒有身份提案。</p>';
+    const verifications = phase2Items(verificationPayload, "items", "verifications"), savedEvidence = phase2Items(verificationPayload, "evidence");
+    const assignedIds = new Set((rolePayload?.tag_ids || []).map(String));
+    const identityTags = phase2Items(tagPayload, "tags", "items").map(normalizeTag).filter((tag) => tag.tag_type === "identity" && assignedIds.has(String(tag.tag_id)));
+    const rulePayloads = await Promise.all(identityTags.map(async (tag) => {
+      try { return { tag, payload: await api("identity-verification-rules", { query: `&tag_id=${encodeURIComponent(tag.tag_id)}` }) }; }
+      catch { return { tag, payload: { rules: [], requirements: [] } }; }
+    }));
+    availableRulesRoot.innerHTML = rulePayloads.flatMap(({ tag, payload }) => phase2Items(payload, "rules").map((rule) => ({ tag, rule, requirements: phase2Items(payload, "requirements").filter((requirement) => String(requirement.rule_id) === String(rule.rule_id)) }))).map(({ tag, rule, requirements }) => `<form class="phase2-card verification-application-form" data-tag-id="${escapeHtml(tag.tag_id)}" data-rule-id="${escapeHtml(rule.rule_id)}"><div class="phase2-card-head"><div><strong>${escapeHtml(tag.name)}｜${escapeHtml(rule.title)}</strong><small>規則 v${escapeHtml(rule.version)}${rule.valid_days ? `・有效 ${escapeHtml(rule.valid_days)} 天` : ""}</small></div></div><p>${escapeHtml(rule.description || "請依欄位提供認證資料。")}</p>${requirements.map((requirement) => {
+      const required = requirement.is_required ? "required" : ""; const common = `data-requirement-id="${escapeHtml(requirement.requirement_id)}" data-evidence-type="${escapeHtml(requirement.evidence_type)}"`;
+      if (requirement.evidence_type === "url") return `<label class="field"><span>${escapeHtml(requirement.label)}</span><input type="url" inputmode="url" ${common} ${required} /><small>${escapeHtml(requirement.instructions || "只接受 http 或 https 網址")}</small></label>`;
+      if (requirement.evidence_type === "certificate") return `<fieldset class="verification-certificate" ${common}><legend>${escapeHtml(requirement.label)}</legend><label class="field"><span>證書名稱</span><input data-certificate-name ${required} /></label><label class="field"><span>核發單位</span><input data-issuer-name ${required} /></label><label class="field"><span>遮罩後證書編號</span><input data-certificate-number /></label><label class="field"><span>核發日期</span><input data-issued-on type="date" /></label></fieldset>`;
+      return `<label class="field"><span>${escapeHtml(requirement.label)}</span><textarea rows="3" ${common} ${required}></textarea><small>${escapeHtml(requirement.instructions || "")}</small></label>`;
+    }).join("")}<button class="btn small" type="submit">填妥並送審</button></form>`).join("") || '<p class="muted">目前沒有可申請的身份認證規則。</p>';
+    availableRulesRoot.querySelectorAll(".verification-application-form").forEach((form) => form.addEventListener("submit", async (event) => {
+      event.preventDefault(); const evidence = [...form.querySelectorAll("[data-requirement-id]")].map((field) => {
+        const row = { requirement_id: field.dataset.requirementId };
+        if (field.dataset.evidenceType === "url") row.url_value = field.value.trim();
+        else if (field.dataset.evidenceType === "certificate") Object.assign(row, { certificate_name: field.querySelector("[data-certificate-name]").value.trim(), issuer_name: field.querySelector("[data-issuer-name]").value.trim(), certificate_number_masked: field.querySelector("[data-certificate-number]").value.trim(), issued_on: field.querySelector("[data-issued-on]").value || null });
+        else row.text_value = field.value.trim();
+        return row;
+      });
+      if (evidence.some((row) => row.url_value && !safeHttpUrl(row.url_value))) { showMessage("#identityMessage", "認證網址只允許 http 或 https。", true); return; }
+      try { await withButtonPending(form.querySelector("button"), () => api("my-identity-verifications", { method: "POST", body: { tag_id: form.dataset.tagId, rule_id: form.dataset.ruleId, evidence, submit: true } })); await loadIdentity(); showMessage("#identityMessage", "身份認證已送審。"); }
+      catch (error) { showMessage("#identityMessage", error.message, true); }
+    }));
+    const memberTagById = new Map(identityTags.map((tag) => [String(tag.tag_id), tag]));
+    verificationRoot.innerHTML = verifications.map((item) => `<article class="phase2-card"><div class="phase2-card-head"><div><strong>${escapeHtml(item.tag_name || item.tag?.name || memberTagById.get(String(item.tag_id))?.name || "身份認證")}</strong><small>規則 v${escapeHtml(item.rule_version || item.rule?.version || "—")}</small></div>${phase2Status(item.status)}</div>${item.review_note_public ? `<p>${escapeHtml(item.review_note_public)}</p>` : ""}<div class="phase2-actions">${["draft", "rejected"].includes(item.status) ? `<button class="btn small" type="button" data-submit-verification="${escapeHtml(item.verification_id)}">送出審核</button>` : ""}</div></article>`).join("") || '<p class="muted">目前沒有身份認證資料；身份規則啟用後即可開始申請。</p>';
+    verificationRoot.querySelectorAll("[data-submit-verification]").forEach((button) => button.addEventListener("click", async () => {
+      try { await withButtonPending(button, () => api("my-identity-verifications", { method: "PATCH", body: { verification_id: button.dataset.submitVerification, evidence: savedEvidence.filter((row) => String(row.verification_id) === String(button.dataset.submitVerification)), submit: true } })); await loadIdentity(); showMessage("#identityMessage", "認證資料已送審。"); }
+      catch (error) { showMessage("#identityMessage", error.message, true); }
+    }));
+  };
+  document.querySelector("#identityTagApplicationForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault(); const form = event.currentTarget, data = Object.fromEntries(new FormData(form));
+    const urls = String(data.evidence_urls || "").split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+    if (urls.some((value) => !safeHttpUrl(value))) { showMessage("#identityMessage", "佐證網址只允許 http 或 https。", true); return; }
+    data.evidence_urls = urls;
+    try { await withButtonPending(form.querySelector('[type="submit"]'), () => api("identity-tag-applications", { method: "POST", body: data })); form.reset(); await loadIdentity(); showMessage("#identityMessage", "身份提案已送出。"); }
+    catch (error) { showMessage("#identityMessage", error.message, true); }
+  });
+  document.querySelector("#refreshIdentityVerifications")?.addEventListener("click", () => loadIdentity().catch((error) => showMessage("#identityMessage", error.message, true)));
+
+  let matchingProfile = null;
+  const profileForm = document.querySelector("#matchingProfileForm");
+  const updateProfileLink = () => {
+    const slug = matchingProfile?.public_slug; const preview = document.querySelector("#matchingProfilePreview"); const copy = document.querySelector("#copyMatchingProfileLink");
+    if (!slug) { preview?.classList.add("hidden"); copy?.classList.add("hidden"); return; }
+    const url = new URL("match.html", location.href); url.searchParams.set("profile", slug);
+    preview.href = url.href; preview.classList.remove("hidden"); copy.classList.remove("hidden"); copy.dataset.url = url.href;
+  };
+  const loadProfile = async () => {
+    const payload = await api("my-matching-profile"); matchingProfile = payload?.profile || payload || {};
+    for (const field of profileForm?.elements || []) if (field.name && Object.hasOwn(matchingProfile, field.name)) field.value = matchingProfile[field.name] ?? "";
+    updateProfileLink();
+  };
+  profileForm?.addEventListener("submit", async (event) => {
+    event.preventDefault(); const data = Object.fromEntries(new FormData(profileForm));
+    try { matchingProfile = await withButtonPending(profileForm.querySelector('[type="submit"]'), () => api("my-matching-profile", { method: "PUT", body: data })); matchingProfile = matchingProfile?.profile || matchingProfile; updateProfileLink(); showMessage("#matchingProfileMessage", "媒合頁資料已儲存。"); }
+    catch (error) { showMessage("#matchingProfileMessage", error.message, true); }
+  });
+  document.querySelector("#copyMatchingProfileLink")?.addEventListener("click", async (event) => {
+    try { await navigator.clipboard.writeText(event.currentTarget.dataset.url); showMessage("#matchingProfileMessage", "分享連結已複製。"); }
+    catch { showMessage("#matchingProfileMessage", "無法自動複製，請由預覽頁網址列複製。", true); }
+  });
+
+  const recordsRoot = document.querySelector("#matchingRecordList");
+  const reportCategories = '<option value="no_show">未到場</option><option value="late_cancel">臨時取消</option><option value="amount_dispute">金額爭議</option><option value="scope_dispute">範圍爭議</option><option value="suspected_fraud">疑似詐騙</option><option value="misconduct">不當行為</option><option value="safety">安全疑慮</option><option value="other">其他</option>';
+  const loadRecords = async () => {
+    const [recordPayload, reportPayload] = await Promise.all([api("matching-records"), api("matching-reports")]);
+    const records = phase2Items(recordPayload, "items", "records"), reports = phase2Items(reportPayload, "items", "reports");
+    recordsRoot.innerHTML = records.map((item) => `<article class="phase2-card"><div class="phase2-card-head"><div><strong>${escapeHtml(item.subject_title)}</strong><small>${escapeHtml(item.match_code || "")}</small></div>${phase2Status(item.status)}</div><p>${escapeHtml(item.location_text || "地點未定")}・${escapeHtml(phase2Date(item.scheduled_at))}</p>${item.agreed_amount == null ? "" : `<p>約定金額：${money(item.agreed_amount)}（非付款狀態）</p>`}<div class="phase2-actions">${["proposed", "partially_confirmed"].includes(item.status) ? `<button class="btn small" data-match-confirm="${escapeHtml(item.match_id)}">確認內容</button><button class="btn ghost small" data-match-decline="${escapeHtml(item.match_id)}">拒絕</button>` : ""}<button class="btn ghost small" data-open-report="${escapeHtml(item.match_id)}">回報問題</button></div><form class="phase2-report-form hidden" data-report-form="${escapeHtml(item.match_id)}"><label class="field"><span>問題類別</span><select name="category">${reportCategories}</select></label><label class="field"><span>問題說明</span><textarea name="description" rows="3" required></textarea></label><button class="btn small" type="submit">送出回報</button></form></article>`).join("") + (reports.length ? `<div class="panel"><h3>我的問題回報</h3>${reports.map((item) => `<p><strong>${escapeHtml(item.match_code || item.category)}</strong> ${phase2Status(item.status)}<br><span class="muted">${escapeHtml(item.description)}</span></p>`).join("")}</div>` : "") || '<p class="muted">目前沒有媒合紀錄。</p>';
+    recordsRoot.querySelectorAll("[data-match-confirm],[data-match-decline]").forEach((button) => button.addEventListener("click", async () => { const record = records.find((item) => String(item.match_id) === String(button.dataset.matchConfirm || button.dataset.matchDecline)); try { await withButtonPending(button, () => api("matching-confirmation", { method: "POST", body: { match_id: record.match_id, terms_version: record.terms_version, terms_snapshot: record.scope_snapshot || {}, decision: button.hasAttribute("data-match-confirm") ? "confirmed" : "declined" } })); await loadRecords(); } catch (error) { showMessage("#matchingRecordMessage", error.message, true); } }));
+    recordsRoot.querySelectorAll("[data-open-report]").forEach((button) => button.addEventListener("click", () => recordsRoot.querySelector(`[data-report-form="${button.dataset.openReport}"]`)?.classList.toggle("hidden")));
+    recordsRoot.querySelectorAll("[data-report-form]").forEach((form) => form.addEventListener("submit", async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(form)); data.match_id = form.dataset.reportForm; try { await withButtonPending(form.querySelector("button"), () => api("matching-reports", { method: "POST", body: data })); await loadRecords(); showMessage("#matchingRecordMessage", "問題回報已送出。"); } catch (error) { showMessage("#matchingRecordMessage", error.message, true); } }));
+  };
+  document.querySelector("#matchingRecordForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = event.currentTarget, data = Object.fromEntries(new FormData(form)); data.agreed_amount = data.agreed_amount === "" ? null : Number(data.agreed_amount); try { await withButtonPending(form.querySelector("button"), () => api("matching-records", { method: "POST", body: data })); form.reset(); await loadRecords(); showMessage("#matchingRecordMessage", "媒合草稿已建立，等待雙方確認。"); } catch (error) { showMessage("#matchingRecordMessage", error.message, true); } });
+
+  const featureRoot = document.querySelector("#matchingFeatureList");
+  const loadFeatures = async () => { const items = phase2Items(await api("matching-feature-applications"), "items", "applications"); featureRoot.innerHTML = items.map((item) => `<article class="phase2-card"><div class="phase2-card-head"><strong>媒合輪播申請</strong>${phase2Status(item.status)}</div><p>${escapeHtml(phase2Date(item.requested_start_at))} ～ ${escapeHtml(phase2Date(item.requested_end_at))}</p>${item.review_note ? `<p class="muted">${escapeHtml(item.review_note)}</p>` : ""}</article>`).join("") || '<p class="muted">目前沒有輪播申請。</p>'; };
+  document.querySelector("#matchingFeatureForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = event.currentTarget, data = Object.fromEntries(new FormData(form)); try { await withButtonPending(form.querySelector("button"), () => api("matching-feature-applications", { method: "POST", body: data })); form.reset(); await loadFeatures(); showMessage("#matchingFeatureMessage", "媒合輪播申請已送出。"); } catch (error) { showMessage("#matchingFeatureMessage", error.message, true); } });
+
+  await Promise.all([loadIdentity(), loadProfile(), loadRecords(), loadFeatures()]);
+}
+
 function showAdminPeopleMessage(text, isError = false) {
   const root = document.querySelector("#peopleMessage");
   showActionFeedback(root, text, isError);
@@ -841,6 +960,60 @@ const accountStatusBadge = (status) => {
   const meta = Object.hasOwn(accountStatusMeta, status) ? accountStatusMeta[status] : [String(status || "active"), "unknown"];
   return `<span class="account-status-badge account-status-${escapeHtml(meta[1])}">${escapeHtml(meta[0])}</span>`;
 };
+
+async function publicPhase2Api(action, query = "") {
+  const publicApiBase = cfg.matchingPublicApiBase || cfg.apiBase.replace(/\/booking-api\/?$/, "/matching-public");
+  const response = await fetch(`${publicApiBase}?action=${encodeURIComponent(action)}${query}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(response.status === 404 ? "找不到此媒合頁，或頁面目前未公開。" : (data.message || data.error || "媒合資料暫時無法載入。"));
+  return data;
+}
+
+async function initMatchingHomeFeed() {
+  const root = document.querySelector("#matchingHomeFeed");
+  if (!root) return;
+  try {
+    const payload = await publicPhase2Api("matching-feature-feed", "&limit=6");
+    const items = phase2Items(payload, "items", "profiles", "feed");
+    root.innerHTML = items.map((item) => {
+      const href = new URL("match.html", location.href);
+      href.searchParams.set("profile", String(item.public_slug || ""));
+      return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml(item.service_region || "線上／地區洽談")}</p><h3>${escapeHtml(item.display_name || "媒合會員")}</h3><p>${escapeHtml(item.headline || item.public_intro || "查看公開媒合資料")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看媒合頁</a></article>`;
+    }).join("") || '<p class="muted">目前沒有排程中的媒合推薦，歡迎稍後再來看看。</p>';
+  } catch (error) {
+    root.innerHTML = `<p class="muted">媒合推薦暫時無法載入。<a href="match.html">前往媒合專區</a></p>`;
+  }
+}
+
+async function initMatchingPage() {
+  const params = new URLSearchParams(location.search), slug = params.get("profile")?.trim();
+  const state = document.querySelector("#matchingProfileState"), root = document.querySelector("#matchingPublicProfile");
+  const feedSection = document.querySelector("#matchingFeatureFeedSection"), feedRoot = document.querySelector("#matchingFeatureFeed");
+  const renderFeed = async () => {
+    const payload = await publicPhase2Api("matching-feature-feed");
+    const items = phase2Items(payload, "items", "profiles", "feed");
+    feedRoot.innerHTML = items.map((item) => {
+      const itemSlug = String(item.public_slug || ""); const href = new URL("match.html", location.href); href.searchParams.set("profile", itemSlug);
+      return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml(item.service_region || "線上／地區洽談")}</p><h3>${escapeHtml(item.display_name || "媒合會員")}</h3><p>${escapeHtml(item.headline || item.public_intro || "查看公開媒合資料")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看媒合頁</a></article>`;
+    }).join("") || '<p class="muted">目前沒有排程中的媒合推薦。</p>';
+    feedSection.classList.remove("hidden");
+  };
+  if (!slug) {
+    state.innerHTML = '<h1>平台媒合推薦</h1><p>選擇一位已公開的會員，查看服務、合作或資源資訊。</p>';
+    await renderFeed(); return;
+  }
+  try {
+    const payload = await publicPhase2Api("public-matching-profile", `&profile=${encodeURIComponent(slug)}`), profile = payload?.profile || payload;
+    const publicLinks = phase2Items(payload?.provider?.portfolio_urls || profile.links || [], "items").map((value) => typeof value === "string" ? value : value?.url).map(safeHttpUrl).filter(Boolean);
+    const tags = phase2Items(payload?.identity_tags || profile.identity_tags || profile.tags || [], "items"), tagById = new Map(tags.map((tag) => [String(tag.tag_id), tag])); const verifications = phase2Items(payload?.verifications || profile.verifications || [], "items");
+    root.innerHTML = `<div class="matching-profile-hero"><p class="eyebrow">PUBLIC MATCHING PROFILE</p><h1 id="matchingPublicName">${escapeHtml(profile.display_name || "媒合會員")}</h1><p class="matching-headline">${escapeHtml(profile.headline || "")}</p><div class="tag-line">${tags.map((tag) => `<span class="mini-tag">${escapeHtml(tag.name || tag.tag_name || tag)}</span>`).join("")}</div></div><div class="matching-profile-grid"><section class="panel"><h2>關於我</h2><p class="preserve-lines">${escapeHtml(profile.public_intro || "尚未提供公開簡介。")}</p><dl class="kv"><dt>服務地區</dt><dd>${escapeHtml(profile.service_region || "洽談")}</dd><dt>可合作時間</dt><dd>${escapeHtml(profile.availability_summary || "洽談")}</dd></dl></section><section class="panel"><h2>平台認證</h2>${verifications.map((item) => `<div class="verification-public-row"><strong>✓ ${escapeHtml(tagById.get(String(item.tag_id))?.name || "身份")}</strong><span>平台已核對指定資料${item.verified_at ? `・${escapeHtml(new Date(item.verified_at).toLocaleDateString("zh-TW"))}` : ""}</span></div>`).join("") || '<p class="muted">目前沒有公開的有效認證。</p>'}<p class="private-note">認證只代表平台已核對指定資料，不代表服務品質、履約或專業資格保證。</p></section></div>${publicLinks.length ? `<section class="panel phase2-block"><h2>作品與公開連結</h2><div class="phase2-link-list">${publicLinks.map((url, index) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">公開連結 ${index + 1}</a>`).join("")}</div></section>` : ""}<div class="matching-public-actions"><a class="btn" href="member.html?mode=member#matching-records">登入後提出媒合</a><a class="btn ghost" href="member.html?mode=member#book">預約／詢價</a></div>`;
+    root.classList.remove("hidden"); state.classList.add("hidden");
+    const canonical = new URL("match.html", location.href); canonical.searchParams.set("profile", slug); document.querySelector("#matchingCanonical").href = canonical.href;
+    document.title = `${profile.display_name || "媒合服務"}｜莓好預約站`; document.querySelector('meta[property="og:title"]')?.setAttribute("content", document.title);
+    const description = String(profile.headline || profile.public_intro || "瀏覽莓好預約站會員公開媒合資料。").slice(0, 150); document.querySelector('meta[name="description"]')?.setAttribute("content", description); document.querySelector('meta[property="og:description"]')?.setAttribute("content", description);
+    await renderFeed();
+  } catch (error) { state.classList.add("error"); state.innerHTML = `<h1>媒合頁目前無法顯示</h1><p>${escapeHtml(error.message)}</p><a class="btn ghost" href="match.html">瀏覽其他媒合推薦</a>`; await renderFeed().catch(() => {}); }
+}
 
 async function initAdminPeople(isDeveloper, currentUserId) {
   const panels = [...document.querySelectorAll("[data-people-panel]")];
@@ -1027,11 +1200,58 @@ async function initAdminPeople(isDeveloper, currentUserId) {
     const items = normalizeList(await api("admin-agreement-records", { query: params.toString() ? `&${params.toString()}` : "" }), "items");
     document.querySelector("#agreementRecordRows").innerHTML = items.map((record) => `<tr><td>${escapeHtml(record.user_id || record.email || "—")}</td><td>${escapeHtml(record.agreement_key)}</td><td>v${escapeHtml(record.agreement_version)}</td><td>${escapeHtml(record.agreed_at ? new Date(record.agreed_at).toLocaleString("zh-TW") : "—")}</td><td>${escapeHtml(record.status)}</td></tr>`).join("") || '<tr><td colspan="5">沒有符合條件的同意紀錄</td></tr>';
   };
+  const adminPhase2Definitions = {
+    "identity-applications": ["admin-identity-tag-applications", "#adminIdentityApplicationList", ["items", "applications"]],
+    "verification-rules": ["admin-verification-rules", "#adminVerificationRuleList", ["items", "rules"]],
+    "identity-verifications": ["admin-identity-verifications", "#adminIdentityVerificationList", ["items", "verifications"]],
+    "matching-profiles": ["admin-matching-profiles", "#adminMatchingProfileList", ["items", "profiles"]],
+    "matching-records": ["admin-matching-records", "#adminMatchingRecordList", ["items", "records"]],
+    "matching-reports": ["admin-matching-reports", "#adminMatchingReportList", ["items", "reports"]],
+    "matching-features": ["admin-matching-features", "#adminMatchingFeatureList", ["items", "applications"]],
+  };
+  const phase2AdminTitle = (item, id) => item.proposed_name || item.title || item.display_name || item.subject_title || item.match_code || item.category || ({ "identity-verifications": "會員認證", "matching-features": "輪播申請" }[id] || "項目");
+  const phase2AdminSubtitle = (item) => item.email || item.user_id || item.match_code || item.tag_name || item.public_slug || "";
+  const phase2AdminActions = (id, item) => {
+    const key = item.application_id || item.verification_id || item.user_id || item.report_id || item.rule_id;
+    if (!key || id === "matching-records") return "";
+    if (id === "identity-applications") return `<button class="btn small" data-phase2-decision="approved">核准新標籤</button><button class="btn ghost small" data-phase2-decision="rejected">不通過</button>`;
+    if (id === "verification-rules") return item.status === "draft" ? `<button class="btn small" data-phase2-decision="publish">發布規則</button>` : (item.status === "active" ? `<button class="btn ghost small" data-phase2-decision="retired">停用</button>` : "");
+    if (id === "identity-verifications") return item.status === "pending" ? `<button class="btn small" data-phase2-decision="verified">驗證通過</button><button class="btn ghost small" data-phase2-decision="rejected">退回</button>` : (item.status === "verified" ? `<button class="btn ghost small" data-phase2-decision="revoked">撤銷</button>` : "");
+    if (id === "matching-profiles") return `<button class="btn small" data-phase2-decision="published">核准發布</button><button class="btn ghost small" data-phase2-decision="hidden">下架</button><button class="btn ghost small" data-phase2-decision="suspended">停權頁面</button>`;
+    if (id === "matching-reports") return `<button class="btn small" data-phase2-decision="reviewing">開始處理</button><button class="btn ghost small" data-phase2-decision="resolved">結案</button><button class="btn ghost small" data-phase2-decision="dismissed">不受理</button>`;
+    if (id === "matching-features") return `<button class="btn small" data-phase2-decision="approved">核准申請</button><button class="btn ghost small" data-phase2-decision="rejected">不通過</button>${item.status === "approved" ? '<button class="btn ghost small" data-phase2-decision="schedule">建立排程</button>' : ""}`;
+    return "";
+  };
+  const loadAdminPhase2 = async (id) => {
+    const [action, selector, keys] = adminPhase2Definitions[id], payload = await api(action), items = phase2Items(payload, ...keys), root = document.querySelector(selector);
+    root.innerHTML = items.map((item, index) => `<article class="phase2-card" data-phase2-index="${index}"><div class="phase2-card-head"><div><strong>${escapeHtml(phase2AdminTitle(item, id))}</strong><small>${escapeHtml(phase2AdminSubtitle(item))}</small></div>${phase2Status(item.status)}</div>${item.description || item.purpose || item.public_intro ? `<p>${escapeHtml(item.description || item.purpose || item.public_intro)}</p>` : ""}<label class="field"><span>審核／處理備註</span><textarea data-phase2-note rows="2">${escapeHtml(item.review_note || item.resolution_note || "")}</textarea></label><div class="phase2-actions">${phase2AdminActions(id, item)}</div></article>`).join("") || '<p class="muted">目前沒有待處理資料。</p>';
+    root.querySelectorAll("[data-phase2-decision]").forEach((button) => button.addEventListener("click", async () => {
+      const card = button.closest("[data-phase2-index]"), item = items[Number(card.dataset.phase2Index)], decision = button.dataset.phase2Decision;
+      const body = { status: decision, review_note: card.querySelector("[data-phase2-note]")?.value.trim() || "" };
+      if (id === "identity-applications") {
+        body.application_id = item.application_id;
+        if (decision === "approved") { const matchedTagId = prompt("若要合併既有身份標籤，請輸入標籤 ID；建立新標籤請留空。", ""); if (matchedTagId === null) return; if (matchedTagId.trim()) body.matched_tag_id = matchedTagId.trim(); else { const slug = prompt("請輸入新身份標籤 slug（小寫英數與連字號）", ""); if (slug === null) return; body.slug = slug.trim(); } }
+      }
+      if (id === "verification-rules") { body.rule_id = item.rule_id; body.status = decision === "publish" ? "active" : "retired"; }
+      if (id === "identity-verifications") { body.verification_id = item.verification_id; body.review_note_public = body.review_note; body.review_note_private = ""; delete body.review_note; if (decision === "revoked") { const reason = prompt("請輸入撤銷原因", ""); if (!reason) return; body.revoked_reason = reason; } }
+      if (id === "matching-profiles") { body.user_id = item.user_id; body.publish_status = decision; delete body.status; delete body.review_note; }
+      if (id === "matching-reports") { body.report_id = item.report_id; body.resolution_note = body.review_note; delete body.review_note; }
+      if (id === "matching-features") body.application_id = item.application_id;
+      if (decision === "schedule") {
+        const startsAt = prompt("排程開始時間（YYYY-MM-DDTHH:MM）", item.requested_start_at?.slice(0, 16) || ""); if (startsAt === null) return;
+        const endsAt = prompt("排程結束時間（YYYY-MM-DDTHH:MM）", item.requested_end_at?.slice(0, 16) || ""); if (endsAt === null) return;
+        Object.assign(body, { action: "schedule", starts_at: startsAt, ends_at: endsAt, sort_order: 0 }); delete body.status;
+      }
+      try { await withButtonPending(button, () => api(action, { method: decision === "schedule" ? "POST" : "PATCH", body })); await loadAdminPhase2(id); showAdminPanelMessage("資料已更新。", false, root); }
+      catch (error) { showAdminPanelMessage(error.message, true, button); }
+    }));
+  };
   const showPanel = async (id) => {
     panels.forEach((panel) => panel.classList.toggle("hidden", panel.dataset.peoplePanel !== id));
     tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.peopleTab === id));
     if (id === "agreements") await loadAgreements();
     if (id === "records") await loadRecords();
+    if (adminPhase2Definitions[id]) await loadAdminPhase2(id);
   };
   tabs.forEach((tab) => tab.addEventListener("click", () => showPanel(tab.dataset.peopleTab).catch((error) => showMessage(error.message, true))));
   document.querySelector("#peopleFilters")?.addEventListener("submit", (event) => { event.preventDefault(); peoplePage = 1; loadPeople().catch((error) => showMessage(error.message, true)); });
@@ -1055,6 +1275,7 @@ async function initAdminPeople(isDeveloper, currentUserId) {
     } catch (error) { showAdminPanelMessage(error.message, true, form); }
   });
   document.querySelector("#agreementRecordFilters")?.addEventListener("submit", (event) => { event.preventDefault(); loadRecords().catch((error) => showMessage(error.message, true)); });
+  document.querySelector("#verificationRuleForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = event.currentTarget, data = Object.fromEntries(new FormData(form)); data.version = Number(data.version); data.valid_days = data.valid_days === "" ? null : Number(data.valid_days); data.requires_manual_review = Boolean(data.requires_manual_review); data.requirements = [{ requirement_key: data.requirement_key, label: data.requirement_label, evidence_type: data.evidence_type, is_required: Boolean(data.is_required), is_public_result: Boolean(data.is_public_result), sort_order: 0 }]; delete data.requirement_key; delete data.requirement_label; delete data.evidence_type; delete data.is_required; delete data.is_public_result; try { await withButtonPending(form.querySelector("button"), () => api("admin-verification-rules", { method: "POST", body: data })); form.reset(); await loadAdminPhase2("verification-rules"); showAdminPanelMessage("認證規則草稿已建立。", false, form); } catch (error) { showAdminPanelMessage(error.message, true, form); } });
   document.querySelector("#closePersonDrawer")?.addEventListener("click", closeDrawer);
   document.querySelector("#personDrawerBackdrop")?.addEventListener("click", closeDrawer);
   await loadTags(); await loadPeople();
@@ -1157,4 +1378,5 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(page==='public')(production ? initProductionPublic() : initPublic());
   if(page==='member')(production ? initProductionMember().catch((error) => { if (error.message !== "LOGIN_REQUIRED" && error.code !== "account_suspended") alert(error.message); }) : initMember());
   if(page==='admin')(production ? initProductionAdmin().catch((error) => { if (error.message !== "LOGIN_REQUIRED" && error.code !== "account_suspended") alert(error.message); }) : initAdmin());
+  if(page==='match') initMatchingPage().catch((error) => { const root = document.querySelector("#matchingProfileState"); if (root) root.innerHTML = `<h1>媒合頁目前無法顯示</h1><p>${escapeHtml(error.message)}</p>`; });
 });
