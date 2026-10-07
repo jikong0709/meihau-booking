@@ -200,7 +200,7 @@
 - 既有鎖定仍有效：第一版附件只收網址、不開 Storage；補充計畫提到的文件上傳須使用者另行解鎖後才能施工。
 - 下一步：先由使用者確認計畫 §9 五個決策，再製作 Wave 0 API 合約與逐工單驗收矩陣。
 
-## 2026-10-07 媒合服務補充計畫 Phase 2 已施工（部署中）
+## 2026-10-07 媒合服務補充計畫 Phase 2 已施工並部署
 
 - 已套用正式 migration `20261007120000_matching_service_phase2.sql`：11 張表、強制 RLS、前端角色無表權限、service_role 無 DELETE，正式讀回通過。
 - 已部署 `booking-api`（保留 Gateway JWT）與獨立唯讀 `matching-public`；公開 200／400／404、會員無 token 401 正式 smoke 通過。
