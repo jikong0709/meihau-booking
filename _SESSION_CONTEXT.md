@@ -247,4 +247,5 @@
 - 下一步：提交並推送 main、等待 GitHub Pages、正式站匿名 smoke；真實 published profile 與登入後流程仍 `NOT RUN`，不得代操作會員帳號。
 - 制度狀態：Codex 自檢，不是最終驗收；需 Claude Code fresh-context 七項複驗。
 - 同輪追加：「切換帳號」可見文字統一為「登出」，既有本機 session 登出邏輯不變；本機標籤讀回 PASS，未代操作帳號點擊。
+- 正式 workflow #46 後驗出共用 JS 快取仍顯示舊動態主文；四頁已統一引用 `platform.js?v=20261008-circle`，本機新版 DOM PASS，待再次部署正式驗收。
 
