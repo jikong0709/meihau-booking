@@ -246,4 +246,5 @@
 - 本機 1440／390px 導覽、首頁入口、頁尾及實際導頁 PASS；會員／後台 DOM 標籤 PASS；無水平溢位、console 0 error，JS syntax／duplicate ID／diff check PASS。
 - 下一步：提交並推送 main、等待 GitHub Pages、正式站匿名 smoke；真實 published profile 與登入後流程仍 `NOT RUN`，不得代操作會員帳號。
 - 制度狀態：Codex 自檢，不是最終驗收；需 Claude Code fresh-context 七項複驗。
+- 同輪追加：「切換帳號」可見文字統一為「登出」，既有本機 session 登出邏輯不變；本機標籤讀回 PASS，未代操作帳號點擊。
 

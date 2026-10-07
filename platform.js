@@ -205,7 +205,7 @@ function showAccountSuspended() {
   const notice = document.createElement("main");
   notice.id = "accountSuspendedNotice";
   notice.className = "main";
-  notice.innerHTML = `<section class="state-box error" role="alert"><h1>此帳號已停權</h1><p>此帳號已停權，如有疑問請聯繫莓好客服。</p><button type="button" class="btn primary" data-suspended-switch-account>切換帳號</button></section>`;
+  notice.innerHTML = `<section class="state-box error" role="alert"><h1>此帳號已停權</h1><p>此帳號已停權，如有疑問請聯繫莓好客服。</p><button type="button" class="btn primary" data-suspended-switch-account>登出</button></section>`;
   document.body.replaceChildren(notice);
   notice.querySelector("[data-suspended-switch-account]")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
@@ -215,8 +215,8 @@ function showAccountSuspended() {
     const { error } = await client.auth.signOut({ scope: "local" });
     if (error) {
       button.disabled = false;
-      button.textContent = "切換帳號";
-      alert(`目前無法切換帳號：${error.message}`);
+      button.textContent = "登出";
+      alert(`目前無法登出：${error.message}`);
       return;
     }
     location.replace("index.html?login=1");
@@ -323,8 +323,8 @@ function bindAccountSwitch(client) {
     const { error } = await client.auth.signOut({ scope: "local" });
     if (error) {
       button.disabled = false;
-      button.textContent = "切換帳號";
-      alert(`目前無法切換帳號：${error.message}`);
+      button.textContent = "登出";
+      alert(`目前無法登出：${error.message}`);
       return;
     }
     location.replace("index.html?login=1");
