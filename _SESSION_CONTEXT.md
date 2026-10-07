@@ -231,3 +231,9 @@
 - 尚待正式 published profile 資料驗兩種角色畫面；不得建立假會員資料補測。
 - 已部署：功能 commit `4bbdfc5`；GitHub Pages workflow `37643098038` success；正式無 slug 入口 smoke PASS。
 
+## 2026-10-07 社交媒合導覽入口（待部署）
+
+- `index.html` 桌機導覽、手機選單、頁尾快速導覽各新增「社交媒合」連到 `match.html`。
+- 本機 1440px／390px：三處入口、既有導覽、無水平溢位與 console 均 PASS；API／DB／媒合頁內容未變。
+- 下一步：提交推送、等待 Pages、正式站 smoke；仍須 fresh-context 最終驗收。
+
