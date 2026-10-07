@@ -209,3 +209,9 @@
 - 待辦：提交並推送前端到 GitHub Pages、確認 workflow、跑正式匿名 Pages smoke。
 - 登入後會員／後台完整流程 `NOT RUN`（客戶帳號紅線）；仍須 Claude Code fresh-context 最終驗收，Codex 自檢不算制度完成。
 
+### 部署完成補記
+
+- 功能 commit `10a3086` 已推至 `main`；GitHub Pages workflow `37599068131` success。
+- 正式首頁、`match.html`、`platform.js`、`config.js` HTTP 200；正式瀏覽器公開 feed、console 0 error、無水平溢位、未登入導向皆 PASS。
+- 目前只剩登入後會員／後台實際寫入流程與 Claude Code fresh-context 最終驗收。
+
