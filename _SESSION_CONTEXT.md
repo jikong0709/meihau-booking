@@ -229,4 +229,5 @@
 - 已撤回入口宣傳 Hero、推薦卡與首頁 feed 改版；無 slug 頁已恢復原「平台媒合推薦」骨架。
 - 保留個人／廠商資料版型、真實 API 角色分流、作品／公開連結、認證、受保護聯絡 CTA 與分享功能。
 - 尚待正式 published profile 資料驗兩種角色畫面；不得建立假會員資料補測。
+- 已部署：功能 commit `4bbdfc5`；GitHub Pages workflow `37643098038` success；正式無 slug 入口 smoke PASS。
 
