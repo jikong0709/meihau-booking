@@ -236,4 +236,5 @@
 - `index.html` 桌機導覽、手機選單、頁尾快速導覽各新增「社交媒合」連到 `match.html`。
 - 本機 1440px／390px：三處入口、既有導覽、無水平溢位與 console 均 PASS；API／DB／媒合頁內容未變。
 - 下一步：提交推送、等待 Pages、正式站 smoke；仍須 fresh-context 最終驗收。
+- 已部署：功能 commit `50a0abb`；正式站三處「社交媒合」入口讀回且桌機入口實際導向 `match.html`，1440px 無溢位、console 0 error。
 
