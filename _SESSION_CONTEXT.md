@@ -238,3 +238,12 @@
 - 下一步：提交推送、等待 Pages、正式站 smoke；仍須 fresh-context 最終驗收。
 - 已部署：功能 commit `50a0abb`；正式站三處「社交媒合」入口讀回且桌機入口實際導向 `match.html`，1440px 無溢位、console 0 error。
 
+## 2026-10-08 莓好圈正式命名（本機自檢通過、待部署）
+
+- 最新使用者定案：平台入口／功能名稱＝「預約莓好圈」；會員個人編輯頁與公開分享頁＝「我的莓好圈」。
+- `index.html`、`member.html`、`admin.html`、`match.html`、`platform.js` 已同步；返回首頁按鈕統一為「回到莓好預約站」。
+- 現行技術路徑 `match.html?profile=<slug>` 不變，避免既有分享連結失效；`/circle/<slug>` 未施工。
+- 本機 1440／390px 導覽、首頁入口、頁尾及實際導頁 PASS；會員／後台 DOM 標籤 PASS；無水平溢位、console 0 error，JS syntax／duplicate ID／diff check PASS。
+- 下一步：提交並推送 main、等待 GitHub Pages、正式站匿名 smoke；真實 published profile 與登入後流程仍 `NOT RUN`，不得代操作會員帳號。
+- 制度狀態：Codex 自檢，不是最終驗收；需 Claude Code fresh-context 七項複驗。
+

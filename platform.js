@@ -774,11 +774,11 @@ async function initPhase2Member() {
   };
   profileForm?.addEventListener("submit", async (event) => {
     event.preventDefault(); const data = Object.fromEntries(new FormData(profileForm));
-    try { matchingProfile = await withButtonPending(profileForm.querySelector('[type="submit"]'), () => api("my-matching-profile", { method: "PUT", body: data })); matchingProfile = matchingProfile?.profile || matchingProfile; updateProfileLink(); showMessage("#matchingProfileMessage", "媒合頁資料已儲存。"); }
+    try { matchingProfile = await withButtonPending(profileForm.querySelector('[type="submit"]'), () => api("my-matching-profile", { method: "PUT", body: data })); matchingProfile = matchingProfile?.profile || matchingProfile; updateProfileLink(); showMessage("#matchingProfileMessage", "我的莓好圈已儲存。"); }
     catch (error) { showMessage("#matchingProfileMessage", error.message, true); }
   });
   document.querySelector("#copyMatchingProfileLink")?.addEventListener("click", async (event) => {
-    try { await navigator.clipboard.writeText(event.currentTarget.dataset.url); showMessage("#matchingProfileMessage", "分享連結已複製。"); }
+    try { await navigator.clipboard.writeText(event.currentTarget.dataset.url); showMessage("#matchingProfileMessage", "我的莓好圈連結已複製。"); }
     catch { showMessage("#matchingProfileMessage", "無法自動複製，請由預覽頁網址列複製。", true); }
   });
 
@@ -795,8 +795,8 @@ async function initPhase2Member() {
   document.querySelector("#matchingRecordForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = event.currentTarget, data = Object.fromEntries(new FormData(form)); data.agreed_amount = data.agreed_amount === "" ? null : Number(data.agreed_amount); try { await withButtonPending(form.querySelector("button"), () => api("matching-records", { method: "POST", body: data })); form.reset(); await loadRecords(); showMessage("#matchingRecordMessage", "媒合草稿已建立，等待雙方確認。"); } catch (error) { showMessage("#matchingRecordMessage", error.message, true); } });
 
   const featureRoot = document.querySelector("#matchingFeatureList");
-  const loadFeatures = async () => { const items = phase2Items(await api("matching-feature-applications"), "items", "applications"); featureRoot.innerHTML = items.map((item) => `<article class="phase2-card"><div class="phase2-card-head"><strong>媒合輪播申請</strong>${phase2Status(item.status)}</div><p>${escapeHtml(phase2Date(item.requested_start_at))} ～ ${escapeHtml(phase2Date(item.requested_end_at))}</p>${item.review_note ? `<p class="muted">${escapeHtml(item.review_note)}</p>` : ""}</article>`).join("") || '<p class="muted">目前沒有輪播申請。</p>'; };
-  document.querySelector("#matchingFeatureForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = event.currentTarget, data = Object.fromEntries(new FormData(form)); try { await withButtonPending(form.querySelector("button"), () => api("matching-feature-applications", { method: "POST", body: data })); form.reset(); await loadFeatures(); showMessage("#matchingFeatureMessage", "媒合輪播申請已送出。"); } catch (error) { showMessage("#matchingFeatureMessage", error.message, true); } });
+  const loadFeatures = async () => { const items = phase2Items(await api("matching-feature-applications"), "items", "applications"); featureRoot.innerHTML = items.map((item) => `<article class="phase2-card"><div class="phase2-card-head"><strong>莓好圈輪播申請</strong>${phase2Status(item.status)}</div><p>${escapeHtml(phase2Date(item.requested_start_at))} ～ ${escapeHtml(phase2Date(item.requested_end_at))}</p>${item.review_note ? `<p class="muted">${escapeHtml(item.review_note)}</p>` : ""}</article>`).join("") || '<p class="muted">目前沒有輪播申請。</p>'; };
+  document.querySelector("#matchingFeatureForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = event.currentTarget, data = Object.fromEntries(new FormData(form)); try { await withButtonPending(form.querySelector("button"), () => api("matching-feature-applications", { method: "POST", body: data })); form.reset(); await loadFeatures(); showMessage("#matchingFeatureMessage", "莓好圈輪播申請已送出。"); } catch (error) { showMessage("#matchingFeatureMessage", error.message, true); } });
 
   await Promise.all([loadIdentity(), loadProfile(), loadRecords(), loadFeatures()]);
 }
@@ -965,7 +965,7 @@ async function publicPhase2Api(action, query = "") {
   const publicApiBase = cfg.matchingPublicApiBase || cfg.apiBase.replace(/\/booking-api\/?$/, "/matching-public");
   const response = await fetch(`${publicApiBase}?action=${encodeURIComponent(action)}${query}`);
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(response.status === 404 ? "找不到此媒合頁，或頁面目前未公開。" : (data.message || data.error || "媒合資料暫時無法載入。"));
+  if (!response.ok) throw new Error(response.status === 404 ? "找不到這個莓好圈頁面，或頁面目前未公開。" : (data.message || data.error || "預約莓好圈資料暫時無法載入。"));
   return data;
 }
 
@@ -999,10 +999,10 @@ function showMatchingToast(message) {
 }
 function bindMatchingShare(root, title) {
   root?.querySelectorAll("[data-match-share]").forEach((button) => button.addEventListener("click", async () => {
-    const shareData = { title: `${title}｜莓好預約站`, text: "查看莓好預約站公開媒合頁", url: location.href };
+    const shareData = { title: `我的莓好圈｜${title}`, text: "查看我的莓好圈", url: location.href };
     try {
       if (navigator.share) await navigator.share(shareData);
-      else { await navigator.clipboard.writeText(location.href); showMatchingToast("媒合頁連結已複製"); }
+      else { await navigator.clipboard.writeText(location.href); showMatchingToast("我的莓好圈連結已複製"); }
     } catch (error) {
       if (error?.name !== "AbortError") showMatchingToast("無法自動分享，請從網址列複製連結");
     }
@@ -1017,10 +1017,10 @@ async function initMatchingHomeFeed() {
     root.innerHTML = items.map((item) => {
       const href = new URL("match.html", location.href);
       href.searchParams.set("profile", String(item.public_slug || ""));
-      return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml(item.service_region || "線上／地區洽談")}</p><h3>${escapeHtml(item.display_name || "媒合會員")}</h3><p>${escapeHtml(item.headline || item.public_intro || "查看公開媒合資料")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看媒合頁</a></article>`;
-    }).join("") || '<p class="muted">目前沒有排程中的媒合推薦，歡迎稍後再來看看。</p>';
+      return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml(item.service_region || "線上／地區洽談")}</p><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3><p>${escapeHtml(item.headline || item.public_intro || "查看公開的我的莓好圈")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看我的莓好圈</a></article>`;
+    }).join("") || '<p class="muted">目前沒有排程中的莓好圈推薦，歡迎稍後再來看看。</p>';
   } catch (error) {
-    root.innerHTML = `<p class="muted">媒合推薦暫時無法載入。<a href="match.html">前往媒合專區</a></p>`;
+    root.innerHTML = `<p class="muted">莓好圈推薦暫時無法載入。<a href="match.html">進入預約莓好圈</a></p>`;
   }
 }
 
@@ -1033,12 +1033,12 @@ async function initMatchingPage() {
     const items = phase2Items(payload, "items", "profiles", "feed");
     feedRoot.innerHTML = items.map((item) => {
       const itemSlug = String(item.public_slug || ""); const href = new URL("match.html", location.href); href.searchParams.set("profile", itemSlug);
-      return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml(item.service_region || "線上／地區洽談")}</p><h3>${escapeHtml(item.display_name || "媒合會員")}</h3><p>${escapeHtml(item.headline || item.public_intro || "查看公開媒合資料")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看媒合頁</a></article>`;
-    }).join("") || '<p class="muted">目前沒有排程中的媒合推薦。</p>';
+      return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml(item.service_region || "線上／地區洽談")}</p><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3><p>${escapeHtml(item.headline || item.public_intro || "查看公開的我的莓好圈")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看我的莓好圈</a></article>`;
+    }).join("") || '<p class="muted">目前沒有排程中的莓好圈推薦。</p>';
     feedSection.classList.remove("hidden");
   };
   if (!slug) {
-    state.innerHTML = '<h1>平台媒合推薦</h1><p>選擇一位已公開的會員，查看服務、合作或資源資訊。</p>';
+    state.innerHTML = '<h1>預約莓好圈</h1><p>找到適合的人，讓需要被看見。找服務｜找合作｜找人才｜找機會。</p>';
     await renderFeed(); return;
   }
   try {
@@ -1059,13 +1059,15 @@ async function initMatchingPage() {
     root.classList.toggle("matching-profile-demand", isBusiness);
     root.classList.toggle("matching-profile-talent", !isBusiness);
     root.innerHTML = `<section class="matching-profile-hero"><div class="matching-profile-avatar" aria-hidden="true">${escapeHtml(matchingInitial(displayName))}</div><div class="matching-profile-identity"><div class="matching-profile-badges"><span>${isDemand ? "需求方／廠商" : "服務者／合作夥伴"}</span>${verifications.length ? '<span class="is-verified">✓ 平台已認證</span>' : '<span>公開資料已審核</span>'}</div><p class="eyebrow">PUBLIC MATCHING PROFILE</p><h1 id="matchingPublicName">${escapeHtml(displayName)}</h1><p class="matching-headline">${escapeHtml(profile.headline || (isDemand ? seeker?.looking_for : partner?.introduction) || "歡迎透過平台提出媒合")}</p><div class="matching-chip-row">${tags.length ? tags.map((tag) => `<span class="matching-chip">${escapeHtml(tag.name || tag.tag_name || tag)}</span>`).join("") : '<span class="matching-chip is-muted">媒合會員</span>'}</div></div><div class="matching-profile-quick"><span><small>服務／需求地區</small><strong>⌖ ${escapeHtml(locationText)}</strong></span><span><small>可合作時間</small><strong>◷ ${escapeHtml(profile.availability_summary || provider?.available_hours || seeker?.timeline || "時間洽談")}</strong></span></div></section><div class="matching-profile-layout"><div class="matching-profile-content"><section class="matching-detail-card matching-about-card"><div class="matching-card-heading"><span class="matching-section-icon">✦</span><div><p class="eyebrow">ABOUT</p><h2>${isDemand ? "需求說明" : "關於我"}</h2></div></div><p class="preserve-lines matching-intro-copy">${escapeHtml(introText)}</p></section><div class="matching-detail-grid"><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">▦</span><div><p class="eyebrow">${isDemand ? "NEEDS" : "SERVICES"}</p><h2>${detailTitle}</h2><small>${detailSubtitle}</small></div></div><div class="matching-chip-row">${matchingChips(serviceItems)}</div></section><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">↗</span><div><p class="eyebrow">COOPERATION</p><h2>合作方式</h2><small>可依實際內容進一步確認</small></div></div><div class="matching-chip-row">${matchingChips(cooperationItems)}</div></section><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">⌖</span><div><p class="eyebrow">AREA & BUDGET</p><h2>${isDemand ? "地區與預算" : "服務資訊"}</h2></div></div><dl class="matching-detail-list"><div><dt>地區</dt><dd>${escapeHtml(locationText)}</dd></div><div><dt>${isDemand ? "預算" : "費用"}</dt><dd>${escapeHtml(priceText)}</dd></div></dl></section><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">✓</span><div><p class="eyebrow">VERIFICATION</p><h2>平台認證</h2></div></div>${verifications.map((item) => `<div class="verification-public-row"><strong>✓ ${escapeHtml(tagById.get(String(item.tag_id))?.name || "身份")}</strong><span>已核對${item.verified_at ? `・${escapeHtml(new Date(item.verified_at).toLocaleDateString("zh-TW"))}` : ""}</span></div>`).join("") || '<p class="muted">目前沒有公開的有效認證。</p>'}</section></div>${publicLinks.length ? `<section class="matching-detail-card matching-portfolio-card"><div class="matching-card-heading"><span class="matching-section-icon">▣</span><div><p class="eyebrow">PORTFOLIO</p><h2>作品與公開連結</h2></div></div><div class="phase2-link-list">${publicLinks.map((url, index) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">公開連結 ${index + 1} <span aria-hidden="true">↗</span></a>`).join("")}</div></section>` : ""}</div><aside class="matching-profile-aside"><section class="matching-contact-card"><span class="matching-lock-mark" aria-hidden="true">⌁</span><p class="eyebrow">MEMBER CONTACT</p><h2>想與 ${escapeHtml(displayName)} ${isDemand ? "合作" : "洽談"}嗎？</h2><p>公開頁不顯示電話、Email、LINE 或地址。登入會員後，由平台留下可追蹤的媒合紀錄。</p><a class="btn" href="member.html?mode=member#matching-records">登入後提出媒合 <span aria-hidden="true">→</span></a><button class="btn ghost" type="button" data-match-share>分享此頁</button><small>🔒 聯絡資訊受平台保護</small></section><section class="matching-trust-card"><strong>莓好安全媒合</strong><ul><li>公開資料經平台審核</li><li>媒合內容由雙方確認</li><li>可於平台內留下問題回報</li></ul><p>認證只代表平台已核對指定資料，不代表服務品質、履約或專業資格保證。</p></section></aside></div>`;
+    root.querySelector(".matching-profile-identity .eyebrow").textContent = "我的莓好圈";
+    root.querySelector("[data-match-share]").textContent = "分享我的莓好圈";
     root.classList.remove("hidden"); state.classList.add("hidden");
     bindMatchingShare(root, displayName);
     const canonical = new URL("match.html", location.href); canonical.searchParams.set("profile", slug); document.querySelector("#matchingCanonical").href = canonical.href;
-    document.title = `${profile.display_name || "媒合服務"}｜莓好預約站`; document.querySelector('meta[property="og:title"]')?.setAttribute("content", document.title);
-    const description = String(profile.headline || profile.public_intro || "瀏覽莓好預約站會員公開媒合資料。").slice(0, 150); document.querySelector('meta[name="description"]')?.setAttribute("content", description); document.querySelector('meta[property="og:description"]')?.setAttribute("content", description);
+    document.title = `我的莓好圈｜${displayName}`; document.querySelector('meta[property="og:title"]')?.setAttribute("content", document.title);
+    const description = String(profile.headline || profile.public_intro || "查看會員公開的我的莓好圈。").slice(0, 150); document.querySelector('meta[name="description"]')?.setAttribute("content", description); document.querySelector('meta[property="og:description"]')?.setAttribute("content", description);
     await renderFeed();
-  } catch (error) { state.classList.add("error"); state.innerHTML = `<h1>媒合頁目前無法顯示</h1><p>${escapeHtml(error.message)}</p><a class="btn ghost" href="match.html">瀏覽其他媒合推薦</a>`; await renderFeed().catch(() => {}); }
+  } catch (error) { state.classList.add("error"); state.innerHTML = `<h1>莓好圈頁面目前無法顯示</h1><p>${escapeHtml(error.message)}</p><a class="btn ghost" href="match.html">返回預約莓好圈</a>`; await renderFeed().catch(() => {}); }
 }
 
 async function initAdminPeople(isDeveloper, currentUserId) {
@@ -1431,5 +1433,5 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(page==='public')(production ? initProductionPublic() : initPublic());
   if(page==='member')(production ? initProductionMember().catch((error) => { if (error.message !== "LOGIN_REQUIRED" && error.code !== "account_suspended") alert(error.message); }) : initMember());
   if(page==='admin')(production ? initProductionAdmin().catch((error) => { if (error.message !== "LOGIN_REQUIRED" && error.code !== "account_suspended") alert(error.message); }) : initAdmin());
-  if(page==='match') initMatchingPage().catch((error) => { const root = document.querySelector("#matchingProfileState"); if (root) root.innerHTML = `<h1>媒合頁目前無法顯示</h1><p>${escapeHtml(error.message)}</p>`; });
+  if(page==='match') initMatchingPage().catch((error) => { const root = document.querySelector("#matchingProfileState"); if (root) root.innerHTML = `<h1>莓好圈頁面目前無法顯示</h1><p>${escapeHtml(error.message)}</p>`; });
 });
