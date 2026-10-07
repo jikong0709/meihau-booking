@@ -215,3 +215,18 @@
 - 正式首頁、`match.html`、`platform.js`、`config.js` HTTP 200；正式瀏覽器公開 feed、console 0 error、無水平溢位、未登入導向皆 PASS。
 - 目前只剩登入後會員／後台實際寫入流程與 Claude Code fresh-context 最終驗收。
 
+## 2026-10-07 媒合公開頁美術 UI 已改造（待正式部署）
+
+- 依使用者提供的個人版／廠商版 HTML 參考稿，修改 `match.html`、`platform.css`、`platform.js`；正式資料角色自動分流莓果色服務者版與紫色需求方版。
+- 本機 1440px／390px：Hero、平台安全說明、推薦空狀態均正確；無水平溢位；console 0 warning／0 error；JS syntax、duplicate ID、diff check 通過。
+- 模板只作視覺參考；未帶入假解鎖、假送出、Tailwind CDN、Tone.js、Font Awesome。API、DB、Auth、金流與分潤輪播未變動。
+- 待辦：推 GitHub Pages、確認 workflow、正式匿名 smoke；有正式 published slug 後驗兩種角色檔案頁。登入後／客戶帳號流程仍 `NOT RUN`。
+- 制度狀態：Codex 自檢，不是最終驗收；仍須 Claude Code fresh-context 七項複驗。
+
+### 需求範圍修正（最新，以此為準）
+
+- 使用者明確要求：參考模板只整合進公開會員社交檔案 `match.html?profile=<slug>`；不是重做 `match.html` 無 slug 的媒合入口。
+- 已撤回入口宣傳 Hero、推薦卡與首頁 feed 改版；無 slug 頁已恢復原「平台媒合推薦」骨架。
+- 保留個人／廠商資料版型、真實 API 角色分流、作品／公開連結、認證、受保護聯絡 CTA 與分享功能。
+- 尚待正式 published profile 資料驗兩種角色畫面；不得建立假會員資料補測。
+

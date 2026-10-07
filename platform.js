@@ -969,6 +969,45 @@ async function publicPhase2Api(action, query = "") {
   return data;
 }
 
+const matchingList = (value) => Array.isArray(value) ? value.filter(Boolean) : (value ? [value] : []);
+const matchingLabel = (value) => {
+  const labels = {
+    online: "線上合作", offline: "實體合作", both: "線上＋實體", project: "專案合作",
+    long_term: "長期合作", one_time: "單次合作", flexible: "彈性洽談", available: "目前可合作",
+    partial: "部分時段可合作", paused: "暫停洽談", service: "服務媒合", need: "需求媒合",
+    cooperation: "合作媒合", resource: "資源媒合",
+  };
+  return labels[String(value)] || String(value).replaceAll("_", " ");
+};
+const matchingChips = (values, emptyText = "資料洽談中") => {
+  const items = matchingList(values);
+  return items.length ? items.map((value) => `<span class="matching-chip">${escapeHtml(matchingLabel(value))}</span>`).join("") : `<span class="matching-chip is-muted">${escapeHtml(emptyText)}</span>`;
+};
+const matchingInitial = (value) => [...String(value || "莓")][0] || "莓";
+const matchingMoneyRange = (minimum, maximum) => {
+  if (minimum == null && maximum == null) return "預算面議";
+  if (minimum != null && maximum != null) return `${money(minimum)} ～ ${money(maximum)}`;
+  return minimum != null ? `${money(minimum)} 起` : `${money(maximum)} 以內`;
+};
+function showMatchingToast(message) {
+  const toast = document.querySelector("#matchingToast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add("is-visible");
+  window.clearTimeout(showMatchingToast.timer);
+  showMatchingToast.timer = window.setTimeout(() => toast.classList.remove("is-visible"), 2600);
+}
+function bindMatchingShare(root, title) {
+  root?.querySelectorAll("[data-match-share]").forEach((button) => button.addEventListener("click", async () => {
+    const shareData = { title: `${title}｜莓好預約站`, text: "查看莓好預約站公開媒合頁", url: location.href };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else { await navigator.clipboard.writeText(location.href); showMatchingToast("媒合頁連結已複製"); }
+    } catch (error) {
+      if (error?.name !== "AbortError") showMatchingToast("無法自動分享，請從網址列複製連結");
+    }
+  }));
+}
 async function initMatchingHomeFeed() {
   const root = document.querySelector("#matchingHomeFeed");
   if (!root) return;
@@ -1004,10 +1043,24 @@ async function initMatchingPage() {
   }
   try {
     const payload = await publicPhase2Api("public-matching-profile", `&profile=${encodeURIComponent(slug)}`), profile = payload?.profile || payload;
-    const publicLinks = phase2Items(payload?.provider?.portfolio_urls || profile.links || [], "items").map((value) => typeof value === "string" ? value : value?.url).map(safeHttpUrl).filter(Boolean);
+    const publicLinkCandidates = [payload?.provider?.website, payload?.provider?.instagram, payload?.provider?.facebook, payload?.partner?.website, ...phase2Items(payload?.provider?.portfolio_urls || profile.links || [], "items").map((value) => typeof value === "string" ? value : value?.url)];
+    const publicLinks = [...new Set(publicLinkCandidates.map(safeHttpUrl).filter(Boolean))];
     const tags = phase2Items(payload?.identity_tags || profile.identity_tags || profile.tags || [], "items"), tagById = new Map(tags.map((tag) => [String(tag.tag_id), tag])); const verifications = phase2Items(payload?.verifications || profile.verifications || [], "items");
-    root.innerHTML = `<div class="matching-profile-hero"><p class="eyebrow">PUBLIC MATCHING PROFILE</p><h1 id="matchingPublicName">${escapeHtml(profile.display_name || "媒合會員")}</h1><p class="matching-headline">${escapeHtml(profile.headline || "")}</p><div class="tag-line">${tags.map((tag) => `<span class="mini-tag">${escapeHtml(tag.name || tag.tag_name || tag)}</span>`).join("")}</div></div><div class="matching-profile-grid"><section class="panel"><h2>關於我</h2><p class="preserve-lines">${escapeHtml(profile.public_intro || "尚未提供公開簡介。")}</p><dl class="kv"><dt>服務地區</dt><dd>${escapeHtml(profile.service_region || "洽談")}</dd><dt>可合作時間</dt><dd>${escapeHtml(profile.availability_summary || "洽談")}</dd></dl></section><section class="panel"><h2>平台認證</h2>${verifications.map((item) => `<div class="verification-public-row"><strong>✓ ${escapeHtml(tagById.get(String(item.tag_id))?.name || "身份")}</strong><span>平台已核對指定資料${item.verified_at ? `・${escapeHtml(new Date(item.verified_at).toLocaleDateString("zh-TW"))}` : ""}</span></div>`).join("") || '<p class="muted">目前沒有公開的有效認證。</p>'}<p class="private-note">認證只代表平台已核對指定資料，不代表服務品質、履約或專業資格保證。</p></section></div>${publicLinks.length ? `<section class="panel phase2-block"><h2>作品與公開連結</h2><div class="phase2-link-list">${publicLinks.map((url, index) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">公開連結 ${index + 1}</a>`).join("")}</div></section>` : ""}<div class="matching-public-actions"><a class="btn" href="member.html?mode=member#matching-records">登入後提出媒合</a><a class="btn ghost" href="member.html?mode=member#book">預約／詢價</a></div>`;
+    const provider = payload?.provider, partner = payload?.partner, seeker = payload?.seeker;
+    const hasDemand = Boolean(seeker), isBusiness = Boolean(partner || seeker), isDemand = isBusiness;
+    const displayName = profile.display_name || provider?.brand_name || partner?.organization_name || "媒合會員";
+    const serviceItems = seeker ? matchingList(seeker.need_categories) : partner ? [...matchingList(partner.partner_types), ...matchingList(partner.resources)] : [provider?.service_mode, provider?.quote_method, provider?.availability_status].flatMap(matchingList);
+    const cooperationItems = provider ? [provider.accept_projects ? "專案合作" : null, provider.accept_long_term ? "長期合作" : null, provider.member_discount].filter(Boolean) : partner ? [...matchingList(partner.cooperation_methods), partner.cooperation_conditions].filter(Boolean) : [seeker?.cooperation_type, seeker?.timeline].filter(Boolean);
+    const locationText = profile.service_region || provider?.service_area || partner?.service_area || partner?.location || seeker?.region || "地區洽談";
+    const introText = profile.public_intro || partner?.introduction || seeker?.looking_for || "尚未提供公開簡介。";
+    const detailTitle = hasDemand ? "正在尋找" : partner ? "合作資源與方向" : "我可以提供";
+    const detailSubtitle = hasDemand ? "需求項目與合作條件" : partner ? "單位可提供的資源與合作類型" : "專業服務與合作能力";
+    const priceText = hasDemand ? matchingMoneyRange(seeker?.budget_min, seeker?.budget_max) : (provider?.pricing_description || partner?.price_description || "合作內容與費用另行洽談");
+    root.classList.toggle("matching-profile-demand", isBusiness);
+    root.classList.toggle("matching-profile-talent", !isBusiness);
+    root.innerHTML = `<section class="matching-profile-hero"><div class="matching-profile-avatar" aria-hidden="true">${escapeHtml(matchingInitial(displayName))}</div><div class="matching-profile-identity"><div class="matching-profile-badges"><span>${isDemand ? "需求方／廠商" : "服務者／合作夥伴"}</span>${verifications.length ? '<span class="is-verified">✓ 平台已認證</span>' : '<span>公開資料已審核</span>'}</div><p class="eyebrow">PUBLIC MATCHING PROFILE</p><h1 id="matchingPublicName">${escapeHtml(displayName)}</h1><p class="matching-headline">${escapeHtml(profile.headline || (isDemand ? seeker?.looking_for : partner?.introduction) || "歡迎透過平台提出媒合")}</p><div class="matching-chip-row">${tags.length ? tags.map((tag) => `<span class="matching-chip">${escapeHtml(tag.name || tag.tag_name || tag)}</span>`).join("") : '<span class="matching-chip is-muted">媒合會員</span>'}</div></div><div class="matching-profile-quick"><span><small>服務／需求地區</small><strong>⌖ ${escapeHtml(locationText)}</strong></span><span><small>可合作時間</small><strong>◷ ${escapeHtml(profile.availability_summary || provider?.available_hours || seeker?.timeline || "時間洽談")}</strong></span></div></section><div class="matching-profile-layout"><div class="matching-profile-content"><section class="matching-detail-card matching-about-card"><div class="matching-card-heading"><span class="matching-section-icon">✦</span><div><p class="eyebrow">ABOUT</p><h2>${isDemand ? "需求說明" : "關於我"}</h2></div></div><p class="preserve-lines matching-intro-copy">${escapeHtml(introText)}</p></section><div class="matching-detail-grid"><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">▦</span><div><p class="eyebrow">${isDemand ? "NEEDS" : "SERVICES"}</p><h2>${detailTitle}</h2><small>${detailSubtitle}</small></div></div><div class="matching-chip-row">${matchingChips(serviceItems)}</div></section><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">↗</span><div><p class="eyebrow">COOPERATION</p><h2>合作方式</h2><small>可依實際內容進一步確認</small></div></div><div class="matching-chip-row">${matchingChips(cooperationItems)}</div></section><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">⌖</span><div><p class="eyebrow">AREA & BUDGET</p><h2>${isDemand ? "地區與預算" : "服務資訊"}</h2></div></div><dl class="matching-detail-list"><div><dt>地區</dt><dd>${escapeHtml(locationText)}</dd></div><div><dt>${isDemand ? "預算" : "費用"}</dt><dd>${escapeHtml(priceText)}</dd></div></dl></section><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">✓</span><div><p class="eyebrow">VERIFICATION</p><h2>平台認證</h2></div></div>${verifications.map((item) => `<div class="verification-public-row"><strong>✓ ${escapeHtml(tagById.get(String(item.tag_id))?.name || "身份")}</strong><span>已核對${item.verified_at ? `・${escapeHtml(new Date(item.verified_at).toLocaleDateString("zh-TW"))}` : ""}</span></div>`).join("") || '<p class="muted">目前沒有公開的有效認證。</p>'}</section></div>${publicLinks.length ? `<section class="matching-detail-card matching-portfolio-card"><div class="matching-card-heading"><span class="matching-section-icon">▣</span><div><p class="eyebrow">PORTFOLIO</p><h2>作品與公開連結</h2></div></div><div class="phase2-link-list">${publicLinks.map((url, index) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">公開連結 ${index + 1} <span aria-hidden="true">↗</span></a>`).join("")}</div></section>` : ""}</div><aside class="matching-profile-aside"><section class="matching-contact-card"><span class="matching-lock-mark" aria-hidden="true">⌁</span><p class="eyebrow">MEMBER CONTACT</p><h2>想與 ${escapeHtml(displayName)} ${isDemand ? "合作" : "洽談"}嗎？</h2><p>公開頁不顯示電話、Email、LINE 或地址。登入會員後，由平台留下可追蹤的媒合紀錄。</p><a class="btn" href="member.html?mode=member#matching-records">登入後提出媒合 <span aria-hidden="true">→</span></a><button class="btn ghost" type="button" data-match-share>分享此頁</button><small>🔒 聯絡資訊受平台保護</small></section><section class="matching-trust-card"><strong>莓好安全媒合</strong><ul><li>公開資料經平台審核</li><li>媒合內容由雙方確認</li><li>可於平台內留下問題回報</li></ul><p>認證只代表平台已核對指定資料，不代表服務品質、履約或專業資格保證。</p></section></aside></div>`;
     root.classList.remove("hidden"); state.classList.add("hidden");
+    bindMatchingShare(root, displayName);
     const canonical = new URL("match.html", location.href); canonical.searchParams.set("profile", slug); document.querySelector("#matchingCanonical").href = canonical.href;
     document.title = `${profile.display_name || "媒合服務"}｜莓好預約站`; document.querySelector('meta[property="og:title"]')?.setAttribute("content", document.title);
     const description = String(profile.headline || profile.public_intro || "瀏覽莓好預約站會員公開媒合資料。").slice(0, 150); document.querySelector('meta[name="description"]')?.setAttribute("content", description); document.querySelector('meta[property="og:description"]')?.setAttribute("content", description);
