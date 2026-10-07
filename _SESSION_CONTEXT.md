@@ -248,4 +248,5 @@
 - 制度狀態：Codex 自檢，不是最終驗收；需 Claude Code fresh-context 七項複驗。
 - 同輪追加：「切換帳號」可見文字統一為「登出」，既有本機 session 登出邏輯不變；本機標籤讀回 PASS，未代操作帳號點擊。
 - 正式 workflow #46 後驗出共用 JS 快取仍顯示舊動態主文；四頁已統一引用 `platform.js?v=20261008-circle`，本機新版 DOM PASS，待再次部署正式驗收。
+- workflow #47 後驗出無版本 `match.html` 入口仍可命中舊 HTML；首頁與動態莓好圈入口已同步加版本參數，本機從首頁實際點入 PASS，待最終 Pages 回讀。
 

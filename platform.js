@@ -764,7 +764,7 @@ async function initPhase2Member() {
   const updateProfileLink = () => {
     const slug = matchingProfile?.public_slug; const preview = document.querySelector("#matchingProfilePreview"); const copy = document.querySelector("#copyMatchingProfileLink");
     if (!slug) { preview?.classList.add("hidden"); copy?.classList.add("hidden"); return; }
-    const url = new URL("match.html", location.href); url.searchParams.set("profile", slug);
+    const url = new URL("match.html", location.href); url.searchParams.set("v", "20261008-circle"); url.searchParams.set("profile", slug);
     preview.href = url.href; preview.classList.remove("hidden"); copy.classList.remove("hidden"); copy.dataset.url = url.href;
   };
   const loadProfile = async () => {
@@ -1015,12 +1015,12 @@ async function initMatchingHomeFeed() {
     const payload = await publicPhase2Api("matching-feature-feed", "&limit=6");
     const items = phase2Items(payload, "items", "profiles", "feed");
     root.innerHTML = items.map((item) => {
-      const href = new URL("match.html", location.href);
+      const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-circle");
       href.searchParams.set("profile", String(item.public_slug || ""));
       return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml(item.service_region || "線上／地區洽談")}</p><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3><p>${escapeHtml(item.headline || item.public_intro || "查看公開的我的莓好圈")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看我的莓好圈</a></article>`;
     }).join("") || '<p class="muted">目前沒有排程中的莓好圈推薦，歡迎稍後再來看看。</p>';
   } catch (error) {
-    root.innerHTML = `<p class="muted">莓好圈推薦暫時無法載入。<a href="match.html">進入預約莓好圈</a></p>`;
+    root.innerHTML = `<p class="muted">莓好圈推薦暫時無法載入。<a href="match.html?v=20261008-circle">進入預約莓好圈</a></p>`;
   }
 }
 
@@ -1032,7 +1032,7 @@ async function initMatchingPage() {
     const payload = await publicPhase2Api("matching-feature-feed");
     const items = phase2Items(payload, "items", "profiles", "feed");
     feedRoot.innerHTML = items.map((item) => {
-      const itemSlug = String(item.public_slug || ""); const href = new URL("match.html", location.href); href.searchParams.set("profile", itemSlug);
+      const itemSlug = String(item.public_slug || ""); const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-circle"); href.searchParams.set("profile", itemSlug);
       return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml(item.service_region || "線上／地區洽談")}</p><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3><p>${escapeHtml(item.headline || item.public_intro || "查看公開的我的莓好圈")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看我的莓好圈</a></article>`;
     }).join("") || '<p class="muted">目前沒有排程中的莓好圈推薦。</p>';
     feedSection.classList.remove("hidden");
@@ -1067,7 +1067,7 @@ async function initMatchingPage() {
     document.title = `我的莓好圈｜${displayName}`; document.querySelector('meta[property="og:title"]')?.setAttribute("content", document.title);
     const description = String(profile.headline || profile.public_intro || "查看會員公開的我的莓好圈。").slice(0, 150); document.querySelector('meta[name="description"]')?.setAttribute("content", description); document.querySelector('meta[property="og:description"]')?.setAttribute("content", description);
     await renderFeed();
-  } catch (error) { state.classList.add("error"); state.innerHTML = `<h1>莓好圈頁面目前無法顯示</h1><p>${escapeHtml(error.message)}</p><a class="btn ghost" href="match.html">返回預約莓好圈</a>`; await renderFeed().catch(() => {}); }
+  } catch (error) { state.classList.add("error"); state.innerHTML = `<h1>莓好圈頁面目前無法顯示</h1><p>${escapeHtml(error.message)}</p><a class="btn ghost" href="match.html?v=20261008-circle">返回預約莓好圈</a>`; await renderFeed().catch(() => {}); }
 }
 
 async function initAdminPeople(isDeveloper, currentUserId) {
