@@ -14,14 +14,25 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=Noto+Serif+TC:wght@600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="platform.css" />
     <script src="config.js"></script>
-    <script defer src="platform.js?v=20261008-circle"></script>
+    <script defer src="platform.js?v=20261008-services"></script>
   </head>
   <body data-page="match" class="matching-public-page">
-    <header class="matching-public-header"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"><img src="assets/ui-v2/logo-icon.png" alt="" width="1254" height="1254" /></span><span><strong>莓好預約站</strong><small>MEIHAU CIRCLE</small></span></a><a class="btn ghost small" href="member.html?mode=member#matching-profile">管理我的莓好圈</a></header>
+    <header class="topbar matching-circle-topbar">
+      <div class="container topbar-inner">
+        <a class="brand" href="index.html" aria-label="回到莓好預約站"><span class="brand-mark" aria-hidden="true"><img src="assets/ui-v2/logo-icon.png" alt="" width="1254" height="1254" /></span><span><strong>莓好預約站</strong><small>MEIHAU CIRCLE</small></span></a>
+        <nav class="nav" aria-label="主要導覽"><a href="index.html">首頁</a><a href="index.html#services">服務項目</a><a href="index.html#pricing">價目表</a><a href="match.html?v=20261008-services" aria-current="page">預約莓好圈</a><a href="index.html#process">使用流程</a><a href="index.html#about">關於我們</a></nav>
+        <div class="header-actions">
+          <a class="btn ghost small" href="member.html?mode=member#matching-profile">編輯我的莓好圈</a>
+          <details class="mobile-menu"><summary aria-label="開啟導覽選單"><span></span><span></span><span></span></summary><nav aria-label="行動版導覽"><a href="index.html">首頁</a><a href="index.html#services">服務項目</a><a href="index.html#pricing">價目表</a><a href="match.html?v=20261008-services">預約莓好圈</a><a href="index.html#process">使用流程</a><a href="index.html#about">關於我們</a></nav></details>
+        </div>
+      </div>
+    </header>
     <main class="matching-public-main">
       <section id="matchingProfileState" class="state-box" aria-live="polite"><h1>載入預約莓好圈中</h1><p>請稍候。</p></section>
       <article id="matchingPublicProfile" class="matching-profile-shell hidden" aria-labelledby="matchingPublicName"></article>
-      <section id="matchingFeatureFeedSection" class="matching-feed-section hidden" aria-labelledby="matchingFeedTitle"><div class="section-head"><div><p class="eyebrow">FEATURED CIRCLES</p><h2 id="matchingFeedTitle">莓好圈推薦</h2></div><p>僅顯示已核准、已公開且仍在排程期間的莓好圈頁面。</p></div><div id="matchingFeatureFeed" class="matching-feed-grid"></div></section>
+      <nav id="matchingCategoryFilter" class="circle-category-filter hidden" aria-label="預約莓好圈分類"></nav>
+      <section id="matchingLatestSection" class="matching-feed-section hidden" aria-labelledby="matchingLatestTitle"><div class="section-head"><div><p class="eyebrow">NEW CIRCLES</p><h2 id="matchingLatestTitle">最新加入</h2></div><p>依公開時間排序，只顯示已核准、已公開且仍在排程期間的莓好圈。</p></div><div id="matchingLatestFeed" class="matching-feed-track"></div></section>
+      <section id="matchingPopularSection" class="matching-feed-section hidden" aria-labelledby="matchingPopularTitle"><div class="section-head"><div><p class="eyebrow">FEATURED TOP 10</p><h2 id="matchingPopularTitle">熱門推薦｜前 10 名</h2></div><p>依平台推薦順序顯示，不代表瀏覽或成交排名。</p></div><div id="matchingPopularFeed" class="matching-feed-track"></div></section>
     </main>
     <div id="matchingToast" class="matching-toast" role="status" aria-live="polite"></div>
   </body>

@@ -250,3 +250,10 @@
 - 正式 workflow #46 後驗出共用 JS 快取仍顯示舊動態主文；四頁已統一引用 `platform.js?v=20261008-circle`，本機新版 DOM PASS，待再次部署正式驗收。
 - workflow #47 後驗出無版本 `match.html` 入口仍可命中舊 HTML；首頁與動態莓好圈入口已同步加版本參數，本機從首頁實際點入 PASS，待最終 Pages 回讀。
 
+## 2026-10-08 五大服務架構整合（進行中）
+
+- 五大母分類已統一到 index.html、member.html、admin.html 與 platform.js；內部舊 category ID 保留相容。
+- match.html 已加入首頁同款 sticky 導覽、五大分類按鈕、最新加入、平台推薦前十，以及「編輯我的莓好圈」直達入口。
+- platform.js?v=20261008-services 為本輪快取版本；本機 1440／390px、console、JS syntax、duplicate ID、diff check 已 PASS。
+- 目前待提交、推送、Pages workflow 與正式站匿名 smoke；真實排程卡片和登入後流程 NOT RUN；最終仍需 Claude Code fresh-context 驗收。
+

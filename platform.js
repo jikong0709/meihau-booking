@@ -579,10 +579,11 @@ async function initProductionMember() {
   const serviceMenu = document.querySelector("#serviceMenu");
   const planSelect = document.querySelector("#planSelect");
   const categoryDefinitions = [
-    ["temporary_staff", "臨時人力", "活動、現場與單次支援"],
-    ["recording_space", "錄音／空間", "錄音體驗與一日歌手"],
-    ["ai_digital", "AI／數位服務", "簡報、網站、Excel 與系統"],
-    ["venue_equipment", "陪工作／工作空間", "有人陪你一起把事情做完，也可預約工作空間（即將推出）。"],
+    ["temporary_staff", "莓你不可", "人與人的服務・專人委託・客製服務"],
+    ["recording_space", "莓好聲音", "錄音・歌唱・配音・聲音體驗"],
+    ["venue_equipment", "莓好基地", "工作・創作・活動・共享空間"],
+    ["learning", "莓好學習", "課程・教學・親子・共學"],
+    ["ai_digital", "莓好數位", "AI・網站・自動化・數位服務"],
   ];
   let category = "recording_space";
   let currentQuote;
@@ -764,7 +765,7 @@ async function initPhase2Member() {
   const updateProfileLink = () => {
     const slug = matchingProfile?.public_slug; const preview = document.querySelector("#matchingProfilePreview"); const copy = document.querySelector("#copyMatchingProfileLink");
     if (!slug) { preview?.classList.add("hidden"); copy?.classList.add("hidden"); return; }
-    const url = new URL("match.html", location.href); url.searchParams.set("v", "20261008-circle"); url.searchParams.set("profile", slug);
+    const url = new URL("match.html", location.href); url.searchParams.set("v", "20261008-services"); url.searchParams.set("profile", slug);
     preview.href = url.href; preview.classList.remove("hidden"); copy.classList.remove("hidden"); copy.dataset.url = url.href;
   };
   const loadProfile = async () => {
@@ -1015,27 +1016,75 @@ async function initMatchingHomeFeed() {
     const payload = await publicPhase2Api("matching-feature-feed", "&limit=6");
     const items = phase2Items(payload, "items", "profiles", "feed");
     root.innerHTML = items.map((item) => {
-      const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-circle");
+      const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-services");
       href.searchParams.set("profile", String(item.public_slug || ""));
       return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml(item.service_region || "線上／地區洽談")}</p><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3><p>${escapeHtml(item.headline || item.public_intro || "查看公開的我的莓好圈")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看我的莓好圈</a></article>`;
     }).join("") || '<p class="muted">目前沒有排程中的莓好圈推薦，歡迎稍後再來看看。</p>';
   } catch (error) {
-    root.innerHTML = `<p class="muted">莓好圈推薦暫時無法載入。<a href="match.html?v=20261008-circle">進入預約莓好圈</a></p>`;
+    root.innerHTML = `<p class="muted">莓好圈推薦暫時無法載入。<a href="match.html?v=20261008-services">進入預約莓好圈</a></p>`;
   }
 }
 
 async function initMatchingPage() {
   const params = new URLSearchParams(location.search), slug = params.get("profile")?.trim();
   const state = document.querySelector("#matchingProfileState"), root = document.querySelector("#matchingPublicProfile");
-  const feedSection = document.querySelector("#matchingFeatureFeedSection"), feedRoot = document.querySelector("#matchingFeatureFeed");
+  const categoryRoot = document.querySelector("#matchingCategoryFilter");
+  const latestSection = document.querySelector("#matchingLatestSection"), latestRoot = document.querySelector("#matchingLatestFeed");
+  const popularSection = document.querySelector("#matchingPopularSection"), popularRoot = document.querySelector("#matchingPopularFeed");
+  const circleCategories = [
+    ["all", "全部"],
+    ["people", "莓你不可"],
+    ["voice", "莓好聲音"],
+    ["base", "莓好基地"],
+    ["learning", "莓好學習"],
+    ["digital", "莓好數位"],
+  ];
+  const circleCategoryFor = (payload) => {
+    const text = JSON.stringify(payload || {}).toLowerCase();
+    if (/(錄音|歌唱|配音|聲音|podcast|有聲書|音樂)/i.test(text)) return "voice";
+    if (/(空間|場地|基地|共享|直播|拍攝|工作室|展覽)/i.test(text)) return "base";
+    if (/(課程|教學|親子|共學|讀書會|工作坊|講座|學習)/i.test(text)) return "learning";
+    if (/(ai|網站|自動化|數位|chatgpt|gemini|canva|excel|notion|make|zapier|agent|簡報|電子書)/i.test(text)) return "digital";
+    return "people";
+  };
+  const feedCard = (item) => {
+    const itemSlug = String(item.public_slug || "");
+    const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-services"); href.searchParams.set("profile", itemSlug);
+    const verified = item.verifiedIdentities || [];
+    return `<article class="matching-feed-card"><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3>${verified.length ? `<div class="matching-chip-row" aria-label="已認證身份">${verified.map((name) => `<span class="matching-chip">✓ ${escapeHtml(name)}</span>`).join("")}</div>` : ""}<a class="btn ghost small" href="${escapeHtml(href.href)}">查看我的莓好圈</a></article>`;
+  };
   const renderFeed = async () => {
-    const payload = await publicPhase2Api("matching-feature-feed");
-    const items = phase2Items(payload, "items", "profiles", "feed");
-    feedRoot.innerHTML = items.map((item) => {
-      const itemSlug = String(item.public_slug || ""); const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-circle"); href.searchParams.set("profile", itemSlug);
-      return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml(item.service_region || "線上／地區洽談")}</p><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3><p>${escapeHtml(item.headline || item.public_intro || "查看公開的我的莓好圈")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看我的莓好圈</a></article>`;
-    }).join("") || '<p class="muted">目前沒有排程中的莓好圈推薦。</p>';
-    feedSection.classList.remove("hidden");
+    const payload = await publicPhase2Api("matching-feature-feed", "&limit=10");
+    const sourceItems = phase2Items(payload, "items", "profiles", "feed").slice(0, 10);
+    const items = await Promise.all(sourceItems.map(async (item) => {
+      try {
+        const detail = await publicPhase2Api("public-matching-profile", `&profile=${encodeURIComponent(String(item.public_slug || ""))}`);
+        const tags = phase2Items(detail?.identity_tags || [], "items");
+        const verifiedIds = new Set(phase2Items(detail?.verifications || [], "items").map((entry) => String(entry.tag_id)));
+        const verifiedIdentities = tags.filter((tag) => verifiedIds.has(String(tag.tag_id))).map((tag) => tag.name || tag.tag_name).filter(Boolean);
+        return { ...item, published_at: detail?.profile?.published_at || item.published_at || "", verifiedIdentities, circleCategory: circleCategoryFor(detail) };
+      } catch {
+        return { ...item, published_at: item.published_at || "", verifiedIdentities: [], circleCategory: circleCategoryFor(item) };
+      }
+    }));
+    let activeCategory = "all";
+    const renderLists = () => {
+      const filtered = activeCategory === "all" ? items : items.filter((item) => item.circleCategory === activeCategory);
+      const empty = '<p class="muted">目前沒有此分類的莓好圈推薦。</p>';
+      latestRoot.innerHTML = [...filtered].sort((a, b) => new Date(b.published_at || 0) - new Date(a.published_at || 0)).map(feedCard).join("") || empty;
+      popularRoot.innerHTML = [...filtered].sort((a, b) => Number(a.sort_order ?? 999) - Number(b.sort_order ?? 999)).slice(0, 10).map(feedCard).join("") || empty;
+      categoryRoot.querySelectorAll("button").forEach((button) => {
+        const selected = button.dataset.circleCategory === activeCategory;
+        button.classList.toggle("active", selected);
+        button.setAttribute("aria-pressed", String(selected));
+      });
+    };
+    categoryRoot.innerHTML = circleCategories.map(([id, label]) => `<button type="button" data-circle-category="${id}" aria-pressed="${id === "all"}">${label}</button>`).join("");
+    categoryRoot.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => { activeCategory = button.dataset.circleCategory; renderLists(); }));
+    renderLists();
+    categoryRoot.classList.remove("hidden");
+    latestSection.classList.remove("hidden");
+    popularSection.classList.remove("hidden");
   };
   if (!slug) {
     state.innerHTML = '<h1>預約莓好圈</h1><p>找到適合的人，讓需要被看見。找服務｜找合作｜找人才｜找機會。</p>';
@@ -1067,7 +1116,7 @@ async function initMatchingPage() {
     document.title = `我的莓好圈｜${displayName}`; document.querySelector('meta[property="og:title"]')?.setAttribute("content", document.title);
     const description = String(profile.headline || profile.public_intro || "查看會員公開的我的莓好圈。").slice(0, 150); document.querySelector('meta[name="description"]')?.setAttribute("content", description); document.querySelector('meta[property="og:description"]')?.setAttribute("content", description);
     await renderFeed();
-  } catch (error) { state.classList.add("error"); state.innerHTML = `<h1>莓好圈頁面目前無法顯示</h1><p>${escapeHtml(error.message)}</p><a class="btn ghost" href="match.html?v=20261008-circle">返回預約莓好圈</a>`; await renderFeed().catch(() => {}); }
+  } catch (error) { state.classList.add("error"); state.innerHTML = `<h1>莓好圈頁面目前無法顯示</h1><p>${escapeHtml(error.message)}</p><a class="btn ghost" href="match.html?v=20261008-services">返回預約莓好圈</a>`; await renderFeed().catch(() => {}); }
 }
 
 async function initAdminPeople(isDeveloper, currentUserId) {
@@ -1403,7 +1452,7 @@ async function initProductionAdmin() {
   document.querySelector("#closeModal")?.addEventListener("click", () => { document.querySelector("#eventModal").hidden = true; });
   const renderPayments = () => { const filter = document.querySelector("#paymentFilter").value.toUpperCase(); const rows = orders.filter((order) => filter === "ALL" || order.payment_status === filter); document.querySelector("#paymentRows").innerHTML = rows.map((order) => `<tr><td>${order.order_no}</td><td>${titleFor(order)}</td><td>${order.booking_date || ""} ${order.booking_time || ""}</td><td>${money(order.total_amount)}</td><td><span class="badge ${paymentClass(order.payment_status)}">${paymentLabel(order.payment_status)}</span></td></tr>`).join("") || '<tr><td colspan="5">目前沒有訂單</td></tr>'; };
   document.querySelector("#paymentFilter")?.addEventListener("change", renderPayments);
-  const categoryLabel = { temporary_staff: "臨時人力", recording_space: "錄音／空間", ai_digital: "AI／數位服務", venue_equipment: "陪工作／工作空間" };
+  const categoryLabel = { temporary_staff: "莓你不可", recording_space: "莓好聲音", venue_equipment: "莓好基地", learning: "莓好學習", ai_digital: "莓好數位" };
   const priceTypeLabel = { fixed: "固定價", starting_from: "起價", custom_quote: "客製報價" };
   const bookingTypeLabel = { direct_booking: "直接預約", custom_quote: "先詢價" };
   document.querySelector("#adminServiceRows").innerHTML = services.map((service) => `<tr><td><strong>${escapeHtml(service.service_id)}</strong><br>${escapeHtml(service.service_name)}</td><td>${categoryLabel[service.category_id] || escapeHtml(service.category_id)}</td><td>${priceLabel(service)}<br><small>${priceTypeLabel[service.price_type] || escapeHtml(service.price_type)}</small></td><td>${bookingTypeLabel[service.booking_type] || escapeHtml(service.booking_type)}</td><td><span class="badge neutral">${escapeHtml(service.service_status)}</span><br><small>#${service.sort_order}</small></td></tr>`).join("") || '<tr><td colspan="5">目前沒有服務資料</td></tr>';
