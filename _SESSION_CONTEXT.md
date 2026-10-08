@@ -256,4 +256,6 @@
 - match.html 已加入首頁同款 sticky 導覽、五大分類按鈕、最新加入、平台推薦前十，以及「編輯我的莓好圈」直達入口。
 - platform.js?v=20261008-services 為本輪快取版本；本機 1440／390px、console、JS syntax、duplicate ID、diff check 已 PASS。
 - 目前待提交、推送、Pages workflow 與正式站匿名 smoke；真實排程卡片和登入後流程 NOT RUN；最終仍需 Claude Code fresh-context 驗收。
+- 已部署：commit fa38b72，GitHub Pages run 37719183996 success；正式首頁與莓好圈 1440／390px、sticky、五大分類、兩組推薦區、快取版本、無溢位及 console 均 PASS。
+- 尚待：真實排程卡片與登入後流程 NOT RUN；Claude Code fresh-context 最終驗收。
 
