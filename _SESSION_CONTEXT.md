@@ -268,3 +268,10 @@
 - 待完成：GitHub Pages 推送與正式匿名 smoke；登入後寫入、真實 Like／Follow、公開會員檔案 NOT RUN；Claude Code fresh-context 最終驗收待執行。
 - 保護邊界：不改協作/骨架定案.md、金流、客戶帳號；不 stage supabase/.temp/、.recall/、LOGO/、output/、其他更換的美術UI/。
 
+### 部署完成
+
+- 功能 commit 74c8ac1；Pages workflow 37753753684 success；booking-api v14、matching-public v3。
+- 正式首頁 1440px、莓好資源 390px、莓好預約圈 390px 匿名 smoke PASS，console 0 error、無水平溢位。
+- 正式資源 11 筆、8 分類；公開莓好圈目前 0 筆，未批次公開既有會員。
+- 登入後會員／後台寫入、真實 Like／Follow、公開會員檔案仍 NOT RUN；Claude Code fresh-context 最終驗收待執行。
+
