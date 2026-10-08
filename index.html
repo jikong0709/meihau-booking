@@ -9,12 +9,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=Noto+Serif+TC:wght@600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="platform.css" />
+    <link rel="stylesheet" href="platform.css?v=20261008-resource-circle" />
     <link rel="stylesheet" href="assets/affiliate/affiliate-carousel.css" />
     <script defer src="assets/affiliate/affiliate-carousel.config.js"></script>
     <script defer src="assets/affiliate/affiliate-carousel.js"></script>
     <script src="config.js"></script>
-    <script defer src="platform.js?v=20261008-services"></script>
+    <script defer src="platform.js?v=20261008-resource-circle"></script>
   </head>
   <body data-page="public">
     <header class="topbar">
@@ -24,7 +24,7 @@
           <span><strong>莓好預約站</strong><small>MEIHAU BOOKING</small></span>
         </a>
         <nav class="nav" aria-label="主要導覽">
-          <a href="#top">首頁</a><a href="#services">服務項目</a><a href="#pricing">價目表</a><a href="match.html?v=20261008-services">預約莓好圈</a><a href="#process">使用流程</a><a href="#about">關於我們</a>
+          <a href="#top">首頁</a><a href="#services">服務項目</a><a href="#pricing">價目表</a><a href="match.html?v=20261008-resource-circle">莓好預約圈</a><a href="#process">使用流程</a><a href="#about">關於我們</a>
         </nav>
         <div class="header-actions">
           <a class="btn ghost small desktop-login" href="member.html" data-login>登入會員</a>
@@ -32,7 +32,7 @@
           <details class="mobile-menu">
             <summary aria-label="開啟導覽選單"><span></span><span></span><span></span></summary>
             <nav aria-label="行動版導覽">
-              <a href="#top">首頁</a><a href="#services">服務項目</a><a href="#pricing">價目表</a><a href="match.html?v=20261008-services">預約莓好圈</a><a href="#process">使用流程</a><a href="#about">關於我們</a><a href="member.html" data-login>登入會員開始預約</a>
+              <a href="#top">首頁</a><a href="#services">服務項目</a><a href="#pricing">價目表</a><a href="match.html?v=20261008-resource-circle">莓好預約圈</a><a href="#process">使用流程</a><a href="#about">關於我們</a><a href="member.html" data-login>登入會員開始預約</a>
             </nav>
           </details>
         </div>
@@ -68,8 +68,14 @@
         <div class="container">
           <div class="section-head section-head-row">
             <div><p class="eyebrow">SERVICES</p><h2>今天，想把哪件事安排好？</h2></div>
-            <p>五大服務分類，依需求選擇直接預約、詢價、媒合或客製委託。</p>
+            <p>先選擇解決方式，再進入資源、服務或莓好圈。</p>
           </div>
+          <div class="need-path-grid" aria-label="需求解決入口">
+            <article class="need-path-card"><span>01｜找方法</span><h3>我想先找方法</h3><p>找工具、資訊、補助、教學與機會，先自己解決。</p><a class="btn ghost" href="resources.html">進入莓好資源</a></article>
+            <article class="need-path-card"><span>02｜找人</span><h3>我想找人幫我</h3><p>找專業服務、人力、空間、設備或其他服務。</p><a class="btn ghost" href="#serviceCatalog">瀏覽服務項目</a></article>
+            <article class="need-path-card"><span>03｜找合作</span><h3>我想找合作／機會</h3><p>找人才、找合作、提供服務、出租、接案或媒合。</p><a class="btn ghost" href="match.html?v=20261008-resource-circle">進入莓好預約圈</a></article>
+          </div>
+          <div class="section-head section-head-row service-catalog-head" id="serviceCatalog"><div><p class="eyebrow">MEIHAU SERVICES</p><h2>莓好服務</h2></div><p>五大服務分類，依需求選擇直接預約、詢價、媒合或客製委託。</p></div>
           <div class="service-showcase">
             <article class="service-visual-card">
               <img src="assets/ui-v2/service-errand.webp" alt="真人能力與專人協作服務情境" width="1024" height="768" loading="lazy" />
@@ -92,6 +98,14 @@
               <div class="service-visual-body"><div><span>05</span><h3>莓好數位</h3><p>AI・網站・自動化・數位服務</p></div><div class="service-price"><strong>預約／詢價</strong></div><a href="member.html" data-login aria-label="查看莓好數位服務">→</a></div>
             </article>
           </div>
+        </div>
+      </section>
+
+      <section class="section resources-home-section" id="resources" aria-labelledby="resourcesHomeTitle">
+        <div class="container">
+          <div class="section-head section-head-row"><div><p class="eyebrow">MEIHAU RESOURCES</p><h2 id="resourcesHomeTitle">熱門資源</h2></div><p>先找到方法；需要專人時，再接到相關服務與莓好圈。</p></div>
+          <div id="resourceHomeFeed" class="resource-card-grid" aria-live="polite"><p class="muted">載入熱門資源中…</p></div>
+          <div class="matching-home-actions"><a class="btn ghost" href="resources.html">查看更多資源</a></div>
         </div>
       </section>
 
@@ -150,11 +164,11 @@
       <section class="section matching-home-section" id="matching" aria-labelledby="matchingHomeTitle">
         <div class="container">
           <div class="section-head section-head-row">
-            <div><p class="eyebrow">MEIHAU CIRCLE</p><h2 id="matchingHomeTitle">預約莓好圈</h2></div>
+            <div><p class="eyebrow">MEIHAU CIRCLE</p><h2 id="matchingHomeTitle">莓好預約圈</h2></div>
             <p>找到適合的人，讓需要被看見。找服務｜找合作｜找人才｜找機會。</p>
           </div>
-          <div id="matchingHomeFeed" class="matching-feed-grid" aria-live="polite"><p class="muted">載入預約莓好圈中…</p></div>
-          <div class="matching-home-actions"><a class="btn ghost" href="match.html?v=20261008-services">進入預約莓好圈</a><a class="btn" href="member.html?mode=member#matching-profile" data-join>建立我的莓好圈</a></div>
+          <div id="matchingHomeFeed" class="matching-feed-grid" aria-live="polite"><p class="muted">載入莓好預約圈中…</p></div>
+          <div class="matching-home-actions"><a class="btn ghost" href="match.html?v=20261008-resource-circle">進入莓好預約圈</a><a class="btn" href="member.html?mode=member#matching-profile" data-join>建立我的莓好圈</a></div>
         </div>
       </section>
 
@@ -176,7 +190,7 @@
     <footer class="footer footer-v2">
       <div class="container footer-grid">
         <div><a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"><img src="assets/ui-v2/logo-icon.png" alt="" width="1254" height="1254" /></span><span><strong>莓好預約站</strong><small>MEIHAU BOOKING</small></span></a><p>讓每一份能力、每一個空間、每一種專長，都有被需要的機會。</p></div>
-        <nav aria-label="頁尾導覽"><strong>快速導覽</strong><a href="#services">服務項目</a><a href="#pricing">價目表</a><a href="#matching">莓好圈推薦</a><a href="match.html?v=20261008-services">預約莓好圈</a><a href="#process">使用流程</a><a href="#services">找服務</a><a href="member.html?mode=member#roles" data-join>加入莓好</a></nav>
+        <nav aria-label="頁尾導覽"><strong>快速導覽</strong><a href="#services">需求入口</a><a href="resources.html">莓好資源</a><a href="#pricing">價目表</a><a href="#matching">莓好圈推薦</a><a href="match.html?v=20261008-resource-circle">莓好預約圈</a><a href="#process">使用流程</a><a href="#serviceCatalog">找服務</a><a href="member.html?mode=member#roles" data-join>加入莓好</a></nav>
         <div><strong>會員服務</strong><a href="member.html" data-login>登入會員</a><a href="member.html" data-login>開始預約</a><span>預約內容以會員中心為準</span></div>
       </div>
       <div class="container footer-bottom"><span>© 莓好預約站 × 光言工作室</span><span>以溫度，安排每一件重要的小事</span></div>

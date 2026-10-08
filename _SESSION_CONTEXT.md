@@ -259,3 +259,12 @@
 - 已部署：commit fa38b72，GitHub Pages run 37719183996 success；正式首頁與莓好圈 1440／390px、sticky、五大分類、兩組推薦區、快取版本、無溢位及 console 均 PASS。
 - 尚待：真實排程卡片與登入後流程 NOT RUN；Claude Code fresh-context 最終驗收。
 
+## 2026-10-08｜首頁資源＋會員後台重構（最新）
+
+- 依「莓好預約站_會員後台完整重構工程計畫書.md」與「莓好預約站_首頁資源整合＋會員後台同步重構工程計畫書.md」同步施工。
+- 已完成：首頁三路徑、五大服務、莓好資源、莓好預約圈動態分類／輪播／最新／人氣、我的莓好圈可見性與媒合設定、莓好追星圈、資源需求、後台資源 CRUD。
+- 正式 Supabase：20261008120000 已套用；資源 11 筆；新增表強制 RLS；booking-api 與 matching-public 已部署。
+- 驗證：公開 API、401 閘門、本機 1440／390px、搜尋與無水平溢位 PASS；既有會員沒有批次公開。
+- 待完成：GitHub Pages 推送與正式匿名 smoke；登入後寫入、真實 Like／Follow、公開會員檔案 NOT RUN；Claude Code fresh-context 最終驗收待執行。
+- 保護邊界：不改協作/骨架定案.md、金流、客戶帳號；不 stage supabase/.temp/、.recall/、LOGO/、output/、其他更換的美術UI/。
+

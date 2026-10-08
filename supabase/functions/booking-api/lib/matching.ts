@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import type { RequestContext } from "./auth.ts";
 import { contractError, reply } from "./http.ts";
 
-const PROFILE_FIELDS = "user_id,public_slug,display_name,headline,public_intro,service_region,availability_summary,publish_status,contact_mode,submitted_at,published_at,created_at,updated_at";
+const PROFILE_FIELDS = "user_id,public_slug,display_name,headline,public_intro,service_region,availability_summary,avatar_url,welcome_name,welcome_message,profile_field_visibility,booking_enabled,inquiry_enabled,inquiry_items,matching_enabled,matching_items,verification_info_visible,is_public,is_recommendable,is_carousel_enabled,carousel_status,carousel_start_at,carousel_end_at,carousel_priority,circle_joined_at,profile_updated_at,publish_status,contact_mode,submitted_at,published_at,created_at,updated_at";
 const RECORD_FIELDS = "match_id,match_code,initiator_user_id,counterparty_user_id,provider_user_id,seeker_user_id,subject_type,subject_title,scope_snapshot,terms_version,scheduled_at,location_text,agreed_amount,payment_method_text,status,created_at,updated_at,confirmed_at";
 const REPORT_FIELDS = "report_id,match_id,reporter_user_id,category,description,status,assigned_to,resolution_note,created_at,updated_at,resolved_at";
 const FEATURE_APPLICATION_FIELDS = "application_id,user_id,matching_profile_user_id,category_tag_id,requested_start_at,requested_end_at,status,reviewed_by,review_note,reviewed_at,created_at,updated_at";
@@ -33,6 +33,12 @@ function object(value: unknown, field: string, max = 20000) {
   if (JSON.stringify(value).length > max) fail("invalid_input", `${field}超過長度限制`);
   return value;
 }
+function stringArray(value: unknown, field: string, maxItems = 30) {
+  const items = value == null || value === "" ? [] : (Array.isArray(value) ? value : String(value).split(/[,\n]/));
+  const cleaned = [...new Set(items.map((item) => String(item).trim()).filter(Boolean))];
+  if (cleaned.length > maxItems || cleaned.some((item) => item.length > 160)) fail("invalid_input", `${field}格式不正確`);
+  return cleaned;
+}
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value && typeof value === "object") {
@@ -53,15 +59,52 @@ function randomSlug() { return `m-${crypto.randomUUID().replace(/-/g, "")}`; }
 function randomCode() { return `MAT-${crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`; }
 
 export async function handlePublicMatching(request: Request, origin: string | null, action: string, method: string): Promise<Response | null> {
-  if (method !== "GET" || !["public-matching-profile", "matching-feature-feed"].includes(action)) return null;
+  if (method !== "GET" || !["public-matching-profile", "matching-feature-feed", "matching-discovery-feed"].includes(action)) return null;
   const db = publicDb();
   const url = new URL(request.url);
   const now = new Date().toISOString();
+  if (action === "matching-discovery-feed") {
+    const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 30), 1), 50);
+    const { data: profiles, error } = await db.schema("booking").from("matching_profiles")
+      .select(PROFILE_FIELDS).eq("publish_status", "published").or("is_public.eq.true,is_public.is.null").order("circle_joined_at", { ascending: false }).limit(limit);
+    if (error) return contractError(origin, 503, "matching_feed_unavailable", "莓好預約圈暫時無法讀取");
+    const userIds = (profiles || []).map((row: any) => row.user_id);
+    if (!userIds.length) return reply(origin, 200, { categories: [], carousel: [], latest: [], popular: [], items: [] });
+    const [{ data: members }, { data: stats }, { data: verifications }] = await Promise.all([
+      db.schema("booking").from("members").select("user_id").in("user_id", userIds).eq("account_status", "active"),
+      db.schema("booking").from("matching_profile_stats").select("*").in("user_id", userIds),
+      db.schema("booking").from("member_identity_verifications").select("user_id,tag_id").in("user_id", userIds).eq("status", "verified").or(`expires_at.is.null,expires_at.gt.${now}`),
+    ]);
+    const activeIds = new Set((members || []).map((row: any) => row.user_id));
+    const tagIds = [...new Set((verifications || []).map((row: any) => row.tag_id))];
+    const { data: tags } = tagIds.length ? await db.schema("booking").from("tags").select("tag_id,name,slug").in("tag_id", tagIds).eq("tag_type", "identity").eq("status", "active") : { data: [] };
+    const tagById = new Map((tags || []).map((row: any) => [row.tag_id, row]));
+    const verifiedByUser = new Map<string, any[]>();
+    for (const row of verifications || []) { const tag = tagById.get(row.tag_id); if (tag) verifiedByUser.set(row.user_id, [...(verifiedByUser.get(row.user_id) || []), tag]); }
+    const statsByUser = new Map((stats || []).map((row: any) => [row.user_id, row]));
+    const items = (profiles || []).filter((row: any) => activeIds.has(row.user_id)).map((row: any) => {
+      const visibility = row.profile_field_visibility || {};
+      return {
+        user_id: row.user_id, public_slug: row.public_slug, display_name: row.welcome_name || row.display_name,
+        headline: visibility.headline === false ? "" : (row.welcome_message || row.headline),
+        avatar_url: visibility.avatar_url === false ? "" : row.avatar_url,
+        circle_joined_at: row.circle_joined_at || row.published_at || row.created_at,
+        identities: verifiedByUser.get(row.user_id) || [], stats: statsByUser.get(row.user_id) || { like_count: 0, follower_count: 0, popularity_score: 0 },
+        is_carousel_enabled: row.is_carousel_enabled, carousel_status: row.carousel_status,
+        carousel_start_at: row.carousel_start_at, carousel_end_at: row.carousel_end_at, carousel_priority: row.carousel_priority,
+      };
+    });
+    const categories = [...new Map(items.flatMap((item: any) => item.identities).map((tag: any) => [tag.tag_id, tag])).values()];
+    const carousel = items.filter((item: any) => item.is_carousel_enabled && item.carousel_status === "active" && (!item.carousel_start_at || item.carousel_start_at <= now) && (!item.carousel_end_at || item.carousel_end_at > now)).sort((a: any,b: any) => Number(a.carousel_priority||0)-Number(b.carousel_priority||0));
+    const latest = [...items].sort((a: any,b: any) => new Date(b.circle_joined_at || 0).valueOf()-new Date(a.circle_joined_at || 0).valueOf()).slice(0,10);
+    const popular = [...items].sort((a: any,b: any) => Number(b.stats?.popularity_score||0)-Number(a.stats?.popularity_score||0)).slice(0,10);
+    return reply(origin, 200, { categories, carousel, latest, popular, items });
+  }
   if (action === "public-matching-profile") {
     const slug = String(url.searchParams.get("slug") || url.searchParams.get("profile") || "").trim().toLowerCase();
     if (!/^[a-z0-9](?:[a-z0-9-]{1,126}[a-z0-9])?$/.test(slug)) return contractError(origin, 404, "not_found", "找不到媒合頁");
     const { data: profile, error } = await db.schema("booking").from("matching_profiles")
-      .select(PROFILE_FIELDS).eq("public_slug", slug).eq("publish_status", "published").maybeSingle();
+      .select(PROFILE_FIELDS).eq("public_slug", slug).eq("publish_status", "published").or("is_public.eq.true,is_public.is.null").maybeSingle();
     if (error || !profile) return contractError(origin, 404, "not_found", "找不到媒合頁");
     const { data: member } = await db.schema("booking").from("members").select("user_id,account_status").eq("user_id", profile.user_id).eq("account_status", "active").maybeSingle();
     if (!member) return contractError(origin, 404, "not_found", "找不到媒合頁");
@@ -81,11 +124,16 @@ export async function handlePublicMatching(request: Request, origin: string | nu
       .select("verification_id,requirement_id,certificate_name,issuer_name,certificate_number_masked,issued_on").in("verification_id", verificationIds).in("requirement_id", requirementIds) : { data: [] };
     const tagByVerification = new Map((verifications || []).map((row: any) => [row.verification_id, row.tag_id]));
     const labelByRequirement = new Map((publicRequirements || []).map((row: any) => [row.requirement_id, row.label]));
+    const visibility = profile.profile_field_visibility || {};
+    const { data: currentStats } = await db.schema("booking").from("matching_profile_stats").select("*").eq("user_id", profile.user_id).maybeSingle();
+    const stats = { ...(currentStats || {}), user_id: profile.user_id, profile_view_count: Number(currentStats?.profile_view_count || 0) + 1, updated_at: now };
+    await db.schema("booking").from("matching_profile_stats").upsert(stats, { onConflict: "user_id" });
     return reply(origin, 200, {
-      profile: { public_slug: profile.public_slug, display_name: profile.display_name, headline: profile.headline, public_intro: profile.public_intro, service_region: profile.service_region, availability_summary: profile.availability_summary, contact_mode: "platform_only", published_at: profile.published_at },
+      profile: { user_id: profile.user_id, public_slug: profile.public_slug, display_name: profile.display_name, welcome_name: profile.welcome_name, welcome_message: profile.welcome_message, headline: visibility.headline === false ? "" : profile.headline, public_intro: visibility.public_intro === false ? "" : profile.public_intro, service_region: visibility.service_region === false ? "" : profile.service_region, availability_summary: profile.availability_summary, avatar_url: visibility.avatar_url === false ? "" : profile.avatar_url, booking_enabled: profile.booking_enabled, inquiry_enabled: profile.inquiry_enabled, matching_enabled: profile.matching_enabled, contact_mode: "platform_only", published_at: profile.published_at },
       provider: provider || null, partner: partner || null, seeker: seeker || null, identity_tags: tags || [],
       verifications: (verifications || []).map((row: any) => ({ tag_id: row.tag_id, verified_at: row.verified_at, expires_at: row.expires_at, review_note_public: row.review_note_public })),
-      certificates: (certificates || []).map((row: any) => ({ tag_id: tagByVerification.get(row.verification_id), label: labelByRequirement.get(row.requirement_id), certificate_name: row.certificate_name, issuer_name: row.issuer_name, certificate_number_masked: row.certificate_number_masked, issued_on: row.issued_on })),
+      certificates: profile.verification_info_visible === false ? [] : (certificates || []).map((row: any) => ({ tag_id: tagByVerification.get(row.verification_id), label: labelByRequirement.get(row.requirement_id), certificate_name: row.certificate_name, issuer_name: row.issuer_name, certificate_number_masked: row.certificate_number_masked, issued_on: row.issued_on })),
+      stats,
     });
   }
 
@@ -135,7 +183,7 @@ export async function handleMatchingMember(ctx: RequestContext, action: string, 
       if (method === "PUT") {
         const requested = String(ctx.body.publish_status || "draft");
         if (!["draft", "pending_review", "hidden"].includes(requested)) fail("invalid_transition", "會員不可自行發布或停權媒合頁");
-        const { data: current, error: readError } = await ctx.db.schema("booking").from("matching_profiles").select("public_slug,publish_status,submitted_at").eq("user_id", ctx.user.id).maybeSingle();
+        const { data: current, error: readError } = await ctx.db.schema("booking").from("matching_profiles").select("public_slug,publish_status,submitted_at,is_public,profile_field_visibility").eq("user_id", ctx.user.id).maybeSingle();
         if (readError) return contractError(ctx.origin, 400, "matching_profile_unavailable", "媒合頁暫時無法讀取");
         if (current?.publish_status === "suspended") fail("forbidden", "媒合頁已被停權");
         const memberTransitions: Record<string, string[]> = {
@@ -145,12 +193,22 @@ export async function handleMatchingMember(ctx: RequestContext, action: string, 
         };
         if (!(memberTransitions[current?.publish_status || "new"] || []).includes(requested)) fail("invalid_transition", "媒合頁狀態轉換不合法");
         const now = new Date().toISOString();
+        const requestedVisibility = (ctx.body.profile_field_visibility && typeof ctx.body.profile_field_visibility === "object" && !Array.isArray(ctx.body.profile_field_visibility) ? ctx.body.profile_field_visibility : current?.profile_field_visibility || {}) as Record<string, unknown>;
+        const visibility = Object.fromEntries(["display_name","headline","public_intro","avatar_url","service_region","contact","social","address"].map((key) => [key, Boolean(requestedVisibility[key])]));
+        const avatarUrl = text(ctx.body.avatar_url, 1000, "頭像網址");
+        if (avatarUrl && !/^https:\/\/[^\s]+$/i.test(avatarUrl)) fail("invalid_input", "頭像網址只接受 https");
         const values = {
           user_id: ctx.user.id, public_slug: current?.public_slug || randomSlug(),
           display_name: text(ctx.body.display_name, 120, "公開名稱", true), headline: text(ctx.body.headline, 200, "標題"),
           public_intro: text(ctx.body.public_intro, 5000, "公開介紹"), service_region: text(ctx.body.service_region, 500, "服務地區"),
           availability_summary: text(ctx.body.availability_summary, 1000, "可預約時段"), publish_status: requested, contact_mode: "platform_only",
-          submitted_at: requested === "pending_review" ? now : (requested === "draft" ? null : current?.submitted_at), updated_at: now,
+          avatar_url: avatarUrl, welcome_name: text(ctx.body.welcome_name,120,"歡迎名稱"), welcome_message: text(ctx.body.welcome_message,300,"歡迎訊息"),
+          profile_field_visibility: visibility, booking_enabled: ctx.body.booking_enabled !== false,
+          inquiry_enabled: ctx.body.inquiry_enabled !== false, inquiry_items: stringArray(ctx.body.inquiry_items,"詢價項目"),
+          matching_enabled: ctx.body.matching_enabled !== false, matching_items: stringArray(ctx.body.matching_items,"媒合項目"),
+          verification_info_visible: ctx.body.verification_info_visible !== false,
+          is_public: "is_public" in ctx.body ? Boolean(ctx.body.is_public) : (current?.is_public ?? true),
+          submitted_at: requested === "pending_review" ? now : (requested === "draft" ? null : current?.submitted_at), profile_updated_at: now, updated_at: now,
         };
         const { data, error } = await ctx.db.schema("booking").from("matching_profiles").upsert(values, { onConflict: "user_id" }).select(PROFILE_FIELDS).single();
         return error ? contractError(ctx.origin, 400, "matching_profile_save_failed", "媒合頁儲存失敗") : reply(ctx.origin, 200, { profile: data });

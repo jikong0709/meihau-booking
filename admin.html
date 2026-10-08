@@ -8,12 +8,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=Noto+Serif+TC:wght@600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="platform.css" />
+    <link rel="stylesheet" href="platform.css?v=20261008-resource-circle" />
     <link rel="stylesheet" href="assets/affiliate/affiliate-carousel.css" />
     <script defer src="assets/affiliate/affiliate-carousel.config.js"></script>
     <script defer src="assets/affiliate/affiliate-carousel.js"></script>
     <script src="config.js"></script>
-    <script defer src="platform.js?v=20261008-services"></script>
+    <script defer src="platform.js?v=20261008-resource-circle"></script>
   </head>
   <body data-page="admin">
     <div class="layout">
@@ -26,6 +26,7 @@
           <button type="button" data-admin-show="inquiries">詢價管理</button>
           <button type="button" data-admin-show="members">👥 會員與合作管理</button>
           <button type="button" data-admin-show="services">服務資料</button>
+          <button type="button" data-admin-show="resources">莓好資源</button>
           <button type="button" data-admin-show="system" data-developer-only>系統狀態</button>
         </nav>
         <div class="sidebar-footer"><a href="member.html?mode=member">會員前台</a><a href="index.html">回到莓好預約站</a><button type="button" data-switch-account>登出</button></div>
@@ -92,6 +93,7 @@
           <div class="hidden" data-people-panel="matching-features"><div class="phase2-admin-head"><h3>莓好圈輪播</h3><p class="muted">獨立於蝦皮分潤輪播，不含付費曝光。</p></div><div id="adminMatchingFeatureList" class="phase2-card-list"></div></div>
         </section>
         <section id="servicesAdmin" class="admin-view hidden" data-admin-view="services"><div class="page-head"><div><p class="eyebrow">SERVICES & PRICING</p><h2>服務資料</h2><p class="muted">正式 services 單一來源；歷史服務保留 archived，不回算舊訂單成交價</p></div><span class="badge neutral"><span id="adminServiceCount">—</span> 項服務</span></div><div class="table-scroll"><table class="table"><thead><tr><th>服務 ID／名稱</th><th>分類</th><th>價格</th><th>流程</th><th>狀態／排序</th></tr></thead><tbody id="adminServiceRows"></tbody></table></div></section>
+        <section id="resourcesAdmin" class="admin-view hidden" data-admin-view="resources"><div class="page-head"><div><p class="eyebrow">RESOURCE MANAGEMENT</p><h2>莓好資源管理</h2><p class="muted">資源、分類、標籤、服務關聯與導流統計由資料庫管理；停用請改為封存，不刪除歷史資料。</p></div><span class="badge neutral"><span id="adminResourceCount">—</span> 筆資源</span></div><div id="adminResourceMessage" class="demo-note hidden" role="status"></div><form id="adminResourceForm" class="panel form-grid"><input name="resource_id" type="hidden" /><div class="field"><label>資源代碼</label><input name="resource_slug" pattern="[a-z0-9][a-z0-9-]{2,79}" required /></div><div class="field"><label>資源名稱</label><input name="resource_name" maxlength="160" required /></div><div class="field full"><label>一句用途說明</label><textarea name="resource_description" rows="2" maxlength="1000"></textarea></div><div class="field"><label>分類</label><select name="category"><option value="benefits">福利／補助</option><option value="ai_digital">AI／數位</option><option value="learning">學習／課程</option><option value="work_tools">工作工具</option><option value="market_work">市場／工作／創業</option><option value="lifestyle">生活</option><option value="events_cooperation">活動／合作／機會</option></select></div><div class="field"><label>次分類</label><input name="sub_category" maxlength="120" /></div><div class="field full"><label>正式資源網址</label><input name="resource_url" type="url" required placeholder="https://" /></div><div class="field"><label>狀態</label><select name="status"><option value="draft">草稿</option><option value="published">發布</option><option value="paused">下架</option><option value="archived">封存</option></select></div><div class="field"><label>排序</label><input name="sort_order" type="number" min="0" value="0" /></div><div class="field"><label>標籤（逗號分隔）</label><input name="tags" /></div><div class="field"><label>相關服務 ID（逗號分隔）</label><input name="related_service_ids" /></div><div class="field"><label>相關角色（逗號分隔）</label><input name="related_role_ids" /></div><div class="field"><label>相關媒合（逗號分隔）</label><input name="related_opportunity_ids" /></div><label class="field-check"><input name="featured" type="checkbox" />首頁精選</label><div class="field full phase2-actions"><button class="btn" type="submit">儲存資源</button><button id="adminResourceCancelEdit" class="btn ghost" type="button">取消編輯</button></div></form><div id="adminResourceList" class="phase2-card-list phase2-block"></div></section>
         <section id="uiStates" class="admin-view hidden" data-admin-view="system" data-developer-only><div class="page-head"><div><p class="eyebrow">DEVELOPER SYSTEM</p><h2>系統狀態</h2><p class="muted">只對 developer 顯示的正式環境讀取狀態</p></div><span class="badge ok">API 已連線</span></div><div class="system-status-grid"><article class="panel"><span>執行環境</span><strong>Production</strong><small>GitHub Pages + Supabase</small></article><article class="panel"><span>目前角色</span><strong id="systemRole">—</strong><small>由伺服器會員資料驗證</small></article><article class="panel"><span>正式服務</span><strong id="systemServiceCount">—</strong><small>包含 active、coming soon 與歷史封存</small></article><article class="panel"><span>後端狀態</span><strong id="systemApiStatus">檢查中</strong><small>booking-api 權限與資料載入</small></article></div><div class="panel admin-subsection"><h3>權限邊界</h3><p class="muted">Developer 可使用完整營運工作台與系統狀態；Admin 可使用營運、詢價、會員與服務資料；Member 僅能進入會員中心。</p></div></section>
         <section class="affiliate-strip" aria-label="合作購物平台推薦">
           <div data-affiliate-carousel data-storefront-url="https://collshp.com/sberrychang?view=storefront" data-theme="all" data-limit="12" data-site-style="meihau-booking"></div>

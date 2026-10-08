@@ -8,12 +8,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=Noto+Serif+TC:wght@600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="platform.css" />
+    <link rel="stylesheet" href="platform.css?v=20261008-resource-circle" />
     <link rel="stylesheet" href="assets/affiliate/affiliate-carousel.css" />
     <script defer src="assets/affiliate/affiliate-carousel.config.js"></script>
     <script defer src="assets/affiliate/affiliate-carousel.js"></script>
     <script src="config.js"></script>
-    <script defer src="platform.js?v=20261008-services"></script>
+    <script defer src="platform.js?v=20261008-resource-circle"></script>
   </head>
   <body data-page="member">
     <div class="layout">
@@ -23,19 +23,13 @@
           ><span><strong>莓好預約站</strong><small>MEMBER</small></span></a
         >
         <nav class="side-nav">
-          <button data-show="home">首頁</button
-          ><button data-show="book">預約服務</button
+          <button data-show="home">預約服務</button
           ><button data-show="orders">我的預約</button
           ><button data-show="inquiries">我的詢價</button
-          ><button data-show="profile">我的資料</button
-          ><button data-show="roles">我的合作角色</button
-          ><button data-show="identity">身份與認證</button
           ><button data-show="matching-profile">我的莓好圈</button
-          ><button data-show="matching-records">媒合紀錄</button
-          ><button data-show="matching-feature">加入平台輪播</button
-          ><button data-show="addresses">常用地址</button
+          ><button data-show="stars">莓好追星圈</button
           ><button type="button" data-switch-account>登出</button
-          ><a href="index.html">回到莓好預約站</a>
+          ><a href="index.html">回首頁</a>
         </nav>
       </aside>
       <main class="main">
@@ -71,31 +65,31 @@
               <div class="service-icon" aria-hidden="true">01</div>
               <h3>莓你不可</h3>
               <p>人與人的服務・專人委託・客製服務</p>
-              <button class="btn ghost" data-show="book">選擇真人服務</button>
+              <button class="btn ghost" data-show="book" data-service-category="temporary_staff">選擇真人服務</button>
             </article>
             <article class="card service-card">
               <div class="service-icon" aria-hidden="true">02</div>
               <h3>莓好聲音</h3>
               <p>錄音・歌唱・配音・聲音體驗</p>
-              <button class="btn ghost" data-show="book">選擇聲音服務</button>
+              <button class="btn ghost" data-show="book" data-service-category="recording_space">選擇聲音服務</button>
             </article>
             <article class="card service-card">
               <div class="service-icon" aria-hidden="true">03</div>
               <h3>莓好基地</h3>
               <p>工作・創作・活動・共享空間</p>
-              <button class="btn ghost" data-show="book">選擇空間服務</button>
+              <button class="btn ghost" data-show="book" data-service-category="venue_equipment">選擇空間服務</button>
             </article>
             <article class="card service-card">
               <div class="service-icon" aria-hidden="true">04</div>
               <h3>莓好學習</h3>
               <p>課程・教學・親子・共學</p>
-              <button class="btn ghost" data-show="book">選擇學習服務</button>
+              <button class="btn ghost" data-show="book" data-service-category="learning">選擇學習服務</button>
             </article>
             <article class="card service-card">
               <div class="service-icon" aria-hidden="true">05</div>
               <h3>莓好數位</h3>
               <p>AI・網站・自動化・數位服務</p>
-              <button class="btn ghost" data-show="book">選擇數位服務</button>
+              <button class="btn ghost" data-show="book" data-service-category="ai_digital">選擇數位服務</button>
             </article>
           </div>
         </section>
@@ -234,7 +228,7 @@
             <label class="field-check full"><input id="profilePublic" name="isPublic" type="checkbox" />公開個人介紹（手機、Email、LINE 永不公開）</label>
             <div class="field full">
               <button class="btn" type="submit">更新資料</button
-              ><span id="profileStatus" class="muted"></span>
+              ><button class="btn ghost" type="button" data-show="addresses">管理常用地址</button><span id="profileStatus" class="muted"></span>
             </div>
           </form>
         </section>
@@ -242,7 +236,7 @@
           <div class="page-head">
             <div>
               <p class="eyebrow">MY ROLES</p>
-              <h1>我的合作角色</h1>
+              <h1>媒合設定</h1>
               <p class="muted">一個帳號可同時勾選多個角色；勾選後填寫對應資料並同意規範，送出後由管理員審核</p>
             </div>
           </div>
@@ -362,9 +356,27 @@
           <div class="panel phase2-block"><div class="toolbar"><div><h2>身份認證</h2><p class="muted">認證只表示平台已核對指定資料，不代表服務品質或履約保證。</p></div><button id="refreshIdentityVerifications" class="btn ghost small" type="button">重新載入</button></div><div id="availableVerificationRules" class="phase2-card-list"><p class="muted">載入可申請的認證規則…</p></div><h3>已建立的認證申請</h3><div id="identityVerificationList" class="phase2-card-list"><p class="muted">載入中…</p></div></div>
         </section>
         <section data-section="matching-profile" id="matching-profile" class="hidden phase2-section">
-          <div class="page-head"><div><p class="eyebrow">MY MEIHAU CIRCLE</p><h1>我的莓好圈</h1><p class="muted">編輯你的個人媒合頁；公開頁只顯示允許公開的資料，不顯示手機、Email、LINE 或地址。</p></div><a id="matchingProfilePreview" class="btn ghost hidden" target="_blank" rel="noopener noreferrer">預覽我的莓好圈</a></div>
+          <div class="page-head"><div><p class="eyebrow">MY MEIHAU CIRCLE</p><h1>我的莓好圈</h1><p class="muted">管理自己的公開個人頁、身份認證、媒合設定與媒合紀錄。</p></div></div>
+          <div class="circle-hub-actions"><a id="matchingProfilePreview" class="btn ghost hidden" target="_blank" rel="noopener noreferrer">預覽 MY 莓好圈</a><a class="btn" href="match.html?v=20261008-resource-circle">直接進入莓好預約圈</a></div>
+          <nav class="circle-hub-nav" aria-label="我的莓好圈管理功能"><button type="button" data-show="profile">個人資料</button><button type="button" data-show="identity">身份與認證</button><button type="button" data-show="roles">媒合設定</button><button type="button" data-show="resource-needs">我的需求／資源需求</button><button type="button" data-show="matching-records">媒合紀錄</button><button type="button" data-show="matching-feature">購買／加入輪播廣告</button></nav>
           <div id="matchingProfileMessage" class="demo-note hidden" role="status"></div>
-          <form id="matchingProfileForm" class="panel form-grid"><div class="field"><label for="matchingDisplayName">公開名稱</label><input id="matchingDisplayName" name="display_name" maxlength="100" required /></div><div class="field"><label for="matchingHeadline">一句介紹</label><input id="matchingHeadline" name="headline" maxlength="160" /></div><div class="field full"><label for="matchingIntro">公開簡介</label><textarea id="matchingIntro" name="public_intro" rows="6"></textarea></div><div class="field"><label for="matchingRegion">服務地區</label><input id="matchingRegion" name="service_region" maxlength="120" /></div><div class="field"><label for="matchingAvailability">可合作時間</label><input id="matchingAvailability" name="availability_summary" maxlength="200" /></div><div class="field"><label for="matchingPublishStatus">頁面狀態</label><select id="matchingPublishStatus" name="publish_status"><option value="draft">草稿</option><option value="pending_review">送審</option><option value="hidden">隱藏</option></select></div><div class="field full phase2-actions"><button class="btn" type="submit">儲存我的莓好圈</button><button id="copyMatchingProfileLink" class="btn ghost hidden" type="button">複製我的莓好圈連結</button></div></form>
+          <form id="matchingProfileForm" class="panel form-grid">
+            <div class="field"><label for="matchingDisplayName">公開名稱</label><input id="matchingDisplayName" name="display_name" maxlength="100" required /></div><div class="field"><label for="matchingHeadline">一句介紹</label><input id="matchingHeadline" name="headline" maxlength="160" /></div>
+            <div class="field"><label for="matchingAvatar">頭像／個人圖片網址</label><input id="matchingAvatar" name="avatar_url" type="url" placeholder="https://" /></div><div class="field"><label for="matchingRegion">服務地區</label><input id="matchingRegion" name="service_region" maxlength="120" /></div>
+            <div class="field full"><label for="matchingIntro">公開簡介</label><textarea id="matchingIntro" name="public_intro" rows="5"></textarea></div><div class="field"><label for="matchingAvailability">可合作時間</label><input id="matchingAvailability" name="availability_summary" maxlength="200" /></div><div class="field"><label for="matchingPublishStatus">頁面狀態</label><select id="matchingPublishStatus" name="publish_status"><option value="draft">草稿</option><option value="pending_review">送審</option><option value="hidden">隱藏</option></select></div>
+            <div class="field"><label for="matchingWelcomeName">歡迎名稱</label><input id="matchingWelcomeName" name="welcome_name" maxlength="120" placeholder="留空則使用公開名稱" /></div><div class="field"><label for="matchingWelcomeMessage">歡迎訊息</label><input id="matchingWelcomeMessage" name="welcome_message" maxlength="300" placeholder="歡迎來到我的莓好圈！🍓" /></div>
+            <fieldset class="field full visibility-settings"><legend>對外欄位公開設定</legend><label class="field-check"><input type="checkbox" data-visibility="display_name" checked disabled />公開名稱</label><label class="field-check"><input type="checkbox" data-visibility="headline" checked />一句介紹</label><label class="field-check"><input type="checkbox" data-visibility="public_intro" checked />個人簡介</label><label class="field-check"><input type="checkbox" data-visibility="avatar_url" checked />頭像</label><label class="field-check"><input type="checkbox" data-visibility="service_region" checked />服務地區</label><label class="field-check"><input type="checkbox" data-visibility="contact" />聯絡資訊</label><label class="field-check"><input type="checkbox" data-visibility="social" />社群連結</label><label class="field-check"><input type="checkbox" data-visibility="address" />地址</label><p class="private-note full">電話、Email、LINE、地址預設不公開；即使勾選也只會在後續安全聯絡流程開放，不會直接顯示於公開卡片。</p></fieldset>
+            <fieldset class="field full matching-settings"><legend>媒合設定</legend><label class="field-check"><input type="checkbox" name="booking_enabled" checked />開放預約</label><label class="field-check"><input type="checkbox" name="inquiry_enabled" checked />開放詢價</label><label class="field-check"><input type="checkbox" name="matching_enabled" checked />開放媒合</label><label class="field-check"><input type="checkbox" name="verification_info_visible" checked />認證資訊公開</label><label class="field-check"><input type="checkbox" name="is_public" checked />公開我的莓好圈</label><div class="field"><label for="matchingInquiryItems">開放詢價項目（逗號或換行）</label><textarea id="matchingInquiryItems" name="inquiry_items" rows="2"></textarea></div><div class="field"><label for="matchingItems">媒合項目（逗號或換行）</label><textarea id="matchingItems" name="matching_items" rows="2"></textarea></div></fieldset>
+            <div class="field full phase2-actions"><button class="btn" type="submit">儲存我的莓好圈</button><button id="copyMatchingProfileLink" class="btn ghost hidden" type="button">複製我的莓好圈連結</button></div>
+          </form>
+        </section>
+        <section data-section="stars" id="stars" class="hidden phase2-section">
+          <div class="page-head"><div><p class="eyebrow">MEIHAU STAR CIRCLE</p><h1>莓好追星圈</h1><p class="muted">管理你追蹤的人、品牌、服務者與自訂分類。</p></div></div>
+          <div id="starCircleMessage" class="demo-note hidden" role="status"></div><form id="followCategoryForm" class="panel form-grid"><div class="field"><label for="followCategoryName">新增自訂分類</label><input id="followCategoryName" name="category_name" maxlength="80" required placeholder="例如：想合作的人" /></div><label class="field-check"><input name="is_public" type="checkbox" />公開此分類</label><div class="field"><button class="btn" type="submit">＋ 新增分類</button></div></form><div id="followCategoryFilters" class="circle-hub-nav" aria-label="莓好追星圈分類"></div><div id="starCircleList" class="resource-card-grid"><p class="muted">載入追蹤名單中…</p></div>
+        </section>
+        <section data-section="resource-needs" id="resource-needs" class="hidden phase2-section">
+          <div class="page-head"><div><p class="eyebrow">MY RESOURCE NEEDS</p><h1>我的需求／資源需求</h1><p class="muted">記錄正在找的工具、資訊、服務或合作資源；不新增主側欄入口。</p></div><a class="btn ghost" href="resources.html">瀏覽莓好資源</a></div>
+          <div id="resourceNeedMessage" class="demo-note hidden" role="status"></div><form id="resourceNeedForm" class="panel form-grid"><div class="field"><label>需求名稱</label><input name="title" maxlength="160" required /></div><div class="field"><label>分類</label><select name="category"><option value="benefits">福利／補助</option><option value="ai_digital">AI／數位</option><option value="learning">學習／課程</option><option value="work_tools">工作工具</option><option value="market_work">市場／工作／創業</option><option value="lifestyle">生活</option><option value="events_cooperation">活動／合作／機會</option><option value="other">其他</option></select></div><div class="field full"><label>需求內容</label><textarea name="description" rows="4"></textarea></div><div class="field full"><button class="btn" type="submit">新增資源需求</button></div></form><div id="resourceNeedList" class="phase2-card-list phase2-block"><p class="muted">載入中…</p></div>
         </section>
         <section data-section="matching-records" id="matching-records" class="hidden phase2-section">
           <div class="page-head"><div><p class="eyebrow">MATCHING RECORDS</p><h1>媒合紀錄與問題回報</h1><p class="muted">雙方確認同一版內容後才成立；約定金額不代表已付款。</p></div></div>
@@ -373,7 +385,7 @@
           <div id="matchingRecordList" class="phase2-card-list phase2-block"><p class="muted">載入中…</p></div>
         </section>
         <section data-section="matching-feature" id="matching-feature" class="hidden phase2-section">
-          <div class="page-head"><div><p class="eyebrow">CIRCLE FEATURE</p><h1>加入平台輪播</h1><p class="muted">申請讓我的莓好圈出現在平台推薦；此區與合作購物平台推薦完全分離，本期不收取曝光費用。</p></div></div>
+          <div class="page-head"><div><p class="eyebrow">CIRCLE FEATURE</p><h1>購買／加入輪播廣告</h1><p class="muted">申請讓我的莓好圈出現在平台推薦；正式付款功能尚未啟用，目前只送出輪播申請，不會產生付款。</p></div></div>
           <div id="matchingFeatureMessage" class="demo-note hidden" role="status"></div>
           <form id="matchingFeatureForm" class="panel form-grid"><div class="field"><label for="featureStart">希望開始時間（選填）</label><input id="featureStart" name="requested_start_at" type="datetime-local" /></div><div class="field"><label for="featureEnd">希望結束時間（選填）</label><input id="featureEnd" name="requested_end_at" type="datetime-local" /></div><div class="field full"><button class="btn" type="submit">申請加入莓好圈輪播</button></div></form><div id="matchingFeatureList" class="phase2-card-list phase2-block"><p class="muted">載入中…</p></div>
         </section>

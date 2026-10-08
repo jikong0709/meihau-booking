@@ -1,5 +1,6 @@
 import { origins, reply } from "../booking-api/lib/http.ts";
 import { handlePublicMatching } from "../booking-api/lib/matching.ts";
+import { handlePublicResources } from "../booking-api/lib/resources.ts";
 
 Deno.serve(async (request) => {
   const origin = request.headers.get("origin");
@@ -11,9 +12,10 @@ Deno.serve(async (request) => {
 
   const url = new URL(request.url);
   const action = url.searchParams.get("action") || "";
-  if (!["public-matching-profile", "matching-feature-feed"].includes(action)) {
+  if (!["public-matching-profile", "matching-feature-feed", "matching-discovery-feed", "public-resources", "resource-click"].includes(action)) {
     return reply(origin, 404, { error: "Not found" });
   }
   return await handlePublicMatching(request, origin, action, request.method)
+    || await handlePublicResources(request, origin, action, request.method)
     || reply(origin, 405, { error: "Method not allowed" });
 });

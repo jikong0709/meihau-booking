@@ -308,7 +308,7 @@ async function initProductionPublic() {
       if (error) throw error;
     } catch (error) { alert(error.code === "account_suspended" ? error.message : `目前無法啟動 Google 登入：${error.message}`); }
   }));
-  await initMatchingHomeFeed();
+  await Promise.all([initMatchingHomeFeed(), initResourcesHomeFeed()]);
 }
 async function requireSession() {
   const client = await getProductionClient();
@@ -765,16 +765,24 @@ async function initPhase2Member() {
   const updateProfileLink = () => {
     const slug = matchingProfile?.public_slug; const preview = document.querySelector("#matchingProfilePreview"); const copy = document.querySelector("#copyMatchingProfileLink");
     if (!slug) { preview?.classList.add("hidden"); copy?.classList.add("hidden"); return; }
-    const url = new URL("match.html", location.href); url.searchParams.set("v", "20261008-services"); url.searchParams.set("profile", slug);
+    const url = new URL("match.html", location.href); url.searchParams.set("v", "20261008-resource-circle"); url.searchParams.set("profile", slug);
     preview.href = url.href; preview.classList.remove("hidden"); copy.classList.remove("hidden"); copy.dataset.url = url.href;
   };
   const loadProfile = async () => {
     const payload = await api("my-matching-profile"); matchingProfile = payload?.profile || payload || {};
-    for (const field of profileForm?.elements || []) if (field.name && Object.hasOwn(matchingProfile, field.name)) field.value = matchingProfile[field.name] ?? "";
+    for (const field of profileForm?.elements || []) if (field.name && Object.hasOwn(matchingProfile, field.name)) {
+      const value = matchingProfile[field.name];
+      if (field.type === "checkbox") field.checked = Boolean(value);
+      else if (Array.isArray(value)) field.value = value.join("、");
+      else field.value = value ?? "";
+    }
+    profileForm?.querySelectorAll("[data-visibility]").forEach((field) => { field.checked = matchingProfile.profile_field_visibility?.[field.dataset.visibility] !== false; });
     updateProfileLink();
   };
   profileForm?.addEventListener("submit", async (event) => {
     event.preventDefault(); const data = Object.fromEntries(new FormData(profileForm));
+    ["booking_enabled","inquiry_enabled","matching_enabled","verification_info_visible","is_public"].forEach((key) => { data[key] = Boolean(profileForm.elements[key]?.checked); });
+    data.profile_field_visibility = Object.fromEntries([...profileForm.querySelectorAll("[data-visibility]")].map((field) => [field.dataset.visibility, field.checked]));
     try { matchingProfile = await withButtonPending(profileForm.querySelector('[type="submit"]'), () => api("my-matching-profile", { method: "PUT", body: data })); matchingProfile = matchingProfile?.profile || matchingProfile; updateProfileLink(); showMessage("#matchingProfileMessage", "我的莓好圈已儲存。"); }
     catch (error) { showMessage("#matchingProfileMessage", error.message, true); }
   });
@@ -799,7 +807,23 @@ async function initPhase2Member() {
   const loadFeatures = async () => { const items = phase2Items(await api("matching-feature-applications"), "items", "applications"); featureRoot.innerHTML = items.map((item) => `<article class="phase2-card"><div class="phase2-card-head"><strong>莓好圈輪播申請</strong>${phase2Status(item.status)}</div><p>${escapeHtml(phase2Date(item.requested_start_at))} ～ ${escapeHtml(phase2Date(item.requested_end_at))}</p>${item.review_note ? `<p class="muted">${escapeHtml(item.review_note)}</p>` : ""}</article>`).join("") || '<p class="muted">目前沒有輪播申請。</p>'; };
   document.querySelector("#matchingFeatureForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = event.currentTarget, data = Object.fromEntries(new FormData(form)); try { await withButtonPending(form.querySelector("button"), () => api("matching-feature-applications", { method: "POST", body: data })); form.reset(); await loadFeatures(); showMessage("#matchingFeatureMessage", "莓好圈輪播申請已送出。"); } catch (error) { showMessage("#matchingFeatureMessage", error.message, true); } });
 
-  await Promise.all([loadIdentity(), loadProfile(), loadRecords(), loadFeatures()]);
+  let starCirclePayload = { categories: [], follows: [] }, activeStarCategory = "all";
+  const renderStarCircle = () => {
+    const categoryRoot = document.querySelector("#followCategoryFilters"), listRoot = document.querySelector("#starCircleList");
+    if (!categoryRoot || !listRoot) return;
+    categoryRoot.innerHTML = `<button type="button" data-star-category="all">全部</button>${starCirclePayload.categories.map((item) => `<button type="button" data-star-category="${escapeHtml(item.category_id)}">${escapeHtml(item.category_name)}${item.is_public ? "・公開" : ""}</button>`).join("")}`;
+    categoryRoot.querySelectorAll("button").forEach((button) => { button.classList.toggle("active", button.dataset.starCategory === activeStarCategory); button.addEventListener("click", () => { activeStarCategory = button.dataset.starCategory; renderStarCircle(); }); });
+    const rows = activeStarCategory === "all" ? starCirclePayload.follows : starCirclePayload.follows.filter((item) => item.category_ids.includes(activeStarCategory));
+    listRoot.innerHTML = rows.map((item) => { const profile=item.profile||{}; const href=new URL("match.html",location.href); href.searchParams.set("profile",profile.public_slug||""); return `<article class="resource-card"><div class="resource-card-head"><span>⭐ 追蹤中</span></div><h3>${escapeHtml(profile.display_name||"莓好圈會員")}</h3><p>${escapeHtml(profile.headline||"查看我的莓好圈")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看 MY 莓好圈</a></article>`; }).join("") || '<p class="muted">目前沒有這個分類的追蹤對象。</p>';
+  };
+  const loadStarCircle = async () => { starCirclePayload = await api("follow-categories"); renderStarCircle(); };
+  document.querySelector("#followCategoryForm")?.addEventListener("submit", async (event) => { event.preventDefault(); const form=event.currentTarget,data=Object.fromEntries(new FormData(form)); data.is_public=Boolean(form.elements.is_public.checked); try { await withButtonPending(form.querySelector("button"),()=>api("follow-categories",{method:"POST",body:data})); form.reset(); await loadStarCircle(); showMessage("#starCircleMessage","追蹤分類已新增。"); } catch(error){ showMessage("#starCircleMessage",error.message,true); } });
+
+  const resourceNeedRoot = document.querySelector("#resourceNeedList");
+  const loadResourceNeeds = async () => { const items=phase2Items(await api("my-resource-needs"),"needs","items"); if(resourceNeedRoot) resourceNeedRoot.innerHTML=items.map((item)=>`<article class="phase2-card"><div class="phase2-card-head"><strong>${escapeHtml(item.title)}</strong>${phase2Status(item.status)}</div><p>${escapeHtml(item.description||"尚未填寫需求內容")}</p><div class="phase2-actions">${["draft","seeking"].includes(item.status)?`<button class="btn ghost small" type="button" data-close-resource-need="${escapeHtml(item.need_id)}">標記已完成</button>`:""}</div></article>`).join("")||'<p class="muted">目前沒有資源需求。</p>'; resourceNeedRoot?.querySelectorAll("[data-close-resource-need]").forEach((button)=>button.addEventListener("click",async()=>{try{await api("my-resource-needs",{method:"PATCH",body:{need_id:button.dataset.closeResourceNeed,status:"completed"}});await loadResourceNeeds();}catch(error){showMessage("#resourceNeedMessage",error.message,true);}})); };
+  document.querySelector("#resourceNeedForm")?.addEventListener("submit",async(event)=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form));try{await withButtonPending(form.querySelector("button"),()=>api("my-resource-needs",{method:"POST",body:data}));form.reset();await loadResourceNeeds();showMessage("#resourceNeedMessage","資源需求已新增。");}catch(error){showMessage("#resourceNeedMessage",error.message,true);}});
+
+  await Promise.all([loadIdentity(), loadProfile(), loadRecords(), loadFeatures(), loadStarCircle(), loadResourceNeeds()]);
 }
 
 function showAdminPeopleMessage(text, isError = false) {
@@ -962,12 +986,34 @@ const accountStatusBadge = (status) => {
   return `<span class="account-status-badge account-status-${escapeHtml(meta[1])}">${escapeHtml(meta[0])}</span>`;
 };
 
-async function publicPhase2Api(action, query = "") {
+async function publicPhase2Api(action, query = "", options = {}) {
   const publicApiBase = cfg.matchingPublicApiBase || cfg.apiBase.replace(/\/booking-api\/?$/, "/matching-public");
-  const response = await fetch(`${publicApiBase}?action=${encodeURIComponent(action)}${query}`);
+  const response = await fetch(`${publicApiBase}?action=${encodeURIComponent(action)}${query}`, { method: options.method || "GET", headers: options.body ? { "Content-Type": "application/json" } : undefined, body: options.body ? JSON.stringify(options.body) : undefined });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(response.status === 404 ? "找不到這個莓好圈頁面，或頁面目前未公開。" : (data.message || data.error || "預約莓好圈資料暫時無法載入。"));
+  if (!response.ok) throw new Error(response.status === 404 ? "找不到這個莓好圈頁面，或頁面目前未公開。" : (data.message || data.error || "莓好預約圈資料暫時無法載入。"));
   return data;
+}
+
+const resourceCategoryLabels = { benefits:"福利／補助",ai_digital:"AI／數位",learning:"學習／課程",work_tools:"工作工具",market_work:"市場／工作／創業",lifestyle:"生活",events_cooperation:"活動／合作／機會" };
+function resourceCard(item, source = "resource_center") {
+  return `<article class="resource-card" data-resource-card="${escapeHtml(item.resource_id)}"><div class="resource-card-head"><span>${escapeHtml(resourceCategoryLabels[item.category]||item.category)}</span>${item.featured?'<span class="badge neutral">精選</span>':""}</div><h3>${escapeHtml(item.resource_name)}</h3><p>${escapeHtml(item.resource_description||"")}</p><div class="resource-tag-row">${(item.tags||[]).slice(0,4).map((tag)=>`<span>${escapeHtml(tag)}</span>`).join("")}</div><div class="resource-actions"><a class="btn small" href="${escapeHtml(item.resource_url)}" target="_blank" rel="noopener noreferrer" data-resource-open="${escapeHtml(item.resource_id)}" data-resource-source="${escapeHtml(source)}">開啟資源</a>${(item.related_service_ids||[]).length?'<a class="btn ghost small" href="index.html#serviceCatalog">相關莓好服務</a>':""}<a class="btn ghost small" href="match.html?v=20261008-resource-circle">相關莓好圈</a></div></article>`;
+}
+function bindResourceClicks(root) {
+  root?.querySelectorAll("[data-resource-open]").forEach((link)=>link.addEventListener("click",()=>{ publicPhase2Api("resource-click","",{method:"POST",body:{resource_id:link.dataset.resourceOpen,source:link.dataset.resourceSource||"resource_center",destination_type:"resource"}}).catch(()=>{}); }));
+}
+async function initResourcesHomeFeed() {
+  const root=document.querySelector("#resourceHomeFeed"); if(!root)return;
+  try { const items=phase2Items(await publicPhase2Api("public-resources","&featured=true&limit=6"),"resources","items"); root.innerHTML=items.map((item)=>resourceCard(item,"home")).join("")||'<p class="muted">目前沒有精選資源。</p>'; bindResourceClicks(root); }
+  catch { root.innerHTML='<p class="muted">熱門資源暫時無法載入，請稍後再試。</p>'; }
+}
+async function initResourcesPage() {
+  const listRoot=document.querySelector("#resourceList"),filterRoot=document.querySelector("#resourceCategoryFilter"),search=document.querySelector("#resourceSearch"); if(!listRoot)return;
+  try {
+    const items=phase2Items(await publicPhase2Api("public-resources","&limit=100"),"resources","items"); let active="all";
+    const render=()=>{ const query=String(search?.value||"").trim().toLowerCase(); const filtered=items.filter((item)=>(active==="all"||item.category===active)&&(!query||JSON.stringify([item.resource_name,item.resource_description,item.tags,item.sub_category]).toLowerCase().includes(query))); listRoot.innerHTML=filtered.map((item)=>resourceCard(item,"resource_center")).join("")||'<p class="muted">沒有符合條件的資源。</p>'; bindResourceClicks(listRoot); filterRoot?.querySelectorAll("button").forEach((button)=>{const selected=button.dataset.resourceCategory===active;button.classList.toggle("active",selected);button.setAttribute("aria-pressed",String(selected));}); };
+    if(filterRoot){ const categories=[...new Set(items.map((item)=>item.category))]; filterRoot.innerHTML=`<button type="button" data-resource-category="all" aria-pressed="true">全部</button>${categories.map((category)=>`<button type="button" data-resource-category="${escapeHtml(category)}" aria-pressed="false">${escapeHtml(resourceCategoryLabels[category]||category)}</button>`).join("")}`; filterRoot.querySelectorAll("button").forEach((button)=>button.addEventListener("click",()=>{active=button.dataset.resourceCategory;render();})); }
+    search?.addEventListener("input",render); render();
+  } catch(error){listRoot.innerHTML=`<p class="muted">莓好資源暫時無法載入：${escapeHtml(error.message)}</p>`;}
 }
 
 const matchingList = (value) => Array.isArray(value) ? value.filter(Boolean) : (value ? [value] : []);
@@ -1013,15 +1059,15 @@ async function initMatchingHomeFeed() {
   const root = document.querySelector("#matchingHomeFeed");
   if (!root) return;
   try {
-    const payload = await publicPhase2Api("matching-feature-feed", "&limit=6");
-    const items = phase2Items(payload, "items", "profiles", "feed");
+    const payload = await publicPhase2Api("matching-discovery-feed", "&limit=12");
+    const items = [...phase2Items(payload, "carousel"), ...phase2Items(payload, "popular")].filter((item,index,rows)=>rows.findIndex((row)=>row.user_id===item.user_id)===index).slice(0,6);
     root.innerHTML = items.map((item) => {
-      const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-services");
+      const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-resource-circle");
       href.searchParams.set("profile", String(item.public_slug || ""));
-      return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml(item.service_region || "線上／地區洽談")}</p><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3><p>${escapeHtml(item.headline || item.public_intro || "查看公開的我的莓好圈")}</p><a class="btn ghost small" href="${escapeHtml(href.href)}">查看我的莓好圈</a></article>`;
+      return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml((item.identities||[]).map((tag)=>tag.name).join("・")||"莓好圈會員")}</p><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3><p>${escapeHtml(item.headline || "查看公開的我的莓好圈")}</p><div class="circle-social-counts"><span>❤️ ${Number(item.stats?.like_count||0)}</span><span>⭐ ${Number(item.stats?.follower_count||0)}</span></div><a class="btn ghost small" href="${escapeHtml(href.href)}">查看 MY 莓好圈</a></article>`;
     }).join("") || '<p class="muted">目前沒有排程中的莓好圈推薦，歡迎稍後再來看看。</p>';
   } catch (error) {
-    root.innerHTML = `<p class="muted">莓好圈推薦暫時無法載入。<a href="match.html?v=20261008-services">進入預約莓好圈</a></p>`;
+    root.innerHTML = `<p class="muted">莓好圈推薦暫時無法載入。<a href="match.html?v=20261008-resource-circle">進入莓好預約圈</a></p>`;
   }
 }
 
@@ -1029,65 +1075,47 @@ async function initMatchingPage() {
   const params = new URLSearchParams(location.search), slug = params.get("profile")?.trim();
   const state = document.querySelector("#matchingProfileState"), root = document.querySelector("#matchingPublicProfile");
   const categoryRoot = document.querySelector("#matchingCategoryFilter");
+  const carouselSection = document.querySelector("#matchingCarouselSection"), carouselRoot = document.querySelector("#matchingCarousel"), carouselIndicator = document.querySelector("#matchingCarouselIndicator");
   const latestSection = document.querySelector("#matchingLatestSection"), latestRoot = document.querySelector("#matchingLatestFeed");
   const popularSection = document.querySelector("#matchingPopularSection"), popularRoot = document.querySelector("#matchingPopularFeed");
-  const circleCategories = [
-    ["all", "全部"],
-    ["people", "莓你不可"],
-    ["voice", "莓好聲音"],
-    ["base", "莓好基地"],
-    ["learning", "莓好學習"],
-    ["digital", "莓好數位"],
-  ];
-  const circleCategoryFor = (payload) => {
-    const text = JSON.stringify(payload || {}).toLowerCase();
-    if (/(錄音|歌唱|配音|聲音|podcast|有聲書|音樂)/i.test(text)) return "voice";
-    if (/(空間|場地|基地|共享|直播|拍攝|工作室|展覽)/i.test(text)) return "base";
-    if (/(課程|教學|親子|共學|讀書會|工作坊|講座|學習)/i.test(text)) return "learning";
-    if (/(ai|網站|自動化|數位|chatgpt|gemini|canva|excel|notion|make|zapier|agent|簡報|電子書)/i.test(text)) return "digital";
-    return "people";
-  };
   const feedCard = (item) => {
     const itemSlug = String(item.public_slug || "");
-    const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-services"); href.searchParams.set("profile", itemSlug);
-    const verified = item.verifiedIdentities || [];
-    return `<article class="matching-feed-card"><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3>${verified.length ? `<div class="matching-chip-row" aria-label="已認證身份">${verified.map((name) => `<span class="matching-chip">✓ ${escapeHtml(name)}</span>`).join("")}</div>` : ""}<a class="btn ghost small" href="${escapeHtml(href.href)}">查看我的莓好圈</a></article>`;
+    const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-resource-circle"); href.searchParams.set("profile", itemSlug);
+    const identities = item.identities || [], avatar = safeHttpUrl(item.avatar_url);
+    return `<article class="matching-feed-card">${avatar?`<img class="matching-feed-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(item.display_name||"會員")}的頭像" loading="lazy" />`:`<div class="matching-feed-avatar matching-avatar-fallback" aria-hidden="true">${escapeHtml(matchingInitial(item.display_name))}</div>`}<h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3><p>${escapeHtml(item.headline||"查看我的莓好圈")}</p>${identities.length ? `<div class="matching-chip-row" aria-label="已認證身份">${identities.map((tag) => `<span class="matching-chip">🔵 ${escapeHtml(tag.name||"身份")}</span>`).join("")}</div>` : ""}<div class="circle-social-counts"><span>❤️ ${Number(item.stats?.like_count||0)}</span><span>⭐ ${Number(item.stats?.follower_count||0)}</span></div><a class="btn ghost small" href="${escapeHtml(href.href)}">查看 MY 莓好圈</a></article>`;
   };
   const renderFeed = async () => {
-    const payload = await publicPhase2Api("matching-feature-feed", "&limit=10");
-    const sourceItems = phase2Items(payload, "items", "profiles", "feed").slice(0, 10);
-    const items = await Promise.all(sourceItems.map(async (item) => {
-      try {
-        const detail = await publicPhase2Api("public-matching-profile", `&profile=${encodeURIComponent(String(item.public_slug || ""))}`);
-        const tags = phase2Items(detail?.identity_tags || [], "items");
-        const verifiedIds = new Set(phase2Items(detail?.verifications || [], "items").map((entry) => String(entry.tag_id)));
-        const verifiedIdentities = tags.filter((tag) => verifiedIds.has(String(tag.tag_id))).map((tag) => tag.name || tag.tag_name).filter(Boolean);
-        return { ...item, published_at: detail?.profile?.published_at || item.published_at || "", verifiedIdentities, circleCategory: circleCategoryFor(detail) };
-      } catch {
-        return { ...item, published_at: item.published_at || "", verifiedIdentities: [], circleCategory: circleCategoryFor(item) };
-      }
-    }));
+    const payload = await publicPhase2Api("matching-discovery-feed", "&limit=50");
+    const items = phase2Items(payload, "items"), categories = phase2Items(payload, "categories");
     let activeCategory = "all";
+    let carouselIndex = 0, carouselTimer;
+    const filteredByCategory = (rows) => activeCategory === "all" ? rows : rows.filter((item) => (item.identities||[]).some((tag) => String(tag.tag_id) === activeCategory));
+    const renderCarousel = () => {
+      const rows=filteredByCategory(phase2Items(payload,"carousel")); if(!carouselRoot||!carouselSection)return;
+      if(!rows.length){carouselRoot.innerHTML='<p class="muted">目前沒有排程中的推薦輪播。</p>';if(carouselIndicator)carouselIndicator.textContent="0 / 0";carouselSection.classList.remove("hidden");return;}
+      carouselIndex=(carouselIndex+rows.length)%rows.length;carouselRoot.innerHTML=feedCard(rows[carouselIndex]);if(carouselIndicator)carouselIndicator.textContent=`${carouselIndex+1} / ${rows.length}`;carouselSection.classList.remove("hidden");
+      window.clearInterval(carouselTimer);if(!matchMedia("(prefers-reduced-motion: reduce)").matches&&rows.length>1)carouselTimer=window.setInterval(()=>{carouselIndex++;renderCarousel();},5000);
+    };
     const renderLists = () => {
-      const filtered = activeCategory === "all" ? items : items.filter((item) => item.circleCategory === activeCategory);
       const empty = '<p class="muted">目前沒有此分類的莓好圈推薦。</p>';
-      latestRoot.innerHTML = [...filtered].sort((a, b) => new Date(b.published_at || 0) - new Date(a.published_at || 0)).map(feedCard).join("") || empty;
-      popularRoot.innerHTML = [...filtered].sort((a, b) => Number(a.sort_order ?? 999) - Number(b.sort_order ?? 999)).slice(0, 10).map(feedCard).join("") || empty;
+      latestRoot.innerHTML = filteredByCategory(phase2Items(payload,"latest")).map(feedCard).join("") || empty;
+      popularRoot.innerHTML = filteredByCategory(phase2Items(payload,"popular")).map(feedCard).join("") || empty;
       categoryRoot.querySelectorAll("button").forEach((button) => {
         const selected = button.dataset.circleCategory === activeCategory;
         button.classList.toggle("active", selected);
         button.setAttribute("aria-pressed", String(selected));
       });
     };
-    categoryRoot.innerHTML = circleCategories.map(([id, label]) => `<button type="button" data-circle-category="${id}" aria-pressed="${id === "all"}">${label}</button>`).join("");
-    categoryRoot.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => { activeCategory = button.dataset.circleCategory; renderLists(); }));
-    renderLists();
+    categoryRoot.innerHTML = `<button type="button" data-circle-category="all" aria-pressed="true">全部</button>${categories.map((tag)=>`<button type="button" data-circle-category="${escapeHtml(tag.tag_id)}" aria-pressed="false">${escapeHtml(tag.name)}</button>`).join("")}`;
+    categoryRoot.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => { activeCategory = button.dataset.circleCategory; carouselIndex=0; renderLists(); renderCarousel(); }));
+    document.querySelector("#matchingCarouselPrev")?.addEventListener("click",()=>{carouselIndex--;renderCarousel();});document.querySelector("#matchingCarouselNext")?.addEventListener("click",()=>{carouselIndex++;renderCarousel();});
+    renderLists();renderCarousel();
     categoryRoot.classList.remove("hidden");
     latestSection.classList.remove("hidden");
     popularSection.classList.remove("hidden");
   };
   if (!slug) {
-    state.innerHTML = '<h1>預約莓好圈</h1><p>找到適合的人，讓需要被看見。找服務｜找合作｜找人才｜找機會。</p>';
+    state.innerHTML = '<h1>莓好預約圈</h1><p>找到適合的人，讓需要被看見。找服務｜找合作｜找人才｜找機會。</p>';
     await renderFeed(); return;
   }
   try {
@@ -1097,7 +1125,7 @@ async function initMatchingPage() {
     const tags = phase2Items(payload?.identity_tags || profile.identity_tags || profile.tags || [], "items"), tagById = new Map(tags.map((tag) => [String(tag.tag_id), tag])); const verifications = phase2Items(payload?.verifications || profile.verifications || [], "items");
     const provider = payload?.provider, partner = payload?.partner, seeker = payload?.seeker;
     const hasDemand = Boolean(seeker), isBusiness = Boolean(partner || seeker), isDemand = isBusiness;
-    const displayName = profile.display_name || provider?.brand_name || partner?.organization_name || "媒合會員";
+    const displayName = profile.welcome_name || profile.display_name || provider?.brand_name || partner?.organization_name || "媒合會員";
     const serviceItems = seeker ? matchingList(seeker.need_categories) : partner ? [...matchingList(partner.partner_types), ...matchingList(partner.resources)] : [provider?.service_mode, provider?.quote_method, provider?.availability_status].flatMap(matchingList);
     const cooperationItems = provider ? [provider.accept_projects ? "專案合作" : null, provider.accept_long_term ? "長期合作" : null, provider.member_discount].filter(Boolean) : partner ? [...matchingList(partner.cooperation_methods), partner.cooperation_conditions].filter(Boolean) : [seeker?.cooperation_type, seeker?.timeline].filter(Boolean);
     const locationText = profile.service_region || provider?.service_area || partner?.service_area || partner?.location || seeker?.region || "地區洽談";
@@ -1109,14 +1137,60 @@ async function initMatchingPage() {
     root.classList.toggle("matching-profile-talent", !isBusiness);
     root.innerHTML = `<section class="matching-profile-hero"><div class="matching-profile-avatar" aria-hidden="true">${escapeHtml(matchingInitial(displayName))}</div><div class="matching-profile-identity"><div class="matching-profile-badges"><span>${isDemand ? "需求方／廠商" : "服務者／合作夥伴"}</span>${verifications.length ? '<span class="is-verified">✓ 平台已認證</span>' : '<span>公開資料已審核</span>'}</div><p class="eyebrow">PUBLIC MATCHING PROFILE</p><h1 id="matchingPublicName">${escapeHtml(displayName)}</h1><p class="matching-headline">${escapeHtml(profile.headline || (isDemand ? seeker?.looking_for : partner?.introduction) || "歡迎透過平台提出媒合")}</p><div class="matching-chip-row">${tags.length ? tags.map((tag) => `<span class="matching-chip">${escapeHtml(tag.name || tag.tag_name || tag)}</span>`).join("") : '<span class="matching-chip is-muted">媒合會員</span>'}</div></div><div class="matching-profile-quick"><span><small>服務／需求地區</small><strong>⌖ ${escapeHtml(locationText)}</strong></span><span><small>可合作時間</small><strong>◷ ${escapeHtml(profile.availability_summary || provider?.available_hours || seeker?.timeline || "時間洽談")}</strong></span></div></section><div class="matching-profile-layout"><div class="matching-profile-content"><section class="matching-detail-card matching-about-card"><div class="matching-card-heading"><span class="matching-section-icon">✦</span><div><p class="eyebrow">ABOUT</p><h2>${isDemand ? "需求說明" : "關於我"}</h2></div></div><p class="preserve-lines matching-intro-copy">${escapeHtml(introText)}</p></section><div class="matching-detail-grid"><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">▦</span><div><p class="eyebrow">${isDemand ? "NEEDS" : "SERVICES"}</p><h2>${detailTitle}</h2><small>${detailSubtitle}</small></div></div><div class="matching-chip-row">${matchingChips(serviceItems)}</div></section><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">↗</span><div><p class="eyebrow">COOPERATION</p><h2>合作方式</h2><small>可依實際內容進一步確認</small></div></div><div class="matching-chip-row">${matchingChips(cooperationItems)}</div></section><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">⌖</span><div><p class="eyebrow">AREA & BUDGET</p><h2>${isDemand ? "地區與預算" : "服務資訊"}</h2></div></div><dl class="matching-detail-list"><div><dt>地區</dt><dd>${escapeHtml(locationText)}</dd></div><div><dt>${isDemand ? "預算" : "費用"}</dt><dd>${escapeHtml(priceText)}</dd></div></dl></section><section class="matching-detail-card"><div class="matching-card-heading"><span class="matching-section-icon">✓</span><div><p class="eyebrow">VERIFICATION</p><h2>平台認證</h2></div></div>${verifications.map((item) => `<div class="verification-public-row"><strong>✓ ${escapeHtml(tagById.get(String(item.tag_id))?.name || "身份")}</strong><span>已核對${item.verified_at ? `・${escapeHtml(new Date(item.verified_at).toLocaleDateString("zh-TW"))}` : ""}</span></div>`).join("") || '<p class="muted">目前沒有公開的有效認證。</p>'}</section></div>${publicLinks.length ? `<section class="matching-detail-card matching-portfolio-card"><div class="matching-card-heading"><span class="matching-section-icon">▣</span><div><p class="eyebrow">PORTFOLIO</p><h2>作品與公開連結</h2></div></div><div class="phase2-link-list">${publicLinks.map((url, index) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">公開連結 ${index + 1} <span aria-hidden="true">↗</span></a>`).join("")}</div></section>` : ""}</div><aside class="matching-profile-aside"><section class="matching-contact-card"><span class="matching-lock-mark" aria-hidden="true">⌁</span><p class="eyebrow">MEMBER CONTACT</p><h2>想與 ${escapeHtml(displayName)} ${isDemand ? "合作" : "洽談"}嗎？</h2><p>公開頁不顯示電話、Email、LINE 或地址。登入會員後，由平台留下可追蹤的媒合紀錄。</p><a class="btn" href="member.html?mode=member#matching-records">登入後提出媒合 <span aria-hidden="true">→</span></a><button class="btn ghost" type="button" data-match-share>分享此頁</button><small>🔒 聯絡資訊受平台保護</small></section><section class="matching-trust-card"><strong>莓好安全媒合</strong><ul><li>公開資料經平台審核</li><li>媒合內容由雙方確認</li><li>可於平台內留下問題回報</li></ul><p>認證只代表平台已核對指定資料，不代表服務品質、履約或專業資格保證。</p></section></aside></div>`;
     root.querySelector(".matching-profile-identity .eyebrow").textContent = "我的莓好圈";
+    root.querySelector(".matching-headline").textContent = profile.welcome_message || profile.headline || (isDemand ? seeker?.looking_for : partner?.introduction) || "歡迎透過平台提出媒合";
     root.querySelector("[data-match-share]").textContent = "分享我的莓好圈";
     root.classList.remove("hidden"); state.classList.add("hidden");
     bindMatchingShare(root, displayName);
+    const avatarUrl = safeHttpUrl(profile.avatar_url);
+    const avatarRoot = root.querySelector(".matching-profile-avatar");
+    if (avatarUrl && avatarRoot) {
+      avatarRoot.classList.add("has-image");
+      avatarRoot.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(displayName)}的頭像" />`;
+    }
+    const socialHost = root.querySelector(".matching-contact-card [data-match-share]");
+    if (socialHost && profile.user_id) {
+      socialHost.insertAdjacentHTML("beforebegin", `<div class="circle-social-actions"><button class="btn ghost" type="button" data-circle-like>♡ 喜歡 <span>${Number(payload?.stats?.like_count || 0)}</span></button><button class="btn ghost" type="button" data-circle-follow>☆ 追蹤 <span>${Number(payload?.stats?.follower_count || 0)}</span></button></div>`);
+      const likeButton = root.querySelector("[data-circle-like]"), followButton = root.querySelector("[data-circle-follow]");
+      const paintSocial = (social = {}) => {
+        likeButton?.classList.toggle("active", Boolean(social.liked));
+        followButton?.classList.toggle("active", Boolean(social.followed));
+        if (likeButton) likeButton.firstChild.textContent = social.liked ? "♥ 已喜歡 " : "♡ 喜歡 ";
+        if (followButton) followButton.firstChild.textContent = social.followed ? "★ 已追蹤 " : "☆ 追蹤 ";
+        if (social.stats && likeButton && followButton) {
+          likeButton.querySelector("span").textContent = String(Number(social.stats.like_count || 0));
+          followButton.querySelector("span").textContent = String(Number(social.stats.follower_count || 0));
+        }
+      };
+      try {
+        const client = await getProductionClient();
+        const { data: { session } } = await client.auth.getSession();
+        if (!session || session.user.id === profile.user_id) {
+          likeButton?.addEventListener("click", () => { location.href = session ? "member.html#my-circle" : "member.html?mode=member"; });
+          followButton?.addEventListener("click", () => { location.href = session ? "member.html#my-circle" : "member.html?mode=member"; });
+          if (session?.user.id === profile.user_id) {
+            likeButton?.setAttribute("disabled", "");
+            followButton?.setAttribute("disabled", "");
+          }
+        } else {
+          const currentSocial = await api("circle-social", { query: `&target_member_id=${encodeURIComponent(profile.user_id)}` });
+          paintSocial(currentSocial);
+          [[likeButton, "like"], [followButton, "follow"]].forEach(([button, kind]) => button?.addEventListener("click", async () => {
+            const active = !button.classList.contains("active");
+            try {
+              button.disabled = true;
+              const saved = await api("circle-social", { method: "POST", body: { target_member_id: profile.user_id, kind, active } });
+              paintSocial({ ...saved, liked: kind === "like" ? active : likeButton.classList.contains("active"), followed: kind === "follow" ? active : followButton.classList.contains("active") });
+            } catch (error) { showMatchingToast(error.message); }
+            finally { button.disabled = false; }
+          }));
+        }
+      } catch { /* 公開頁可正常瀏覽；登入後再啟用互動。 */ }
+    }
     const canonical = new URL("match.html", location.href); canonical.searchParams.set("profile", slug); document.querySelector("#matchingCanonical").href = canonical.href;
     document.title = `我的莓好圈｜${displayName}`; document.querySelector('meta[property="og:title"]')?.setAttribute("content", document.title);
     const description = String(profile.headline || profile.public_intro || "查看會員公開的我的莓好圈。").slice(0, 150); document.querySelector('meta[name="description"]')?.setAttribute("content", description); document.querySelector('meta[property="og:description"]')?.setAttribute("content", description);
     await renderFeed();
-  } catch (error) { state.classList.add("error"); state.innerHTML = `<h1>莓好圈頁面目前無法顯示</h1><p>${escapeHtml(error.message)}</p><a class="btn ghost" href="match.html?v=20261008-services">返回預約莓好圈</a>`; await renderFeed().catch(() => {}); }
+  } catch (error) { state.classList.add("error"); state.innerHTML = `<h1>莓好圈頁面目前無法顯示</h1><p>${escapeHtml(error.message)}</p><a class="btn ghost" href="match.html?v=20261008-resource-circle">返回莓好預約圈</a>`; await renderFeed().catch(() => {}); }
 }
 
 async function initAdminPeople(isDeveloper, currentUserId) {
@@ -1470,7 +1544,50 @@ async function initProductionAdmin() {
       } catch (error) { alert(error.message); }
     }));
   };
+  let adminResources = [];
+  const resourceForm = document.querySelector("#adminResourceForm");
+  const resetResourceForm = () => {
+    resourceForm?.reset();
+    if (resourceForm?.elements.resource_id) resourceForm.elements.resource_id.value = "";
+    if (resourceForm?.elements.sort_order) resourceForm.elements.sort_order.value = "0";
+  };
+  const renderAdminResources = () => {
+    const root = document.querySelector("#adminResourceList");
+    document.querySelector("#adminResourceCount").textContent = String(adminResources.length);
+    root.innerHTML = adminResources.map((item) => `<article class="phase2-card"><div class="phase2-card-head"><div><strong>${escapeHtml(item.resource_name)}</strong><small>${escapeHtml(resourceCategoryLabels[item.category] || item.category)}・${escapeHtml(item.resource_slug)}</small></div>${phase2Status(item.status)}</div><p>${escapeHtml(item.resource_description || "尚未填寫用途說明")}</p><p class="muted">導流 ${Number(item.click_count || 0)} 次・排序 #${Number(item.sort_order || 0)}${item.featured ? "・首頁精選" : ""}</p><div class="phase2-actions"><a class="btn ghost small" href="${escapeHtml(item.resource_url)}" target="_blank" rel="noopener noreferrer">查看資源</a><button class="btn ghost small" type="button" data-edit-admin-resource="${escapeHtml(item.resource_id)}">編輯</button></div></article>`).join("") || '<p class="muted">目前沒有資源資料。</p>';
+    root.querySelectorAll("[data-edit-admin-resource]").forEach((button) => button.addEventListener("click", () => {
+      const item = adminResources.find((row) => row.resource_id === button.dataset.editAdminResource);
+      if (!item || !resourceForm) return;
+      [...resourceForm.elements].forEach((field) => {
+        if (!field.name || !(field.name in item)) return;
+        if (field.type === "checkbox") field.checked = Boolean(item[field.name]);
+        else if (Array.isArray(item[field.name])) field.value = item[field.name].join(", ");
+        else field.value = item[field.name] ?? "";
+      });
+      resourceForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
+  };
+  const loadAdminResources = async () => {
+    adminResources = phase2Items(await api("admin-resources"), "resources", "items");
+    renderAdminResources();
+  };
+  resourceForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(resourceForm));
+    data.featured = Boolean(resourceForm.elements.featured.checked);
+    data.sort_order = Number(data.sort_order || 0);
+    ["tags", "related_service_ids", "related_role_ids", "related_opportunity_ids"].forEach((key) => { data[key] = String(data[key] || "").split(",").map((value) => value.trim()).filter(Boolean); });
+    const method = data.resource_id ? "PATCH" : "POST";
+    try {
+      await withButtonPending(resourceForm.querySelector('[type="submit"]'), () => api("admin-resources", { method, body: data }));
+      resetResourceForm();
+      await loadAdminResources();
+      showActionFeedback(document.querySelector("#adminResourceMessage"), method === "POST" ? "莓好資源已新增。" : "莓好資源已更新。", false, true);
+    } catch (error) { showActionFeedback(document.querySelector("#adminResourceMessage"), error.message, true, true); }
+  });
+  document.querySelector("#adminResourceCancelEdit")?.addEventListener("click", resetResourceForm);
   renderAdminInquiries();
+  await loadAdminResources();
   renderCalendar(); renderDay(today); renderPayments();
   try { await initAdminPeople(isDeveloper, member.user_id); }
   catch (error) { showAdminPeopleMessage(error instanceof Error ? error.message : "會員管理暫時無法載入", true); }
@@ -1483,4 +1600,5 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(page==='member')(production ? initProductionMember().catch((error) => { if (error.message !== "LOGIN_REQUIRED" && error.code !== "account_suspended") alert(error.message); }) : initMember());
   if(page==='admin')(production ? initProductionAdmin().catch((error) => { if (error.message !== "LOGIN_REQUIRED" && error.code !== "account_suspended") alert(error.message); }) : initAdmin());
   if(page==='match') initMatchingPage().catch((error) => { const root = document.querySelector("#matchingProfileState"); if (root) root.innerHTML = `<h1>莓好圈頁面目前無法顯示</h1><p>${escapeHtml(error.message)}</p>`; });
+  if(page==='resources') initResourcesPage();
 });

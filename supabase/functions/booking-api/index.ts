@@ -6,6 +6,8 @@ import { handleExistingAdmin } from "./lib/admin_existing.ts";
 import { adminAgreementRecords, adminAgreements, adminPeople, adminPersonGet, adminPersonPatch, adminRoleReview, adminSystemRole, adminTags } from "./lib/admin_people.ts";
 import { handleIdentityAdmin, handleIdentityMember } from "./lib/identity_verification.ts";
 import { handleMatchingAdmin, handleMatchingMember } from "./lib/matching.ts";
+import { handleCircleMember } from "./lib/circle_social.ts";
+import { handleResourceAdmin, handleResourceMember } from "./lib/resources.ts";
 
 Deno.serve(async (request) => {
   const origin = request.headers.get("origin");
@@ -38,6 +40,10 @@ Deno.serve(async (request) => {
   if (identityMemberResponse) return identityMemberResponse;
   const matchingMemberResponse = await handleMatchingMember(ctx, action, method);
   if (matchingMemberResponse) return matchingMemberResponse;
+  const circleMemberResponse = await handleCircleMember(ctx, action, method);
+  if (circleMemberResponse) return circleMemberResponse;
+  const resourceMemberResponse = await handleResourceMember(ctx, action, method);
+  if (resourceMemberResponse) return resourceMemberResponse;
 
   if (action.startsWith("admin-")) {
     const denied = requireAdmin(ctx);
@@ -56,6 +62,8 @@ Deno.serve(async (request) => {
     if (identityAdminResponse) return identityAdminResponse;
     const matchingAdminResponse = await handleMatchingAdmin(ctx, action, method);
     if (matchingAdminResponse) return matchingAdminResponse;
+    const resourceAdminResponse = await handleResourceAdmin(ctx, action, method);
+    if (resourceAdminResponse) return resourceAdminResponse;
   }
   return reply(origin, 404, { error: "Not found" });
 });
