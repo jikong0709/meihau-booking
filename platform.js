@@ -844,16 +844,33 @@ function serviceSortAmount(item) {
   const amounts = (item.price_options || []).filter((option) => option.amount !== null && !String(option.option_name || "").includes("加購")).map((option) => Number(option.amount));
   return amounts.length ? Math.min(...amounts) : null;
 }
+function officialTeamUrl(item) {
+  const href = new URL("match.html", location.href);
+  href.searchParams.set("v", "20261009-service-browse4");
+  href.searchParams.set("team", String(item.team_id || ""));
+  return href.href;
+}
 function officialServiceCard(item, variant = "full") {
   const partner = (item.identities || []).some((tag) => tag.tag_id === "official_partner") ? '<span class="official-partner-badge">官方合作</span>' : "";
   const image = `<div class="service-card-media"><img src="${escapeHtml(serviceCoverUrl(item))}" alt="${escapeHtml(item.display_name || "服務")}" loading="lazy" />${partner}</div>`;
   const provider = `<small class="service-card-provider">提供單位：${escapeHtml(item.team_name || "官方團隊")}</small>`;
-  const detail = `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item))}">查看詳情</a>`;
-  if (variant === "compact") return `<article class="service-reco-card" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-reco-body"><h3>${escapeHtml(item.display_name || "官方服務")}</h3>${provider}${detail}</div></article>`;
+  // 推薦卡的「查看詳情」進入官方團隊的莓好預約圈展示頁；完整服務卡整張可點，進入該服務主頁面
+  if (variant === "compact") return `<article class="service-reco-card" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-reco-body"><h3>${escapeHtml(item.display_name || "官方服務")}</h3>${provider}<a class="btn ghost small" href="${escapeHtml(officialTeamUrl(item))}">查看詳情</a></div></article>`;
   const tags = `<span class="service-tag">${escapeHtml(serviceFilterLabel(item.category_id))}</span>`;
-  const quote = item.allow_quote ? `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "quote"))}">開啟報價</a>` : "";
-  const negotiation = item.allow_negotiation ? `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "negotiation"))}">開啟議價</a>` : "";
-  return `<article class="service-list-card" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-list-body"><div class="service-tag-row">${tags}</div><h3>${escapeHtml(item.display_name || "官方服務")}</h3><p class="service-card-summary">${escapeHtml(item.headline || "")}</p>${provider}<strong class="service-card-price">${escapeHtml(officialPriceText(item))}</strong><div class="service-card-actions">${detail}<a class="btn small" href="${escapeHtml(officialServiceUrl(item, "apply"))}">立即申請／預約</a>${quote}${negotiation}</div></div></article>`;
+  const quote = item.allow_quote ? `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "quote"))}">報價</a>` : "";
+  const negotiation = item.allow_negotiation ? `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "negotiation"))}">議價</a>` : "";
+  const inquiry = `<a class="btn small" href="${escapeHtml(officialServiceUrl(item, "inquiry"))}">詢價</a>`;
+  return `<article class="service-list-card" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-list-body"><div class="service-tag-row">${tags}</div><h3><a class="service-card-link" href="${escapeHtml(officialServiceUrl(item))}">${escapeHtml(item.display_name || "官方服務")}</a></h3><p class="service-card-summary">${escapeHtml(item.headline || "")}</p>${provider}<strong class="service-card-price">${escapeHtml(officialPriceText(item))}</strong><div class="service-card-actions">${quote}${negotiation}${inquiry}</div></div></article>`;
+}
+async function renderOfficialTeamPage(teamId, state, root) {
+  const payload = await publicPhase2Api("matching-discovery-feed", "&limit=50");
+  const services = phase2Items(payload, "items").filter((item) => item.entity_type === "official_service" && item.team_id === teamId);
+  if (!services.length) { state.innerHTML = '<h1>找不到這個官方團隊</h1><p>團隊可能尚未公開，<a href="match.html">回到預約莓好圈</a>。</p>'; return; }
+  const first = services[0], logo = safeHttpUrl(first.avatar_url) || (/^assets\/[\w./-]+$/.test(String(first.avatar_url || "")) ? first.avatar_url : "");
+  document.title = `${first.team_name}｜莓好預約圈`;
+  state.classList.add("hidden");
+  root.className = "matching-profile-shell official-team-page";
+  root.innerHTML = `<section class="team-hero">${logo ? `<img class="team-hero-logo" src="${escapeHtml(logo)}" alt="${escapeHtml(first.team_name)}" />` : ""}<div><span class="official-partner-badge">官方合作</span><h1>${escapeHtml(first.team_name)}</h1><p>我的莓好圈｜提供 ${services.length} 項服務，請選擇需要的服務項目。</p><a class="team-back" href="match.html">← 返回預約莓好圈</a></div></section><section class="team-services"><h2>服務項目</h2><div class="service-list-grid">${services.map((item) => officialServiceCard(item, "full")).join("")}</div></section>`;
 }
 async function initMemberCircleCarousel() {
   const root = document.querySelector("#memberCircleCarousel"), dots = document.querySelector("#memberCircleDots");
@@ -1351,6 +1368,12 @@ async function initMatchingPage() {
     latestSection.classList.remove("hidden");
     popularSection.classList.remove("hidden");
   };
+  const teamParam = params.get("team")?.trim();
+  if (teamParam && !slug) {
+    try { await renderOfficialTeamPage(teamParam, state, root); root.classList.remove("hidden"); }
+    catch (error) { state.innerHTML = `<h1>莓好預約圈</h1><p>${escapeHtml(error.message)}</p>`; }
+    return;
+  }
   if (!slug) {
     state.innerHTML = '<h1>莓好預約圈</h1><p>找到適合的人，讓需要被看見。找服務｜找合作｜找人才｜找機會。</p>';
     await renderFeed(); return;
