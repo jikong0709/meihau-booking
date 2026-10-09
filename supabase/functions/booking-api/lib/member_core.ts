@@ -39,13 +39,14 @@ export async function handleAddresses(ctx: RequestContext, method: string) {
 
 export async function handleServices(ctx: RequestContext) {
   const { db, origin } = ctx;
+  const now = new Date().toISOString();
   const [{ data: services, error: servicesError }, { data: options, error: optionsError }, { data: addons, error: addonsError }, { data: officialTeams, error: teamsError }, { data: applicationFields, error: fieldsError }, { data: priceOptions, error: pricesError }] = await Promise.all([
     db.schema("booking").from("services").select("*").in("service_status", ["active", "coming_soon"]).order("sort_order"),
     db.schema("booking").from("service_options").select("option_id,service_id,option_name,status,sort_order").eq("status", "active").order("sort_order"),
     db.schema("booking").from("service_addons").select("*").eq("status", "active").order("sort_order"),
     db.schema("booking").from("official_teams").select("*").eq("status", "active").order("sort_order"),
     db.schema("booking").from("service_application_fields").select("*").eq("status", "active").order("sort_order"),
-    db.schema("booking").from("service_price_options").select("*").eq("status", "active").order("sort_order"),
+    db.schema("booking").from("service_price_options").select("*").eq("status", "active").or(`valid_from.is.null,valid_from.lte.${now}`).or(`valid_until.is.null,valid_until.gt.${now}`).order("sort_order"),
   ]);
   if (servicesError || optionsError || addonsError || teamsError || fieldsError || pricesError) return reply(origin, 500, { error: "Service catalog unavailable" });
   return reply(origin, 200, { services, options, addons, official_teams: officialTeams, application_fields: applicationFields, price_options: priceOptions });

@@ -72,16 +72,26 @@ export async function handlePublicMatching(request: Request, origin: string | nu
     if (error || teamsError) return contractError(origin, 503, "matching_feed_unavailable", "莓好預約圈暫時無法讀取");
     const teamIds = (teams || []).map((row: any) => row.team_id);
     const { data: officialServices } = teamIds.length ? await db.schema("booking").from("services")
-      .select("service_id,team_id,service_name,category_id,short_description,pricing_type,price_note,sort_order")
+      .select("service_id,team_id,service_name,category_id,short_description,cover_image,price,price_type,pricing_type,price_note,booking_type,allow_quote,allow_negotiation,sort_order")
       .in("team_id", teamIds).eq("service_status", "active").eq("display_in_meihao_circle", true).order("sort_order") : { data: [] };
-    const officialItems = (teams || []).map((team: any) => ({
-      entity_type: "official_partner", team_id: team.team_id, user_id: `official:${team.team_id}`,
-      display_name: team.team_name, headline: team.team_description, avatar_url: team.logo, cover_image: team.cover_image,
-      identities: [{ tag_id: "official_partner", name: "官方合作", slug: "official-partner" }],
-      service_scope: team.service_scope || [], services: (officialServices || []).filter((service: any) => service.team_id === team.team_id),
-      stats: { like_count: 0, follower_count: 0, popularity_score: 0 }, sort_order: team.sort_order,
-      is_carousel_enabled: true, carousel_status: "active", carousel_priority: team.sort_order,
-    }));
+    const serviceIds = (officialServices || []).map((row: any) => row.service_id);
+    const { data: priceOptions } = serviceIds.length ? await db.schema("booking").from("service_price_options")
+      .select("price_option_id,service_id,option_name,amount,pricing_type,price_note,valid_from,valid_until,sort_order")
+      .in("service_id", serviceIds).eq("status", "active").or(`valid_from.is.null,valid_from.lte.${now}`).or(`valid_until.is.null,valid_until.gt.${now}`).order("sort_order") : { data: [] };
+    const teamById = new Map((teams || []).map((team: any) => [team.team_id, team]));
+    const officialItems = (officialServices || []).map((service: any) => {
+      const team: any = teamById.get(service.team_id) || {};
+      return {
+        entity_type: "official_service", service_id: service.service_id, team_id: service.team_id, user_id: `official-service:${service.service_id}`,
+        display_name: service.service_name, headline: service.short_description, avatar_url: team.logo, cover_image: service.cover_image || team.cover_image,
+        category_id: service.category_id, price: service.price, price_type: service.price_type, pricing_type: service.pricing_type,
+        price_note: service.price_note, booking_type: service.booking_type, allow_quote: service.allow_quote, allow_negotiation: service.allow_negotiation,
+        team_name: team.team_name, price_options: (priceOptions || []).filter((option: any) => option.service_id === service.service_id),
+        identities: [{ tag_id: "official_partner", name: "官方合作", slug: "official-partner" }],
+        stats: { like_count: 0, follower_count: 0, popularity_score: 0 }, sort_order: service.sort_order,
+        is_carousel_enabled: true, carousel_status: "active", carousel_priority: service.sort_order,
+      };
+    });
     const userIds = (profiles || []).map((row: any) => row.user_id);
     if (!userIds.length) return reply(origin, 200, { categories: [], official_partners: officialItems, carousel: officialItems, latest: [], popular: [], items: officialItems });
     const [{ data: members }, { data: stats }, { data: verifications }] = await Promise.all([

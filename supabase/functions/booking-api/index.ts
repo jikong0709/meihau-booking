@@ -8,6 +8,7 @@ import { handleIdentityAdmin, handleIdentityMember } from "./lib/identity_verifi
 import { handleMatchingAdmin, handleMatchingMember } from "./lib/matching.ts";
 import { handleCircleMember } from "./lib/circle_social.ts";
 import { handleResourceAdmin, handleResourceMember } from "./lib/resources.ts";
+import { handleServiceQuoteAdmin, handleServiceQuotes } from "./lib/service_quotes.ts";
 
 Deno.serve(async (request) => {
   const origin = request.headers.get("origin");
@@ -44,12 +45,16 @@ Deno.serve(async (request) => {
   if (circleMemberResponse) return circleMemberResponse;
   const resourceMemberResponse = await handleResourceMember(ctx, action, method);
   if (resourceMemberResponse) return resourceMemberResponse;
+  const quoteResponse = await handleServiceQuotes(ctx, action, method);
+  if (quoteResponse) return quoteResponse;
 
   if (action.startsWith("admin-")) {
     const denied = requireAdmin(ctx);
     if (denied) return denied;
     const legacy = await handleExistingAdmin(ctx, action, method);
     if (legacy) return legacy;
+    const quoteAdminResponse = await handleServiceQuoteAdmin(ctx, action, method);
+    if (quoteAdminResponse) return quoteAdminResponse;
     if (action === "admin-people" && method === "GET") return await adminPeople(ctx);
     if (action === "admin-person" && method === "GET") return await adminPersonGet(ctx);
     if (action === "admin-person" && method === "PATCH") return await adminPersonPatch(ctx);

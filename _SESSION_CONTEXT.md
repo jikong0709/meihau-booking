@@ -303,3 +303,15 @@
 - commit `51e7e73` 已推送 main；Pages workflow `37885094049` success；正式 HTML／JS／API 讀回新版。
 - 右側 in-app browser 目標：`https://jikong0709.github.io/meihau-booking/match.html?v=51e7e73`。
 - 尚待：使用者目視、登入後會員／Admin 寫入、Claude Code fresh-context 最終驗收；瀏覽器自動化 helper 因 Windows sandbox crash 未取得截圖。
+
+
+## 2026-10-09｜官方服務卡片定價／報價／議價更新（最新，本機待驗證）
+
+- 目前工作樹已完成 17 張個別官方服務卡模式；原本 2 張團隊卡不再作為輪播主體。
+- 新 migration：supabase/migrations/20261009074823_official_service_quote_negotiation.sql；新增錄音室租借、價格有效期間、報價／議價開關、案件／留言／歷程／通知／團隊成員表。
+- 新 API：supabase/functions/booking-api/lib/service_quotes.ts；會員僅讀自己的案件，官方團隊成員僅讀所屬團隊，admin／developer 可管理；接受正式報價後才可轉未付款預約。
+- 前端沿用既有 member／admin／match 容器；一般詢價與預約仍保留；五頁資產版本改為 platform.js?v=20261009-official-services。
+- 本機 PASS：JS 語法、Edge Function bundle、diff check、卡片行為契約、17 服務靜態數量、5 張新表強制 RLS。
+- 尚未執行：正式 DB、Functions／Pages 部署、登入帳號與手機／桌機瀏覽器驗收；不得先部署 Function 再補 migration。
+- 工作樹仍有使用者原有未追蹤／temp 項目；只處理本段列出的功能檔，不 stage supabase/.temp、.recall、LOGO、output、其他更換的美術UI。
+- 下一步：Claude Code fresh-context 驗收後，按 migration dry-run／套用／讀回 → Functions → Pages → 登入驗收順序執行。

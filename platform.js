@@ -583,9 +583,31 @@ async function initProductionMember() {
   addressForm?.addEventListener("submit", async (event) => { event.preventDefault(); const form = Object.fromEntries(new FormData(addressForm)); const created = await api("addresses", { method: "POST", body: form }); addresses.push(created); addressForm.reset(); showAddressForm(false); renderAddresses(); });
   const catalogData = await api("services");
   let inquiries = await api("inquiries");
+  let quoteCases = phase2Items(await api("quote-cases"), "items");
+  const quoteCaseStatusLabels = { submitted: "已送出", provider_replied: "提供方已回覆", awaiting_member: "待會員確認", accepted: "已接受", rejected: "已拒絕", expired: "已逾期", converted_to_booking: "已轉為預約", cancelled: "已取消" };
+  const reloadQuoteCases = async () => { quoteCases = phase2Items(await api("quote-cases"), "items"); renderInquiries(); };
   const renderInquiries = () => {
     const labels = { pending: "待處理", reviewing: "評估中", quoted: "已報價", accepted: "已接受", closed: "已結案" };
-    document.querySelector("#memberInquiryList").innerHTML = inquiries.map((item) => `<div class="order-row"><strong>${escapeHtml(item.service_name)}</strong><span>${escapeHtml(item.requirements)}</span><span>${item.quoted_amount === null ? "尚未報價" : money(item.quoted_amount)}</span><span class="badge neutral">${labels[item.status] || escapeHtml(item.status)}</span></div>`).join("") || '<p class="muted">目前沒有詢價紀錄</p>';
+    const inquiryHtml = inquiries.map((item) => `<div class="order-row"><strong>${escapeHtml(item.service_name)}</strong><span>${escapeHtml(item.requirements)}</span><span>${item.quoted_amount === null ? "尚未報價" : money(item.quoted_amount)}</span><span class="badge neutral">${labels[item.status] || escapeHtml(item.status)}</span></div>`).join("");
+    const caseHtml = quoteCases.map((item) => {
+      const messages = (item.messages || []).map((message) => `<li><b>${escapeHtml(message.sender_role)}</b>：${escapeHtml(message.message_text)}${message.attachment_url ? ` <a href="${escapeHtml(message.attachment_url)}" target="_blank" rel="noopener noreferrer">附件</a>` : ""}</li>`).join("");
+      const canReply = !["rejected","expired","converted_to_booking","cancelled"].includes(item.status);
+      return `<article class="order-row quote-case-row"><strong>${escapeHtml(item.service?.service_name || item.service_id)}｜${item.case_type === "quote" ? "報價" : "議價"}</strong><span>案件 ${escapeHtml(item.case_no)}</span><span>${item.provider_quote_amount === null ? "尚未正式報價" : money(item.provider_quote_amount)}${item.valid_until ? `｜有效至 ${new Date(item.valid_until).toLocaleString("zh-TW")}` : ""}</span><span class="badge neutral">${quoteCaseStatusLabels[item.status] || escapeHtml(item.status)}</span><p>${escapeHtml(item.requirements)}</p><details><summary>雙方留言（${(item.messages || []).length}）</summary><ul>${messages || "<li>尚無留言</li>"}</ul></details><div class="official-team-actions">${canReply ? `<button class="btn ghost small" type="button" data-quote-reply="${item.quote_id}">留言</button>` : ""}${item.status === "awaiting_member" ? `<button class="btn small" type="button" data-quote-accept="${item.quote_id}">接受報價</button><button class="btn ghost small" type="button" data-quote-reject="${item.quote_id}">拒絕</button>` : ""}${item.status === "accepted" ? `<button class="btn small" type="button" data-quote-convert="${item.quote_id}">建立預約</button>` : ""}</div></article>`;
+    }).join("");
+    document.querySelector("#memberInquiryList").innerHTML = inquiryHtml + caseHtml || '<p class="muted">目前沒有詢價／報價紀錄</p>';
+    document.querySelectorAll("[data-quote-reply]").forEach((button) => button.addEventListener("click", async () => {
+      const messageText = prompt("請輸入留言"); if (!messageText?.trim()) return;
+      try { await api("quote-message", { method: "POST", body: { quote_id: button.dataset.quoteReply, message_text: messageText } }); await reloadQuoteCases(); } catch (error) { alert(error.message); }
+    }));
+    document.querySelectorAll("[data-quote-accept],[data-quote-reject]").forEach((button) => button.addEventListener("click", async () => {
+      const nextStatus = button.dataset.quoteAccept ? "accepted" : "rejected";
+      if (!confirm(nextStatus === "accepted" ? "確認接受這份正式報價？" : "確認拒絕這份報價？")) return;
+      try { await api("quote-member-action", { method: "POST", body: { quote_id: button.dataset.quoteAccept || button.dataset.quoteReject, next_status: nextStatus } }); await reloadQuoteCases(); } catch (error) { alert(error.message); }
+    }));
+    document.querySelectorAll("[data-quote-convert]").forEach((button) => button.addEventListener("click", async () => {
+      if (!confirm("確認依已接受的價格建立預約？尚不會產生付款成功紀錄。")) return;
+      try { await api("quote-convert", { method: "POST", body: { quote_id: button.dataset.quoteConvert } }); orders = await api("orders"); renderOrders(); await reloadQuoteCases(); alert("預約已建立，付款狀態仍為未付款。"); } catch (error) { alert(error.message); }
+    }));
   };
   renderInquiries();
   const serviceMenu = document.querySelector("#serviceMenu");
@@ -660,6 +682,17 @@ async function initProductionMember() {
       document.querySelector("#checkoutLines").innerHTML = `<div class="checkout-line"><span>${escapeHtml(item.service_name)}</span><strong>${priceLabel(item)}</strong></div>`
         + priceOptions.map((option) => `<div class="checkout-line service-price-option"><span>${escapeHtml(option.option_name)}</span><strong>${option.amount === null ? priceLabel(option) : money(option.amount)}</strong></div>`).join("")
         + (item.application_method ? `<p class="service-application-note">${escapeHtml(item.application_method)}</p>` : "");
+      const specialActions = [item.allow_quote ? '<button class="btn ghost small" type="button" data-open-special-case="quote">開啟報價</button>' : "", item.allow_negotiation ? '<button class="btn ghost small" type="button" data-open-special-case="negotiation">開啟議價</button>' : ""].join("");
+      if (specialActions) document.querySelector("#checkoutLines").insertAdjacentHTML("beforeend", `<div class="official-team-actions">${specialActions}</div>`);
+      document.querySelectorAll("[data-open-special-case]").forEach((button) => button.addEventListener("click", async () => {
+        const requirements = document.querySelector("#inquiryRequirements").value.trim();
+        if (requirements.length < 3) { alert("請先填寫至少 3 個字的需求說明。"); document.querySelector("#inquiryRequirements").focus(); return; }
+        const field = (key) => document.querySelector(`[data-application-field="${key}"]`)?.value.trim() || "";
+        try {
+          await api("quote-cases", { method: "POST", body: { service_id: item.service_id, case_type: button.dataset.openSpecialCase, requirements, preferred_date: document.querySelector("#serviceDate").value || null, member_budget: field("budget") || null, attachment_url: field("reference_url") || null } });
+          await reloadQuoteCases(); show("inquiries"); alert(button.dataset.openSpecialCase === "quote" ? "報價案件已建立。" : "議價討論已建立。");
+        } catch (error) { alert(error.message); }
+      }));
       document.querySelector("#checkoutTotal").textContent = "人工報價";
     } else {
       checkoutButton.disabled = true;
@@ -775,20 +808,25 @@ async function initProductionMember() {
   if (targetService) openMemberService(targetService.category_id, targetService.service_id);
 }
 
-function officialServiceUrl(item, apply = false) {
+function officialServiceUrl(item, action = "") {
   const href = new URL("member.html", location.href);
-  href.searchParams.set("v", "20261008-official-teams");
-  href.searchParams.set("service_team", String(item.team_id || ""));
-  const firstService = (item.services || [])[0];
-  if (firstService?.service_id) href.searchParams.set("service", firstService.service_id);
-  if (apply) href.searchParams.set("apply", "1");
+  href.searchParams.set("v", "20261009-official-services");
+  if (item.service_id) href.searchParams.set("service", String(item.service_id));
+  if (item.team_id) href.searchParams.set("service_team", String(item.team_id));
+  if (action) href.searchParams.set("service_action", action);
   return href.href;
 }
-function officialMatchingCard(item) {
-  const scope = (item.service_scope || []).join("・") || "官方合作服務";
-  return `<article class="matching-feed-card official-team-card"><p class="eyebrow"><span class="official-partner-badge">官方合作</span></p><h3>${escapeHtml(item.display_name || "官方團隊")}</h3><p>${escapeHtml(item.headline || scope)}</p><small>${escapeHtml(scope)}</small><div class="official-team-actions"><a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item))}">查看服務</a><a class="btn small" href="${escapeHtml(officialServiceUrl(item, true))}">申請服務</a></div></article>`;
+function officialPriceText(item) {
+  if (item.price !== null && item.price !== undefined) return priceLabel(item);
+  const standardOptions = (item.price_options || []).filter((option) => option.amount !== null && !String(option.option_name || "").includes("加購"));
+  if (standardOptions.length) return `方案 NT$${Math.min(...standardOptions.map((option) => Number(option.amount))).toLocaleString("zh-TW")} 起`;
+  return item.price_note || "價格待確認";
 }
-
+function officialMatchingCard(item) {
+  const quoteButton = item.allow_quote ? `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "quote"))}">開啟報價</a>` : "";
+  const negotiationButton = item.allow_negotiation ? `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "negotiation"))}">開啟議價</a>` : "";
+  return `<article class="matching-feed-card official-team-card"><p class="eyebrow"><span class="official-partner-badge">官方合作</span></p><h3>${escapeHtml(item.display_name || "官方服務")}</h3><p>${escapeHtml(item.headline || "官方合作服務")}</p><strong>${escapeHtml(officialPriceText(item))}</strong><small>提供單位：${escapeHtml(item.team_name || "官方團隊")}</small><div class="official-team-actions"><a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item))}">查看服務</a><a class="btn small" href="${escapeHtml(officialServiceUrl(item, "apply"))}">立即申請／預約</a>${quoteButton}${negotiationButton}</div></article>`;
+}
 async function initMemberCircleCarousel() {
   const root = document.querySelector("#memberCircleCarousel"), dots = document.querySelector("#memberCircleDots");
   if (!root || !dots) return;
@@ -802,7 +840,7 @@ async function initMemberCircleCarousel() {
   const pageSize = () => matchMedia("(max-width: 620px)").matches ? 1 : matchMedia("(max-width: 1080px)").matches ? 2 : 3;
   const pageCount = () => Math.ceil(items.length / pageSize());
   const card = (item) => {
-    if (item.entity_type === "official_partner") return `<article class="member-circle-card official-team-card"><span class="member-circle-avatar" aria-hidden="true">莓</span><span class="member-circle-role">官方合作</span><strong>${escapeHtml(item.display_name || "官方團隊")}</strong><small>${escapeHtml((item.service_scope || []).join("・") || item.headline || "官方合作服務")}</small><div class="official-team-actions"><a href="${escapeHtml(officialServiceUrl(item))}">查看服務</a><a href="${escapeHtml(officialServiceUrl(item, true))}">申請服務</a></div></article>`;
+    if (item.entity_type === "official_service") return officialMatchingCard(item);
     const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-resource-circle"); href.searchParams.set("profile", String(item.public_slug || ""));
     const avatar = safeHttpUrl(item.avatar_url), identities = (item.identities || []).map((tag) => tag.name).filter(Boolean);
     const role = identities[0] || "莓好圈會員";
@@ -1181,7 +1219,7 @@ async function initMatchingHomeFeed() {
     const payload = await publicPhase2Api("matching-discovery-feed", "&limit=12");
     const items = [...phase2Items(payload, "carousel"), ...phase2Items(payload, "popular")].filter((item,index,rows)=>rows.findIndex((row)=>row.user_id===item.user_id)===index).slice(0,6);
     root.innerHTML = items.map((item) => {
-      if (item.entity_type === "official_partner") return officialMatchingCard(item);
+      if (item.entity_type === "official_service") return officialMatchingCard(item);
       const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-resource-circle");
       href.searchParams.set("profile", String(item.public_slug || ""));
       return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml((item.identities||[]).map((tag)=>tag.name).join("・")||"莓好圈會員")}</p><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3><p>${escapeHtml(item.headline || "查看公開的我的莓好圈")}</p><div class="circle-social-counts"><span>❤️ ${Number(item.stats?.like_count||0)}</span><span>⭐ ${Number(item.stats?.follower_count||0)}</span></div><a class="btn ghost small" href="${escapeHtml(href.href)}">查看 MY 莓好圈</a></article>`;
@@ -1199,7 +1237,7 @@ async function initMatchingPage() {
   const latestSection = document.querySelector("#matchingLatestSection"), latestRoot = document.querySelector("#matchingLatestFeed");
   const popularSection = document.querySelector("#matchingPopularSection"), popularRoot = document.querySelector("#matchingPopularFeed");
   const feedCard = (item) => {
-    if (item.entity_type === "official_partner") return officialMatchingCard(item);
+    if (item.entity_type === "official_service") return officialMatchingCard(item);
     const itemSlug = String(item.public_slug || "");
     const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-resource-circle"); href.searchParams.set("profile", itemSlug);
     const identities = item.identities || [], avatar = safeHttpUrl(item.avatar_url);
@@ -1607,6 +1645,7 @@ async function initProductionAdmin() {
   showAdminView(location.hash.slice(1) || "overview");
   let [orders, services] = await Promise.all([api("admin-orders"), api("admin-services")]);
   let inquiries = await api("admin-inquiries");
+  let adminQuoteCases = phase2Items(await api("admin-quote-cases"), "items");
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
   document.querySelector("#todayRentalCount").textContent = String(orders.filter((order) => order.booking_date === today).length);
   document.querySelector("#todayErrandCount").textContent = String(inquiries.filter((item) => ["pending", "reviewing"].includes(item.status)).length);
@@ -1650,20 +1689,43 @@ async function initProductionAdmin() {
   const categoryLabel = { temporary_staff: "莓你不可", recording_space: "莓好聲音", venue_equipment: "莓好基地", learning: "莓好學習", ai_digital: "莓好數位" };
   const priceTypeLabel = { fixed: "固定價", starting_from: "起價", custom_quote: "客製報價" };
   const bookingTypeLabel = { direct_booking: "直接預約", custom_quote: "先詢價" };
-  document.querySelector("#adminServiceRows").innerHTML = services.map((service) => `<tr><td><strong>${escapeHtml(service.service_id)}</strong><br>${escapeHtml(service.service_name)}${service.team_id ? `<br><small><span class="official-partner-badge">官方合作</span> ${escapeHtml(service.team_id)}</small>` : ""}</td><td>${categoryLabel[service.category_id] || escapeHtml(service.category_id)}</td><td>${priceLabel(service)}<br><small>${priceTypeLabel[service.price_type] || escapeHtml(service.price_type)}</small></td><td>${bookingTypeLabel[service.booking_type] || escapeHtml(service.booking_type)}</td><td><span class="badge neutral">${escapeHtml(service.service_status)}</span><br><small>#${service.sort_order}</small></td></tr>`).join("") || '<tr><td colspan="5">目前沒有服務資料</td></tr>';
-  const renderAdminInquiries = () => {
-    document.querySelector("#adminInquiryRows").innerHTML = inquiries.map((item) => { const details = Object.entries(item.application_payload || {}).filter(([, value]) => value !== "").map(([key, value]) => `<li><b>${escapeHtml(key)}</b>：${escapeHtml(value)}</li>`).join(""); return `<tr><td><strong>${escapeHtml(item.id.slice(0, 8))}</strong><br><small>${escapeHtml(item.members?.full_name || item.members?.name || item.members?.email || "會員")}</small></td><td><strong>${escapeHtml(item.service_name)}</strong><br><small>${item.preferred_date || "日期未定"} ${item.preferred_time || ""}</small></td><td>${escapeHtml(item.requirements)}${details ? `<details><summary>申請欄位</summary><ul>${details}</ul></details>` : ""}</td><td><div class="admin-inquiry-actions"><select data-inquiry-status="${item.id}"><option value="pending" ${item.status === "pending" ? "selected" : ""}>待處理</option><option value="reviewing" ${item.status === "reviewing" ? "selected" : ""}>評估中</option><option value="quoted" ${item.status === "quoted" ? "selected" : ""}>已報價</option><option value="accepted" ${item.status === "accepted" ? "selected" : ""}>已接受</option><option value="closed" ${item.status === "closed" ? "selected" : ""}>已結案</option></select><input data-inquiry-amount="${item.id}" type="number" min="0" step="1" placeholder="報價金額" value="${item.quoted_amount ?? ""}" /><button class="btn ghost small" data-save-inquiry="${item.id}">儲存</button></div></td></tr>`; }).join("") || '<tr><td colspan="4">目前沒有詢價</td></tr>';
-    document.querySelectorAll("[data-save-inquiry]").forEach((button) => button.addEventListener("click", async () => {
+  const renderAdminServices = () => {
+    document.querySelector("#adminServiceRows").innerHTML = services.map((service) => `<tr><td><strong>${escapeHtml(service.service_id)}</strong><br>${escapeHtml(service.service_name)}${service.team_id ? `<br><small><span class="official-partner-badge">官方合作</span> ${escapeHtml(service.team_id)}</small>` : ""}</td><td>${categoryLabel[service.category_id] || escapeHtml(service.category_id)}</td><td>${priceLabel(service)}<br><small>${priceTypeLabel[service.price_type] || escapeHtml(service.price_type)}</small></td><td>${bookingTypeLabel[service.booking_type] || escapeHtml(service.booking_type)}<br><label><input type="checkbox" data-service-quote="${service.service_id}" ${service.allow_quote ? "checked" : ""}> 報價</label><br><label><input type="checkbox" data-service-negotiation="${service.service_id}" ${service.allow_negotiation ? "checked" : ""}> 議價</label><br><button class="btn ghost small" type="button" data-save-service-features="${service.service_id}">儲存開關</button></td><td><span class="badge neutral">${escapeHtml(service.service_status)}</span><br><small>#${service.sort_order}</small></td></tr>`).join("") || '<tr><td colspan="5">目前沒有服務資料</td></tr>';
+    document.querySelectorAll("[data-save-service-features]").forEach((button) => button.addEventListener("click", async () => {
+      const serviceId = button.dataset.saveServiceFeatures;
       try {
-        const id = button.dataset.saveInquiry;
-        const status = document.querySelector(`[data-inquiry-status="${id}"]`).value;
-        const quotedAmount = document.querySelector(`[data-inquiry-amount="${id}"]`).value;
-        const updated = await api("admin-inquiries", { method: "PATCH", body: { id, status, quoted_amount: quotedAmount } });
-        inquiries = inquiries.map((item) => item.id === id ? { ...item, ...updated } : item);
-        document.querySelector("#adminInquiryCount").textContent = String(inquiries.filter((item) => ["pending", "reviewing"].includes(item.status)).length);
-        renderAdminInquiries();
+        const updated = await api("admin-service-features", { method: "PATCH", body: { service_id: serviceId, allow_quote: document.querySelector(`[data-service-quote="${serviceId}"]`).checked, allow_negotiation: document.querySelector(`[data-service-negotiation="${serviceId}"]`).checked } });
+        services = services.map((item) => item.service_id === serviceId ? { ...item, ...updated } : item); renderAdminServices();
       } catch (error) { alert(error.message); }
     }));
+  };
+  renderAdminServices();
+  const renderAdminInquiries = () => {
+    const legacyRows = inquiries.map((item) => { const details = Object.entries(item.application_payload || {}).filter(([, value]) => value !== "").map(([key, value]) => `<li><b>${escapeHtml(key)}</b>：${escapeHtml(value)}</li>`).join(""); return `<tr><td><strong>${escapeHtml(item.id.slice(0, 8))}</strong><br><small>${escapeHtml(item.members?.full_name || item.members?.name || item.members?.email || "會員")}</small></td><td><strong>${escapeHtml(item.service_name)}</strong><br><small>${item.preferred_date || "日期未定"} ${item.preferred_time || ""}</small></td><td>${escapeHtml(item.requirements)}${details ? `<details><summary>申請欄位</summary><ul>${details}</ul></details>` : ""}</td><td><div class="admin-inquiry-actions"><select data-inquiry-status="${item.id}"><option value="pending" ${item.status === "pending" ? "selected" : ""}>待處理</option><option value="reviewing" ${item.status === "reviewing" ? "selected" : ""}>評估中</option><option value="quoted" ${item.status === "quoted" ? "selected" : ""}>已報價</option><option value="accepted" ${item.status === "accepted" ? "selected" : ""}>已接受</option><option value="closed" ${item.status === "closed" ? "selected" : ""}>已結案</option></select><input data-inquiry-amount="${item.id}" type="number" min="0" step="1" placeholder="報價金額" value="${item.quoted_amount ?? ""}" /><button class="btn ghost small" data-save-inquiry="${item.id}">儲存</button></div></td></tr>`; }).join("");
+    const caseRows = adminQuoteCases.map((item) => {
+      const messages = (item.messages || []).map((message) => `<li><b>${escapeHtml(message.sender_role)}</b>：${escapeHtml(message.message_text)}</li>`).join("");
+      return `<tr><td><strong>${escapeHtml(item.case_no)}</strong><br><small>${escapeHtml(item.members?.full_name || item.members?.name || item.members?.email || "會員")}</small></td><td><strong>${escapeHtml(item.service?.service_name || item.service_id)}</strong><br><small>${item.case_type === "quote" ? "報價" : "議價"}｜${escapeHtml(item.status)}</small></td><td>${escapeHtml(item.requirements)}<details><summary>留言（${(item.messages || []).length}）</summary><ul>${messages || "<li>尚無留言</li>"}</ul></details><button class="btn ghost small" type="button" data-admin-quote-message="${item.quote_id}">回覆留言</button></td><td><div class="admin-inquiry-actions"><input data-admin-quote-amount="${item.quote_id}" type="number" min="0" max="1000000" placeholder="正式報價" value="${item.provider_quote_amount ?? ""}"><input data-admin-quote-description="${item.quote_id}" maxlength="4000" placeholder="報價說明" value="${escapeHtml(item.quote_description || "")}"><input data-admin-quote-valid="${item.quote_id}" type="datetime-local"><button class="btn small" type="button" data-admin-submit-quote="${item.quote_id}">送出正式報價</button></div></td></tr>`;
+    }).join("");
+    document.querySelector("#adminInquiryRows").innerHTML = legacyRows + caseRows || '<tr><td colspan="4">目前沒有詢價／報價案件</td></tr>';
+    document.querySelectorAll("[data-save-inquiry]").forEach((button) => button.addEventListener("click", async () => {
+      try {
+        const id = button.dataset.saveInquiry, status = document.querySelector(`[data-inquiry-status="${id}"]`).value, quotedAmount = document.querySelector(`[data-inquiry-amount="${id}"]`).value;
+        const updated = await api("admin-inquiries", { method: "PATCH", body: { id, status, quoted_amount: quotedAmount } });
+        inquiries = inquiries.map((item) => item.id === id ? { ...item, ...updated } : item); renderAdminInquiries();
+      } catch (error) { alert(error.message); }
+    }));
+    document.querySelectorAll("[data-admin-submit-quote]").forEach((button) => button.addEventListener("click", async () => {
+      const quoteId = button.dataset.adminSubmitQuote;
+      try {
+        await api("admin-quote-cases", { method: "PATCH", body: { quote_id: quoteId, provider_quote_amount: document.querySelector(`[data-admin-quote-amount="${quoteId}"]`).value, quote_description: document.querySelector(`[data-admin-quote-description="${quoteId}"]`).value, valid_until: document.querySelector(`[data-admin-quote-valid="${quoteId}"]`).value || null } });
+        adminQuoteCases = phase2Items(await api("admin-quote-cases"), "items"); renderAdminInquiries();
+      } catch (error) { alert(error.message); }
+    }));
+    document.querySelectorAll("[data-admin-quote-message]").forEach((button) => button.addEventListener("click", async () => {
+      const messageText = prompt("請輸入回覆留言"); if (!messageText?.trim()) return;
+      try { await api("quote-message", { method: "POST", body: { quote_id: button.dataset.adminQuoteMessage, message_text: messageText } }); adminQuoteCases = phase2Items(await api("admin-quote-cases"), "items"); renderAdminInquiries(); } catch (error) { alert(error.message); }
+    }));
+    document.querySelector("#adminInquiryCount").textContent = String(inquiries.filter((item) => ["pending", "reviewing"].includes(item.status)).length + adminQuoteCases.filter((item) => ["submitted", "provider_replied"].includes(item.status)).length);
   };
   let adminResources = [];
   const resourceForm = document.querySelector("#adminResourceForm");
