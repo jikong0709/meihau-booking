@@ -317,7 +317,10 @@ async function initProductionPublic() {
 async function requireSession() {
   const client = await getProductionClient();
   const { data: { session } } = await client.auth.getSession();
-  if (!session) { location.replace("index.html?login=required"); throw new Error("LOGIN_REQUIRED"); }
+  if (!session) {
+    if (location.search.includes("service=")) { try { localStorage.setItem("meihau_pending_return", JSON.stringify({ search: location.search, at: Date.now() })); } catch {} }
+    location.replace("index.html?login=required"); throw new Error("LOGIN_REQUIRED");
+  }
   return { client, session };
 }
 function bindAccountSwitch(client) {
@@ -713,13 +716,15 @@ async function initProductionMember() {
     category = categoryId;
     serviceMenu.querySelectorAll("[data-cat]").forEach((item) => item.classList.toggle("active", item.dataset.cat === category));
     renderPlans();
+    let ready = Promise.resolve();
     if (serviceId && [...planSelect.options].some((option) => option.value === serviceId && !option.disabled)) {
       planSelect.value = serviceId;
       document.querySelectorAll("[data-service-id]").forEach((card) => card.classList.toggle("active", card.dataset.serviceId === serviceId));
-      updateServiceMode().catch((error) => alert(error.message));
+      ready = updateServiceMode().catch((error) => alert(error.message));
     }
     show("book");
     document.querySelector('[data-section="book"]')?.scrollIntoView({ block: "start" });
+    return ready;
   };
   document.querySelectorAll("[data-service-category]").forEach((button) => button.addEventListener("click", () => openMemberService(button.dataset.serviceCategory)));
   const featuredRoot = document.querySelector("#memberFeaturedServices");
@@ -800,12 +805,33 @@ async function initProductionMember() {
     } catch (error) { alert(error.message); }
   });
   renderPlans();
-  const entryParams = new URLSearchParams(location.search);
+  // 未登入點服務卡會先被導去登入；登入回來後還原當時的服務與操作（報價／詢價）
+  let pendingReturn = "";
+  try { const saved = JSON.parse(localStorage.getItem("meihau_pending_return") || "null"); localStorage.removeItem("meihau_pending_return"); if (saved && Date.now() - saved.at < 30 * 60 * 1000) pendingReturn = saved.search || ""; } catch {}
+  const entryParams = new URLSearchParams(location.search.includes("service") ? location.search : (pendingReturn || location.search));
   const requestedService = entryParams.get("service");
   const requestedTeam = entryParams.get("service_team");
+  const requestedAction = entryParams.get("service_action");
   const targetService = catalogData.services.find((item) => item.service_id === requestedService)
     || catalogData.services.find((item) => item.team_id === requestedTeam && item.service_status === "active");
-  if (targetService) openMemberService(targetService.category_id, targetService.service_id);
+  const applyServiceAction = (item, action) => {
+    const requirements = document.querySelector("#inquiryRequirements");
+    if (!requirements || item.booking_type !== "custom_quote") return;
+    const hints = {
+      inquiry: "請填寫需求說明後，按「立即詢價」送出，管理者確認後會回覆報價。",
+      quote: item.allow_quote ? "請填寫需求說明後，按「開啟報價」建立報價案件，雙方可在案件內留言並確認正式報價。" : "此服務目前採一般詢價：請填寫需求說明後按「立即詢價」，管理者確認後會回覆報價。",
+      negotiation: item.allow_negotiation ? "請填寫需求說明後，按「開啟議價」建立議價討論，雙方可在案件內留言。" : "此服務目前採一般詢價：請填寫需求說明後按「立即詢價」。",
+    };
+    if (!hints[action]) return;
+    let hint = document.querySelector("#serviceActionHint");
+    if (!hint) { hint = document.createElement("p"); hint.id = "serviceActionHint"; hint.className = "service-action-hint"; document.querySelector("#inquiryFields")?.insertAdjacentElement("afterbegin", hint); }
+    hint.textContent = hints[action];
+    requirements.scrollIntoView({ block: "center" }); requirements.focus();
+  };
+  if (targetService) {
+    const opened = openMemberService(targetService.category_id, targetService.service_id);
+    if (requestedAction) opened.then(() => applyServiceAction(targetService, requestedAction));
+  }
 }
 
 function officialServiceUrl(item, action = "") {
@@ -846,7 +872,7 @@ function serviceSortAmount(item) {
 }
 function officialTeamUrl(item) {
   const href = new URL("match.html", location.href);
-  href.searchParams.set("v", "20261009-service-browse4");
+  href.searchParams.set("v", "20261010-five-colors");
   href.searchParams.set("team", String(item.team_id || ""));
   return href.href;
 }
@@ -855,11 +881,11 @@ function officialServiceCard(item, variant = "full") {
   const image = `<div class="service-card-media"><img src="${escapeHtml(serviceCoverUrl(item))}" alt="${escapeHtml(item.display_name || "服務")}" loading="lazy" />${partner}</div>`;
   const provider = `<small class="service-card-provider">提供單位：${escapeHtml(item.team_name || "官方團隊")}</small>`;
   // 推薦卡的「查看詳情」進入官方團隊的莓好預約圈展示頁；完整服務卡整張可點，進入該服務主頁面
-  if (variant === "compact") return `<article class="service-reco-card" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-reco-body"><h3>${escapeHtml(item.display_name || "官方服務")}</h3>${provider}<a class="btn ghost small" href="${escapeHtml(officialTeamUrl(item))}">查看詳情</a></div></article>`;
-  const tags = `<span class="service-tag">${escapeHtml(serviceFilterLabel(item.category_id))}</span>`;
+  if (variant === "compact") return `<article class="service-reco-card cat-${escapeHtml(item.category_id)}" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-reco-body"><h3>${escapeHtml(item.display_name || "官方服務")}</h3>${provider}<a class="btn ghost small" href="${escapeHtml(officialTeamUrl(item))}">查看詳情</a></div></article>`;
+  const tags = `<span class="service-tag cat-${escapeHtml(item.category_id)}">${escapeHtml(serviceFilterLabel(item.category_id))}</span>`;
   const quote = `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "quote"))}">報價</a>`;
   const inquiry = `<a class="btn small" href="${escapeHtml(officialServiceUrl(item, "inquiry"))}">詢價</a>`;
-  return `<article class="service-list-card" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-list-body"><div class="service-tag-row">${tags}</div><h3><a class="service-card-link" href="${escapeHtml(officialServiceUrl(item))}">${escapeHtml(item.display_name || "官方服務")}</a></h3><p class="service-card-summary">${escapeHtml(item.headline || "")}</p>${provider}<strong class="service-card-price">${escapeHtml(officialPriceText(item))}</strong><div class="service-card-actions">${quote}${inquiry}</div></div></article>`;
+  return `<article class="service-list-card cat-${escapeHtml(item.category_id)}" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-list-body"><div class="service-tag-row">${tags}</div><h3><a class="service-card-link" href="${escapeHtml(officialServiceUrl(item))}">${escapeHtml(item.display_name || "官方服務")}</a></h3><p class="service-card-summary">${escapeHtml(item.headline || "")}</p>${provider}<strong class="service-card-price">${escapeHtml(officialPriceText(item))}</strong><div class="service-card-actions">${quote}${inquiry}</div></div></article>`;
 }
 async function renderOfficialTeamPage(teamId, state, root) {
   const payload = await publicPhase2Api("matching-discovery-feed", "&limit=50");
@@ -1790,7 +1816,7 @@ async function initProductionAdmin() {
   const priceTypeLabel = { fixed: "固定價", starting_from: "起價", custom_quote: "客製報價" };
   const bookingTypeLabel = { direct_booking: "直接預約", custom_quote: "先詢價" };
   const renderAdminServices = () => {
-    document.querySelector("#adminServiceRows").innerHTML = services.map((service) => `<tr><td><strong>${escapeHtml(service.service_id)}</strong><br>${escapeHtml(service.service_name)}${service.team_id ? `<br><small><span class="official-partner-badge">官方合作</span> ${escapeHtml(service.team_id)}</small>` : ""}</td><td>${categoryLabel[service.category_id] || escapeHtml(service.category_id)}</td><td>${priceLabel(service)}<br><small>${priceTypeLabel[service.price_type] || escapeHtml(service.price_type)}</small></td><td>${bookingTypeLabel[service.booking_type] || escapeHtml(service.booking_type)}<br><label><input type="checkbox" data-service-quote="${service.service_id}" ${service.allow_quote ? "checked" : ""}> 報價</label><br><label><input type="checkbox" data-service-negotiation="${service.service_id}" ${service.allow_negotiation ? "checked" : ""}> 議價</label><br><button class="btn ghost small" type="button" data-save-service-features="${service.service_id}">儲存開關</button></td><td><span class="badge neutral">${escapeHtml(service.service_status)}</span><br><small>#${service.sort_order}</small></td></tr>`).join("") || '<tr><td colspan="5">目前沒有服務資料</td></tr>';
+    document.querySelector("#adminServiceRows").innerHTML = services.map((service) => `<tr><td><strong>${escapeHtml(service.service_id)}</strong><br>${escapeHtml(service.service_name)}${service.team_id ? `<br><small><span class="official-partner-badge">官方合作</span> ${escapeHtml(service.team_id)}</small>` : ""}</td><td><span class="service-tag cat-${escapeHtml(service.category_id)}">${categoryLabel[service.category_id] || escapeHtml(service.category_id)}</span></td><td>${priceLabel(service)}<br><small>${priceTypeLabel[service.price_type] || escapeHtml(service.price_type)}</small></td><td>${bookingTypeLabel[service.booking_type] || escapeHtml(service.booking_type)}<br><label><input type="checkbox" data-service-quote="${service.service_id}" ${service.allow_quote ? "checked" : ""}> 報價</label><br><label><input type="checkbox" data-service-negotiation="${service.service_id}" ${service.allow_negotiation ? "checked" : ""}> 議價</label><br><button class="btn ghost small" type="button" data-save-service-features="${service.service_id}">儲存開關</button></td><td><span class="badge neutral">${escapeHtml(service.service_status)}</span><br><small>#${service.sort_order}</small></td></tr>`).join("") || '<tr><td colspan="5">目前沒有服務資料</td></tr>';
     document.querySelectorAll("[data-save-service-features]").forEach((button) => button.addEventListener("click", async () => {
       const serviceId = button.dataset.saveServiceFeatures;
       try {

@@ -1637,3 +1637,22 @@ img, svg { max-width: 100%; }
 .team-services { margin-top: 28px; }
 .team-services h2 { margin: 0 0 14px; }
 @media (max-width: 640px) { .team-hero { flex-direction: column; align-items: flex-start; } }
+.service-action-hint { grid-column: 1 / -1; margin: 0 0 10px; padding: 10px 14px; border-left: 4px solid var(--berry-700); border-radius: 10px; background: var(--berry-50); color: var(--berry-800); font-weight: 700; }
+/* ===== 五大服務分類五色（骨架定案 2026-10-10）：莓你不可＝莓紅、莓好聲音＝琥珀、莓好基地＝森綠、莓好學習＝湖藍、莓好數位＝紫 ===== */
+:root { --cat-staff: #a8364b; --cat-staff-bg: #fbe9ec; --cat-staff-ink: #8a2438; --cat-voice: #b8731a; --cat-voice-bg: #fdf0dc; --cat-voice-ink: #8a5200; --cat-base: #3f7a52; --cat-base-bg: #e4f1e8; --cat-base-ink: #2c6140; --cat-learn: #2f6ea5; --cat-learn-bg: #e3eef8; --cat-learn-ink: #1f5688; --cat-digital: #6b4bb0; --cat-digital-bg: #eee8f8; --cat-digital-ink: #553a96; }
+.cat-temporary_staff, [data-service-category="temporary_staff"], [data-cat="temporary_staff"] { --cc: var(--cat-staff); --cc-bg: var(--cat-staff-bg); --cc-ink: var(--cat-staff-ink); }
+.cat-recording_space, [data-service-category="recording_space"], [data-cat="recording_space"] { --cc: var(--cat-voice); --cc-bg: var(--cat-voice-bg); --cc-ink: var(--cat-voice-ink); }
+.cat-venue_equipment, [data-service-category="venue_equipment"], [data-cat="venue_equipment"] { --cc: var(--cat-base); --cc-bg: var(--cat-base-bg); --cc-ink: var(--cat-base-ink); }
+.cat-learning, [data-service-category="learning"], [data-cat="learning"] { --cc: var(--cat-learn); --cc-bg: var(--cat-learn-bg); --cc-ink: var(--cat-learn-ink); }
+.cat-ai_digital, [data-service-category="ai_digital"], [data-cat="ai_digital"] { --cc: var(--cat-digital); --cc-bg: var(--cat-digital-bg); --cc-ink: var(--cat-digital-ink); }
+.service-tag[class*="cat-"] { background: var(--cc-bg); color: var(--cc-ink); font-weight: 800; }
+.service-list-card[class*="cat-"] { border-top: 5px solid var(--cc); }
+.service-reco-card[class*="cat-"] { border-left: 6px solid var(--cc); }
+.service-category-nav button[data-service-category]:not([data-service-category="all"]) { border-color: var(--cc); color: var(--cc-ink); background: var(--cc-bg); }
+.service-category-nav button[data-service-category]:not([data-service-category="all"]).active { color: #fff; background: var(--cc); }
+.service-choice[data-cat] { border-left: 6px solid var(--cc); }
+.service-choice[data-cat].active { background: var(--cc-bg); border-color: var(--cc); }
+.member-category-card[data-service-category] { border-top: 5px solid var(--cc); }
+.member-category-card[data-service-category] strong { color: var(--cc-ink); }
+.service-list-card[class*="cat-"] .service-card-actions .btn:not(.ghost) { background: var(--cc); border-color: var(--cc); }
+.service-list-card[class*="cat-"] .service-card-actions .btn.ghost { color: var(--cc-ink); border-color: var(--cc); }
