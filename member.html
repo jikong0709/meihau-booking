@@ -8,12 +8,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=Noto+Serif+TC:wght@600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="platform.css?v=20261008-resource-circle" />
+    <link rel="stylesheet" href="platform.css?v=20261009-member-home" />
     <link rel="stylesheet" href="assets/affiliate/affiliate-carousel.css" />
     <script defer src="assets/affiliate/affiliate-carousel.config.js"></script>
     <script defer src="assets/affiliate/affiliate-carousel.js"></script>
     <script src="config.js"></script>
-    <script defer src="platform.js?v=20261008-resource-circle"></script>
+    <script defer src="platform.js?v=20261009-member-home"></script>
   </head>
   <body data-page="member">
     <div class="layout">
@@ -28,6 +28,8 @@
           ><button data-show="inquiries">我的詢價</button
           ><button data-show="matching-profile">我的莓好圈</button
           ><button data-show="stars">莓好追星圈</button
+          ><span class="side-nav-divider" aria-hidden="true"></span
+          ><button data-show="profile">會員資料</button
           ><button type="button" data-switch-account>登出</button
           ><a href="index.html">回首頁</a>
         </nav>
@@ -38,60 +40,73 @@
         </div>
         <div id="pendingAgreementBanner" class="pending-agreement-banner hidden" role="status"></div>
         <section data-section="home">
-          <div class="page-head">
-            <div>
-              <p class="eyebrow">MEMBER CENTER</p>
-              <h1>今天需要什麼服務？</h1>
-              <p class="muted">選擇預約入口，或查看已安排的服務與常用資料</p>
+          <form id="memberHomeSearch" class="member-home-search" role="search">
+            <label class="sr-only" for="memberHomeSearchInput">搜尋服務、課程或關鍵字</label>
+            <span aria-hidden="true">⌕</span>
+            <input id="memberHomeSearchInput" type="search" placeholder="搜尋服務、課程、空間或關鍵字…" autocomplete="off" />
+            <button type="submit">搜尋</button>
+          </form>
+
+          <section class="member-home-block member-circle-spotlight" aria-labelledby="memberCircleTitle">
+            <div class="member-section-head">
+              <div><p class="eyebrow">FEATURED CIRCLES</p><h1 id="memberCircleTitle">🍓 推薦莓好圈</h1><p>看看有哪些值得認識的服務夥伴，找到適合你的專業與溫度。</p></div>
+              <a href="match.html?v=20261008-resource-circle">查看更多莓好圈 →</a>
             </div>
-            <button class="btn" data-show="book">立即預約服務</button>
-          </div>
-          <div class="stats">
-            <div class="card stat"><span>我的預約</span><strong id="orderCount">—</strong></div>
-            <div class="card stat"><span>待付款</span><strong id="unpaidCount">—</strong></div>
-            <div class="card stat">
-              <span>常用地址</span><strong id="addressCount">—</strong>
+            <div class="member-circle-shell">
+              <button id="memberCirclePrev" class="member-carousel-arrow prev" type="button" aria-label="上一組推薦">‹</button>
+              <div id="memberCircleCarousel" class="member-circle-track" aria-live="polite"><div class="member-carousel-empty">正在載入推薦莓好圈…</div></div>
+              <button id="memberCircleNext" class="member-carousel-arrow next" type="button" aria-label="下一組推薦">›</button>
             </div>
-            <div class="card stat">
-              <span>會員狀態</span><strong>正常</strong>
+            <div id="memberCircleDots" class="member-carousel-dots" aria-label="推薦莓好圈分頁"></div>
+          </section>
+
+          <section class="member-quick-row" aria-label="會員快速資訊">
+            <article class="member-welcome-card">
+              <div id="memberHomeAvatar" class="member-home-avatar" aria-hidden="true">莓</div>
+              <div><strong>嗨！<span id="memberHomeName">莓好會員</span> 👋</strong><small>很高興再見到你</small></div>
+              <button class="btn ghost small" type="button" data-show="profile">編輯資料</button>
+            </article>
+            <button class="member-mini-stat" type="button" data-show="orders"><span aria-hidden="true">▣</span><small>我的預約</small><strong id="orderCount">—</strong><em>查看全部 →</em></button>
+            <button class="member-mini-stat payment" type="button" data-show="orders"><span aria-hidden="true">▱</span><small>待付款</small><strong id="unpaidCount">—</strong><em>前往付款 →</em></button>
+            <article class="member-mini-stat status"><span aria-hidden="true">♛</span><small>會員狀態</small><strong>正常</strong><em>帳號使用中</em></article>
+          </section>
+
+          <section class="member-announcements" aria-labelledby="memberAnnouncementTitle">
+            <h2 id="memberAnnouncementTitle"><span aria-hidden="true">📢</span> 最新公告</h2>
+            <ol>
+              <li><time datetime="2026-10-08">10/08</time><span>莓好預約站新增「手寫／代抄」服務，歡迎預約！</span></li>
+              <li><time datetime="2026-10-06">10/06</time><span>莓好基地開放工作與活動空間預約。</span></li>
+              <li><time datetime="2026-10-03">10/03</time><span>莓好數位新增自媒體創作顧問服務。</span></li>
+            </ol>
+            <button class="member-text-button" type="button" data-show="book">查看服務 →</button>
+          </section>
+
+          <section class="member-home-block" aria-labelledby="memberCategoryTitle">
+            <div class="member-section-head compact"><div><h2 id="memberCategoryTitle">🍓 今天想預約什麼？</h2><p>五大服務，滿足生活、工作、創作與學習的各種需求。</p></div></div>
+            <div class="member-category-grid">
+              <button class="member-category-card people" type="button" data-show="book" data-service-category="temporary_staff"><span>01</span><div><strong>莓你不可</strong><small>人與人的服務・專人委託・客製服務</small></div><img src="assets/ui-v2/service-errand.webp" alt="真人協作與客製委託" width="1200" height="800" /><b aria-hidden="true">→</b></button>
+              <button class="member-category-card audio" type="button" data-show="book" data-service-category="recording_space"><span>02</span><div><strong>莓好聲音</strong><small>錄音・歌唱・配音・聲音體驗</small></div><img src="assets/ui-v2/service-podcast.webp" alt="錄音與聲音創作" width="1200" height="800" /><b aria-hidden="true">→</b></button>
+              <button class="member-category-card space" type="button" data-show="book" data-service-category="venue_equipment"><span>03</span><div><strong>莓好基地</strong><small>工作・創作・活動・共享空間</small></div><img src="assets/ui-v2/service-coworking.webp" alt="共享工作與活動空間" width="1200" height="800" /><b aria-hidden="true">→</b></button>
+              <button class="member-category-card learning" type="button" data-show="book" data-service-category="learning"><span>04</span><div><strong>莓好學習</strong><small>課程・教學・親子・共學</small></div><img src="assets/ui-v2/service-photo.webp" alt="課程與共學活動" width="1200" height="800" /><b aria-hidden="true">→</b></button>
+              <button class="member-category-card digital" type="button" data-show="book" data-service-category="ai_digital"><span>05</span><div><strong>莓好數位</strong><small>AI・網站・自動化・數位服務</small></div><img src="assets/ui-v2/hero-desktop.webp" alt="AI 與數位顧問服務" width="1600" height="1000" /><b aria-hidden="true">→</b></button>
             </div>
-          </div>
-          <div class="section-head" style="margin-top: 36px">
-            <h2>快速開始</h2>
-            <p>所有正式預約都必須登入會員後進行，價格由 API 服務資料載入</p>
-          </div>
-          <div class="member-action-grid">
-            <article class="card service-card">
-              <div class="service-icon" aria-hidden="true">01</div>
-              <h3>莓你不可</h3>
-              <p>人與人的服務・專人委託・客製服務</p>
-              <button class="btn ghost" data-show="book" data-service-category="temporary_staff">選擇真人服務</button>
-            </article>
-            <article class="card service-card">
-              <div class="service-icon" aria-hidden="true">02</div>
-              <h3>莓好聲音</h3>
-              <p>錄音・歌唱・配音・聲音體驗</p>
-              <button class="btn ghost" data-show="book" data-service-category="recording_space">選擇聲音服務</button>
-            </article>
-            <article class="card service-card">
-              <div class="service-icon" aria-hidden="true">03</div>
-              <h3>莓好基地</h3>
-              <p>工作・創作・活動・共享空間</p>
-              <button class="btn ghost" data-show="book" data-service-category="venue_equipment">選擇空間服務</button>
-            </article>
-            <article class="card service-card">
-              <div class="service-icon" aria-hidden="true">04</div>
-              <h3>莓好學習</h3>
-              <p>課程・教學・親子・共學</p>
-              <button class="btn ghost" data-show="book" data-service-category="learning">選擇學習服務</button>
-            </article>
-            <article class="card service-card">
-              <div class="service-icon" aria-hidden="true">05</div>
-              <h3>莓好數位</h3>
-              <p>AI・網站・自動化・數位服務</p>
-              <button class="btn ghost" data-show="book" data-service-category="ai_digital">選擇數位服務</button>
-            </article>
-          </div>
+          </section>
+
+          <section class="member-home-block" aria-labelledby="memberFeaturedTitle">
+            <div class="member-section-head compact"><div><h2 id="memberFeaturedTitle">🍓 精選服務</h2><p>熱門服務、最新上架與本月推薦。</p></div><button class="member-text-button" type="button" data-show="book">查看更多 →</button></div>
+            <div id="memberFeaturedServices" class="member-featured-track"><div class="member-carousel-empty">正在載入精選服務…</div></div>
+          </section>
+
+          <section class="member-howto" aria-labelledby="memberHowtoTitle">
+            <h2 id="memberHowtoTitle">🍓 莓好預約站怎麼用？</h2>
+            <ol>
+              <li><span aria-hidden="true">⌕</span><div><strong>找服務</strong><small>選擇你需要的服務</small></div></li>
+              <li><span aria-hidden="true">▤</span><div><strong>查看內容</strong><small>了解服務詳情與評價</small></div></li>
+              <li><span aria-hidden="true">▣</span><div><strong>預約／詢價</strong><small>選擇時間或提出需求</small></div></li>
+              <li><span aria-hidden="true">●</span><div><strong>確認服務</strong><small>與提供者確認細節</small></div></li>
+              <li><span aria-hidden="true">★</span><div><strong>完成服務</strong><small>享受服務並留下評價</small></div></li>
+            </ol>
+          </section>
         </section>
         <section data-section="book" class="hidden">
           <div class="page-head">

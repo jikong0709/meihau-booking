@@ -515,6 +515,14 @@ async function initProductionMember() {
   const mePayload = await api("me");
   const member = memberFromMe(mePayload);
   if (!member) throw new Error("會員資料初始化失敗，請重新整理後再試。");
+  const memberHomeName = document.querySelector("#memberHomeName");
+  const memberHomeAvatar = document.querySelector("#memberHomeAvatar");
+  if (memberHomeName) memberHomeName.textContent = member.name || member.full_name || "莓好會員";
+  if (memberHomeAvatar) {
+    const avatarUrl = safeHttpUrl(member.avatar_url);
+    if (avatarUrl) memberHomeAvatar.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(member.name || member.full_name || "會員")}的頭像" />`;
+    else memberHomeAvatar.textContent = String(member.name || member.full_name || "莓").trim().slice(0, 1) || "莓";
+  }
   const stayInMemberCenter = new URLSearchParams(location.search).get("mode") === "member";
   if (isPrivilegedMember(member) && !stayInMemberCenter) {
     location.replace("admin.html");
@@ -532,7 +540,7 @@ async function initProductionMember() {
   let addresses = await api("addresses");
   const list = document.querySelector("#addressList"); const pickup = document.querySelector("#pickupAddress"); const dropoff = document.querySelector("#dropoffAddress");
   const addressTypeLabel = { home: "住家", company: "公司", other: "其他" };
-  const renderAddresses = () => { list.innerHTML = addresses.map((a) => `<article class="address-card"><div class="address-card-head"><span class="address-type">${addressTypeLabel[a.address_type] || "其他"}</span><strong>${escapeHtml(a.label)}</strong></div><div class="address-main">${escapeHtml(a.address)}</div><div class="address-recipient"><span>收件人：${escapeHtml(a.recipient || "未填")}</span><span>${escapeHtml(a.phone || "未填電話")}</span></div>${a.note ? `<div class="address-note">收件備註：${escapeHtml(a.note)}</div>` : ""}<button class="btn ghost small" data-delete="${a.id}">刪除</button></article>`).join("") || '<div class="empty-address"><strong>尚未新增常用地址</strong><span>新增住家、公司或其他收件地址，預約時就能直接選用。</span></div>'; list.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", async () => { await api("addresses", { method: "DELETE", query: `&id=${button.dataset.delete}` }); addresses = addresses.filter((a) => a.id !== button.dataset.delete); renderAddresses(); })); const options = '<option value="">請選擇常用地址</option>' + addresses.map((a) => `<option value="${a.id}">${addressTypeLabel[a.address_type] || "其他"}｜${escapeHtml(a.label)}｜${escapeHtml(a.address)}</option>`).join(""); if (pickup) pickup.innerHTML = options; if (dropoff) dropoff.innerHTML = options; document.querySelector("#addressCount").textContent = String(addresses.length); };
+  const renderAddresses = () => { list.innerHTML = addresses.map((a) => `<article class="address-card"><div class="address-card-head"><span class="address-type">${addressTypeLabel[a.address_type] || "其他"}</span><strong>${escapeHtml(a.label)}</strong></div><div class="address-main">${escapeHtml(a.address)}</div><div class="address-recipient"><span>收件人：${escapeHtml(a.recipient || "未填")}</span><span>${escapeHtml(a.phone || "未填電話")}</span></div>${a.note ? `<div class="address-note">收件備註：${escapeHtml(a.note)}</div>` : ""}<button class="btn ghost small" data-delete="${a.id}">刪除</button></article>`).join("") || '<div class="empty-address"><strong>尚未新增常用地址</strong><span>新增住家、公司或其他收件地址，預約時就能直接選用。</span></div>'; list.querySelectorAll("[data-delete]").forEach((button) => button.addEventListener("click", async () => { await api("addresses", { method: "DELETE", query: `&id=${button.dataset.delete}` }); addresses = addresses.filter((a) => a.id !== button.dataset.delete); renderAddresses(); })); const options = '<option value="">請選擇常用地址</option>' + addresses.map((a) => `<option value="${a.id}">${addressTypeLabel[a.address_type] || "其他"}｜${escapeHtml(a.label)}｜${escapeHtml(a.address)}</option>`).join(""); if (pickup) pickup.innerHTML = options; if (dropoff) dropoff.innerHTML = options; document.querySelector("#addressCount")?.replaceChildren(document.createTextNode(String(addresses.length))); };
   renderAddresses();
   let orders = await api("orders");
   const canMemberEditOrder = (order) => order.payment_status === "UNPAID" && ["WAITING_PAYMENT", "DRAFT"].includes(order.service_status);
@@ -653,6 +661,41 @@ async function initProductionMember() {
     cardRoot.querySelectorAll("[data-service-id]:not(:disabled)").forEach((card) => card.addEventListener("click", () => { planSelect.value = card.dataset.serviceId; updateServiceMode().catch((error) => alert(error.message)); cardRoot.querySelectorAll("[data-service-id]").forEach((item) => item.classList.toggle("active", item === card)); }));
     updateServiceMode().catch((error) => alert(error.message));
   };
+  const openMemberService = (categoryId, serviceId = "") => {
+    category = categoryId;
+    serviceMenu.querySelectorAll("[data-cat]").forEach((item) => item.classList.toggle("active", item.dataset.cat === category));
+    renderPlans();
+    if (serviceId && [...planSelect.options].some((option) => option.value === serviceId && !option.disabled)) {
+      planSelect.value = serviceId;
+      document.querySelectorAll("[data-service-id]").forEach((card) => card.classList.toggle("active", card.dataset.serviceId === serviceId));
+      updateServiceMode().catch((error) => alert(error.message));
+    }
+    show("book");
+    document.querySelector('[data-section="book"]')?.scrollIntoView({ block: "start" });
+  };
+  document.querySelectorAll("[data-service-category]").forEach((button) => button.addEventListener("click", () => openMemberService(button.dataset.serviceCategory)));
+  const featuredRoot = document.querySelector("#memberFeaturedServices");
+  const serviceImageByCategory = { temporary_staff: "service-errand.webp", recording_space: "service-podcast.webp", venue_equipment: "service-coworking.webp", learning: "service-photo.webp", ai_digital: "hero-desktop.webp" };
+  const featuredServices = categoryDefinitions.map(([id]) => catalogData.services.find((item) => item.category_id === id && item.service_status === "active")).filter(Boolean);
+  if (featuredRoot) {
+    featuredRoot.innerHTML = featuredServices.map((item, index) => `<article class="member-featured-card"><div class="member-featured-media"><img src="assets/ui-v2/${serviceImageByCategory[item.category_id] || "hero-desktop.webp"}" alt="${escapeHtml(item.service_name)}" loading="lazy" /><span>${index % 2 ? "新上架" : "熱門"}</span></div><div><h3>${escapeHtml(item.service_name)}</h3><strong>${priceLabel(item)}</strong><small>${escapeHtml(item.short_description || categoryDefinitions.find(([id]) => id === item.category_id)?.[2] || "莓好預約服務")}</small><button class="member-service-link" type="button" data-featured-service="${escapeHtml(item.service_id)}" data-featured-category="${escapeHtml(item.category_id)}">查看服務 →</button></div></article>`).join("") || '<div class="member-carousel-empty">目前沒有上架中的精選服務。</div>';
+    featuredRoot.querySelectorAll("[data-featured-service]").forEach((button) => button.addEventListener("click", () => openMemberService(button.dataset.featuredCategory, button.dataset.featuredService)));
+  }
+  const homeSearch = document.querySelector("#memberHomeSearch");
+  homeSearch?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const searchInput = document.querySelector("#memberHomeSearchInput");
+    const keyword = searchInput?.value.trim().toLocaleLowerCase("zh-Hant") || "";
+    if (!keyword) { searchInput?.focus(); return; }
+    const hit = catalogData.services.find((item) => [item.service_name, item.short_description, item.category_id].some((value) => String(value || "").toLocaleLowerCase("zh-Hant").includes(keyword)));
+    if (hit) openMemberService(hit.category_id, hit.service_id);
+    else { show("book"); searchInput.setCustomValidity("目前找不到符合的服務，已為你開啟完整服務清單。"); searchInput.reportValidity(); searchInput.setCustomValidity(""); }
+  });
+  initMemberCircleCarousel().catch((error) => {
+    const root = document.querySelector("#memberCircleCarousel");
+    if (root) root.innerHTML = `<div class="member-carousel-empty">推薦莓好圈暫時無法載入。<a href="match.html?v=20261008-resource-circle">前往莓好預約圈</a></div>`;
+    console.warn("Member circle carousel unavailable", error);
+  });
   serviceMenu.querySelectorAll("[data-cat]").forEach((button) => button.addEventListener("click", () => { category = button.dataset.cat; serviceMenu.querySelectorAll("[data-cat]").forEach((item) => item.classList.toggle("active", item === button)); renderPlans(); }));
   async function updateQuote(revision = ++serviceStateRevision) {
     const item = selectedService(); if (!item || item.booking_type !== "direct_booking") return;
@@ -705,6 +748,42 @@ async function initProductionMember() {
     } catch (error) { alert(error.message); }
   });
   renderPlans();
+}
+
+async function initMemberCircleCarousel() {
+  const root = document.querySelector("#memberCircleCarousel"), dots = document.querySelector("#memberCircleDots");
+  if (!root || !dots) return;
+  const payload = await publicPhase2Api("matching-discovery-feed", "&limit=18");
+  const items = [...phase2Items(payload, "carousel"), ...phase2Items(payload, "popular"), ...phase2Items(payload, "latest")].filter((item, index, rows) => rows.findIndex((row) => row.user_id === item.user_id) === index).slice(0, 12);
+  if (!items.length) {
+    root.innerHTML = '<div class="member-carousel-empty">目前還沒有公開的推薦莓好圈。<a href="match.html?v=20261008-resource-circle">先逛逛莓好預約圈</a></div>';
+    return;
+  }
+  let page = 0, timer, touchStartX = 0;
+  const pageSize = () => matchMedia("(max-width: 620px)").matches ? 1 : matchMedia("(max-width: 1080px)").matches ? 2 : 3;
+  const pageCount = () => Math.ceil(items.length / pageSize());
+  const card = (item) => {
+    const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-resource-circle"); href.searchParams.set("profile", String(item.public_slug || ""));
+    const avatar = safeHttpUrl(item.avatar_url), identities = (item.identities || []).map((tag) => tag.name).filter(Boolean);
+    const role = identities[0] || "莓好圈會員";
+    const services = [item.headline, ...(item.services || []).map((service) => service.service_name || service.name)].filter(Boolean).slice(0, 2).join("・") || "查看公開服務與合作內容";
+    const trust = Number(item.stats?.follower_count || 0) + Number(item.stats?.like_count || 0);
+    return `<a class="member-circle-card" href="${escapeHtml(href.href)}">${avatar ? `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(item.display_name || "莓好圈會員")}的頭像" loading="lazy" />` : `<span class="member-circle-avatar" aria-hidden="true">${escapeHtml(String(item.display_name || "莓").slice(0, 1))}</span>`}<span class="member-circle-role">${escapeHtml(role)}</span><strong>${escapeHtml(item.display_name || "莓好圈會員")}</strong><small>${escapeHtml(services)}</small><em>♥ ${trust} 次信任互動</em><b>進入莓好圈 →</b></a>`;
+  };
+  const render = () => {
+    const count = pageCount(); page = (page + count) % count;
+    const size = pageSize(), start = page * size;
+    root.innerHTML = items.slice(start, start + size).map(card).join("");
+    dots.innerHTML = Array.from({ length: count }, (_, index) => `<button type="button" aria-label="第 ${index + 1} 頁" aria-current="${index === page ? "true" : "false"}" data-circle-page="${index}"></button>`).join("");
+    dots.querySelectorAll("[data-circle-page]").forEach((button) => button.addEventListener("click", () => { page = Number(button.dataset.circlePage); render(); restart(); }));
+  };
+  const restart = () => { window.clearInterval(timer); if (!matchMedia("(prefers-reduced-motion: reduce)").matches && pageCount() > 1) timer = window.setInterval(() => { page++; render(); }, 6000); };
+  document.querySelector("#memberCirclePrev")?.addEventListener("click", () => { page--; render(); restart(); });
+  document.querySelector("#memberCircleNext")?.addEventListener("click", () => { page++; render(); restart(); });
+  root.addEventListener("touchstart", (event) => { touchStartX = event.changedTouches[0].clientX; }, { passive: true });
+  root.addEventListener("touchend", (event) => { const delta = event.changedTouches[0].clientX - touchStartX; if (Math.abs(delta) < 45) return; page += delta < 0 ? 1 : -1; render(); restart(); }, { passive: true });
+  let resizeTimer; window.addEventListener("resize", () => { window.clearTimeout(resizeTimer); resizeTimer = window.setTimeout(() => { page = 0; render(); restart(); }, 180); });
+  render(); restart();
 }
 
 async function initPhase2Member() {
