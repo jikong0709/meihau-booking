@@ -315,3 +315,10 @@
 - 尚未執行：正式 DB、Functions／Pages 部署、登入帳號與手機／桌機瀏覽器驗收；不得先部署 Function 再補 migration。
 - 工作樹仍有使用者原有未追蹤／temp 項目；只處理本段列出的功能檔，不 stage supabase/.temp、.recall、LOGO、output、其他更換的美術UI。
 - 下一步：Claude Code fresh-context 驗收後，按 migration dry-run／套用／讀回 → Functions → Pages → 登入驗收順序執行。
+
+
+## 2026-10-09｜預約莓好圈服務展示頁改版已部署（最新）
+- commit `866376d`（基底 f2e951b）；Pages run 37934775613 success；正式頁 `match.html?v=866376d`。
+- 只改 match.html／platform.js／platform.css：莓好推薦（橫式名片卡，僅個別官方服務）→ 服務分類（9 個瀏覽分類，前端映射 service_id／category_id，不改資料）→ 完整服務列表（排序、卡片／列表）→ 既有最新加入／人氣推薦。
+- 未動 Function、migration、DB、價格、登入、會員、訂單、後台；報價／議價按鈕依各服務 allow_quote／allow_negotiation 分開顯示（正式資料目前全為關閉）。
+- 待確認：9 個分類為顯示用映射，與骨架定案「五大第一層分類」並存，未修改骨架定案；查看詳情／申請／報價／議價均導向 member.html 個別服務深連結（service_action 參數既有但 member 端尚未自動開啟，需登入後驗）。
