@@ -832,6 +832,8 @@ const SERVICE_FILTERS = [
   { key: "all", label: "全部服務" }, { key: "temporary_staff", label: "莓你不可" }, { key: "recording_space", label: "莓好聲音" },
   { key: "venue_equipment", label: "莓好基地" }, { key: "learning", label: "莓好學習" }, { key: "ai_digital", label: "莓好數位" },
 ];
+// 子分類登記表：正式 DB 已登記（上架或即將推出）的服務項目；公開 feed 沒有對應服務卡時顯示「暫時服務內容」
+const SERVICE_SUBCATEGORY_REGISTRY = {"ai_digital": ["AI 簡報製作", "一頁式網站", "Excel／表單自動化", "AI／數位系統客製", "AI 工作流程規劃", "AI Agent／自動化規劃", "AI 生圖／視覺製作", "AI 內容製作"], "venue_equipment": ["陪工作｜完全安靜", "陪工作｜低互動", "陪上班", "陪讀／陪學習", "陪創作", "Body Doubling", "陪你完成一件事", "客製陪伴", "彈性辦公座位", "半日辦公空間", "一日辦公空間", "小型會議空間", "拍攝空間", "直播空間", "活動場地"], "temporary_staff": ["活動工作人員", "現場活動支援", "臨時行政支援", "報到／接待人員", "展場／活動支援", "短期專案人力", "急件支援"], "recording_space": ["錄音體驗", "一日歌手", "錄音室租借", "Podcast 錄製", "配音／旁白錄製", "錄音＋後製"]};
 const serviceFilterLabel = (key) => SERVICE_FILTERS.find((filter) => filter.key === key)?.label || "其他服務";
 function serviceCoverUrl(item) {
   const src = String(item.cover_image || "").trim();
@@ -1302,22 +1304,26 @@ async function initMatchingPage() {
     const serviceNav = document.querySelector("#serviceCategoryNav"), serviceList = document.querySelector("#serviceList");
     const subSelect = document.querySelector("#serviceSubSelect");
     const serviceListTitle = document.querySelector("#serviceListTitle"), serviceListCount = document.querySelector("#serviceListCount");
+    const subOptionsFor = (category) => {
+      const live = services.filter((item) => item.category_id === category), liveNames = new Set(live.map((item) => item.display_name));
+      return [...live.map((item) => ({ value: item.service_id, label: item.display_name })), ...(SERVICE_SUBCATEGORY_REGISTRY[category] || []).filter((name) => !liveNames.has(name)).map((name) => ({ value: `planned:${name}`, label: name }))];
+    };
     const renderServices = () => {
-      let rows = services.filter((item) => (activeService === "all" || item.category_id === activeService) && (!activeSub || item.service_id === activeSub));
+      let rows = activeSub.startsWith("planned:") ? [] : services.filter((item) => (activeService === "all" || item.category_id === activeService) && (!activeSub || item.service_id === activeSub));
       if (sortMode === "name") rows = [...rows].sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "zh-Hant"));
       if (sortMode === "price-asc" || sortMode === "price-desc") rows = [...rows].sort((a, b) => { const x = serviceSortAmount(a), y = serviceSortAmount(b); if (x === null && y === null) return 0; if (x === null) return 1; if (y === null) return -1; return sortMode === "price-asc" ? x - y : y - x; });
       serviceNav.querySelectorAll("button").forEach((button) => { const on = button.dataset.serviceCategory === activeService; button.classList.toggle("active", on); button.setAttribute("aria-pressed", String(on)); });
-      const subItem = services.find((item) => item.service_id === activeSub);
-      serviceListTitle.textContent = subItem ? `${serviceFilterLabel(activeService)}｜${subItem.display_name}` : serviceFilterLabel(activeService);
+      const subItem = services.find((item) => item.service_id === activeSub), plannedName = activeSub.startsWith("planned:") ? activeSub.slice(8) : "";
+      serviceListTitle.textContent = subItem || plannedName ? `${serviceFilterLabel(activeService)}｜${subItem ? subItem.display_name : plannedName}` : serviceFilterLabel(activeService);
       if (subSelect) {
-        const options = services.filter((item) => item.category_id === activeService);
+        const options = subOptionsFor(activeService);
         subSelect.classList.toggle("hidden", activeService === "all" || !options.length);
-        subSelect.innerHTML = `<option value="">全部${escapeHtml(serviceFilterLabel(activeService))}項目</option>${options.map((item) => `<option value="${escapeHtml(item.service_id)}">${escapeHtml(item.display_name)}</option>`).join("")}`;
+        subSelect.innerHTML = `<option value="">${activeService === "all" ? "全部項目" : `全部${escapeHtml(serviceFilterLabel(activeService))}項目`}</option>${options.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("")}`;
         subSelect.value = activeSub;
       }
       serviceListCount.textContent = `共 ${rows.length} 項服務`;
       serviceList.classList.toggle("is-list", viewMode === "list");
-      serviceList.innerHTML = rows.map((item) => officialServiceCard(item, "full")).join("") || '<p class="service-empty">這個分類目前還沒有上架服務，請先看看其他分類。</p>';
+      serviceList.innerHTML = rows.map((item) => officialServiceCard(item, "full")).join("") || (plannedName ? '<p class="service-empty"><strong>暫時服務內容</strong><br>此項目目前尚未開放，敬請期待。</p>' : '<p class="service-empty">暫時服務內容</p>');
       document.querySelectorAll("[data-service-view]").forEach((button) => { const on = button.dataset.serviceView === viewMode; button.classList.toggle("active", on); button.setAttribute("aria-pressed", String(on)); });
     };
     serviceNav.innerHTML = SERVICE_FILTERS.map((filter) => `<button type="button" data-service-category="${filter.key}" aria-pressed="false">${escapeHtml(filter.label)}</button>`).join("");
