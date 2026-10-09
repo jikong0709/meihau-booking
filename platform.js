@@ -827,20 +827,11 @@ function officialMatchingCard(item) {
   const negotiationButton = item.allow_negotiation ? `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "negotiation"))}">開啟議價</a>` : "";
   return `<article class="matching-feed-card official-team-card"><p class="eyebrow"><span class="official-partner-badge">官方合作</span></p><h3>${escapeHtml(item.display_name || "官方服務")}</h3><p>${escapeHtml(item.headline || "官方合作服務")}</p><strong>${escapeHtml(officialPriceText(item))}</strong><small>提供單位：${escapeHtml(item.team_name || "官方團隊")}</small><div class="official-team-actions"><a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item))}">查看服務</a><a class="btn small" href="${escapeHtml(officialServiceUrl(item, "apply"))}">立即申請／預約</a>${quoteButton}${negotiationButton}</div></article>`;
 }
-// 服務分類顯示映射：以正式 service_id／category_id 對應前台 9 個瀏覽分類（不改動任何服務資料或五大第一層分類）
+// 服務分類：五大正式分類（對應 services.category_id），子分類＝該分類下已登記的服務項目
 const SERVICE_FILTERS = [
-  { key: "all", label: "全部服務", icon: "▦" }, { key: "digital", label: "數位服務", icon: "⌨" }, { key: "staff", label: "人力服務", icon: "☺" },
-  { key: "space", label: "場地空間", icon: "⌂" }, { key: "transport", label: "載人／載貨", icon: "⛟" }, { key: "calligraphy", label: "手寫抄經", icon: "✎" },
-  { key: "course", label: "課程／教學", icon: "▤" }, { key: "event", label: "活動／企劃", icon: "✦" }, { key: "other", label: "其他服務", icon: "✧" },
+  { key: "all", label: "全部服務" }, { key: "temporary_staff", label: "莓你不可" }, { key: "recording_space", label: "莓好聲音" },
+  { key: "venue_equipment", label: "莓好基地" }, { key: "learning", label: "莓好學習" }, { key: "ai_digital", label: "莓好數位" },
 ];
-const SERVICE_FILTER_BY_ID = {
-  "OFF-MEIHAU-001": ["digital"], "OFF-MEIHAU-002": ["digital"], "OFF-MEIHAU-003": ["digital"], "OFF-MEIHAU-004": ["digital"],
-  "OFF-MEIHAU-005": ["course"], "OFF-MEIHAU-006": ["staff", "event"], "OFF-MEIHAU-007": ["calligraphy"], "OFF-MEIHAU-008": ["calligraphy"],
-  "OFF-MEIHAU-009": ["calligraphy"], "OFF-MEIHAU-010": ["calligraphy"], "OFF-MEIHAU-011": ["transport"], "OFF-MEIHAU-012": ["transport"],
-  "OFF-LITESAY-013": ["space"], "OFF-LITESAY-014": ["space", "course"], "OFF-LITESAY-015": ["space", "event"], "OFF-LITESAY-016": ["course"], "OFF-LITESAY-017": ["space"],
-};
-const SERVICE_FILTER_BY_CATEGORY = { ai_digital: ["digital"], temporary_staff: ["staff"], venue_equipment: ["space"], recording_space: ["space"], learning: ["course"] };
-const serviceFilterKeys = (item) => SERVICE_FILTER_BY_ID[item.service_id] || SERVICE_FILTER_BY_CATEGORY[item.category_id] || ["other"];
 const serviceFilterLabel = (key) => SERVICE_FILTERS.find((filter) => filter.key === key)?.label || "其他服務";
 function serviceCoverUrl(item) {
   const src = String(item.cover_image || "").trim();
@@ -857,7 +848,7 @@ function officialServiceCard(item, variant = "full") {
   const provider = `<small class="service-card-provider">提供單位：${escapeHtml(item.team_name || "官方團隊")}</small>`;
   const detail = `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item))}">查看詳情</a>`;
   if (variant === "compact") return `<article class="service-reco-card" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-reco-body"><h3>${escapeHtml(item.display_name || "官方服務")}</h3>${provider}${detail}</div></article>`;
-  const tags = serviceFilterKeys(item).map((key) => `<span class="service-tag">${escapeHtml(serviceFilterLabel(key))}</span>`).join("");
+  const tags = `<span class="service-tag">${escapeHtml(serviceFilterLabel(item.category_id))}</span>`;
   const quote = item.allow_quote ? `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "quote"))}">開啟報價</a>` : "";
   const negotiation = item.allow_negotiation ? `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "negotiation"))}">開啟議價</a>` : "";
   return `<article class="service-list-card" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-list-body"><div class="service-tag-row">${tags}</div><h3>${escapeHtml(item.display_name || "官方服務")}</h3><p class="service-card-summary">${escapeHtml(item.headline || "")}</p>${provider}<strong class="service-card-price">${escapeHtml(officialPriceText(item))}</strong><div class="service-card-actions">${detail}<a class="btn small" href="${escapeHtml(officialServiceUrl(item, "apply"))}">立即申請／預約</a>${quote}${negotiation}</div></div></article>`;
@@ -1283,7 +1274,7 @@ async function initMatchingPage() {
     const items = phase2Items(payload, "items"), categories = phase2Items(payload, "categories");
     const services = items.filter((item) => item.entity_type === "official_service");
     const recommended = phase2Items(payload, "carousel").filter((item) => item.entity_type === "official_service");
-    let activeCategory = "all", activeService = "all", sortMode = "default", viewMode = "card";
+    let activeCategory = "all", activeService = "all", activeSub = "", sortMode = "default", viewMode = "card", carouselPaused = false;
     const filteredByCategory = (rows) => activeCategory === "all" ? rows : rows.filter((item) => (item.identities||[]).some((tag) => String(tag.tag_id) === activeCategory));
     // 莓好推薦：只放個別服務的橫式名片卡，桌機多張＋左右切換、手機觸控橫滑
     const carouselStep = () => { const card = carouselRoot.firstElementChild; return card ? card.getBoundingClientRect().width + 16 : 280; };
@@ -1298,23 +1289,40 @@ async function initMatchingPage() {
     document.querySelector("#matchingCarouselPrev")?.addEventListener("click", () => carouselRoot.scrollBy({ left: -carouselStep(), behavior: "smooth" }));
     document.querySelector("#matchingCarouselNext")?.addEventListener("click", () => carouselRoot.scrollBy({ left: carouselStep(), behavior: "smooth" }));
     window.addEventListener("resize", updateCarouselIndicator);
+    const pauseOn = ["mouseenter", "focusin", "touchstart"], pauseOff = ["mouseleave", "focusout", "touchend"];
+    pauseOn.forEach((name) => carouselRoot.addEventListener(name, () => { carouselPaused = true; }, { passive: true }));
+    pauseOff.forEach((name) => carouselRoot.addEventListener(name, () => { carouselPaused = false; }, { passive: true }));
+    if (recommended.length > 1) window.setInterval(() => {
+      if (carouselPaused || document.hidden) return;
+      const atEnd = carouselRoot.scrollLeft + carouselRoot.clientWidth >= carouselRoot.scrollWidth - 4;
+      carouselRoot.scrollTo({ left: atEnd ? 0 : carouselRoot.scrollLeft + carouselStep(), behavior: "smooth" });
+    }, 5000);
     carouselSection.classList.remove("hidden"); updateCarouselIndicator();
     // 服務分類＋完整服務列表（單一狀態、單一過濾流程）
     const serviceNav = document.querySelector("#serviceCategoryNav"), serviceList = document.querySelector("#serviceList");
+    const subSelect = document.querySelector("#serviceSubSelect");
     const serviceListTitle = document.querySelector("#serviceListTitle"), serviceListCount = document.querySelector("#serviceListCount");
     const renderServices = () => {
-      let rows = services.filter((item) => activeService === "all" || serviceFilterKeys(item).includes(activeService));
+      let rows = services.filter((item) => (activeService === "all" || item.category_id === activeService) && (!activeSub || item.service_id === activeSub));
       if (sortMode === "name") rows = [...rows].sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "zh-Hant"));
       if (sortMode === "price-asc" || sortMode === "price-desc") rows = [...rows].sort((a, b) => { const x = serviceSortAmount(a), y = serviceSortAmount(b); if (x === null && y === null) return 0; if (x === null) return 1; if (y === null) return -1; return sortMode === "price-asc" ? x - y : y - x; });
       serviceNav.querySelectorAll("button").forEach((button) => { const on = button.dataset.serviceCategory === activeService; button.classList.toggle("active", on); button.setAttribute("aria-pressed", String(on)); });
-      serviceListTitle.textContent = serviceFilterLabel(activeService);
+      const subItem = services.find((item) => item.service_id === activeSub);
+      serviceListTitle.textContent = subItem ? `${serviceFilterLabel(activeService)}｜${subItem.display_name}` : serviceFilterLabel(activeService);
+      if (subSelect) {
+        const options = services.filter((item) => item.category_id === activeService);
+        subSelect.classList.toggle("hidden", activeService === "all" || !options.length);
+        subSelect.innerHTML = `<option value="">全部${escapeHtml(serviceFilterLabel(activeService))}項目</option>${options.map((item) => `<option value="${escapeHtml(item.service_id)}">${escapeHtml(item.display_name)}</option>`).join("")}`;
+        subSelect.value = activeSub;
+      }
       serviceListCount.textContent = `共 ${rows.length} 項服務`;
       serviceList.classList.toggle("is-list", viewMode === "list");
       serviceList.innerHTML = rows.map((item) => officialServiceCard(item, "full")).join("") || '<p class="service-empty">這個分類目前還沒有上架服務，請先看看其他分類。</p>';
       document.querySelectorAll("[data-service-view]").forEach((button) => { const on = button.dataset.serviceView === viewMode; button.classList.toggle("active", on); button.setAttribute("aria-pressed", String(on)); });
     };
-    serviceNav.innerHTML = SERVICE_FILTERS.map((filter) => `<button type="button" data-service-category="${filter.key}" aria-pressed="false"><span aria-hidden="true">${filter.icon}</span>${escapeHtml(filter.label)}</button>`).join("");
-    serviceNav.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => { activeService = button.dataset.serviceCategory; renderServices(); }));
+    serviceNav.innerHTML = SERVICE_FILTERS.map((filter) => `<button type="button" data-service-category="${filter.key}" aria-pressed="false">${escapeHtml(filter.label)}</button>`).join("");
+    subSelect?.addEventListener("change", () => { activeSub = subSelect.value; renderServices(); });
+    serviceNav.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => { activeService = button.dataset.serviceCategory; activeSub = ""; renderServices(); }));
     document.querySelector("#serviceSort")?.addEventListener("change", (event) => { sortMode = event.target.value; renderServices(); });
     document.querySelectorAll("[data-service-view]").forEach((button) => button.addEventListener("click", () => { viewMode = button.dataset.serviceView; renderServices(); }));
     renderServices();

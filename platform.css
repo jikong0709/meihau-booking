@@ -1622,3 +1622,5 @@ img, svg { max-width: 100%; }
   .service-category-nav button { flex: 0 0 auto; }
   .reco-head .carousel-controls { margin-left: 0; }
 }
+.service-sub-select { display: block; width: min(100%, 360px); min-height: 42px; margin: -12px 0 24px; padding: 8px 12px; border: 1px solid var(--berry-200); border-radius: 12px; background: #fff; color: var(--ink); font: inherit; font-weight: 700; }
+.service-sub-select.hidden { display: none !important; }
