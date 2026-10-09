@@ -65,11 +65,25 @@ export async function handlePublicMatching(request: Request, origin: string | nu
   const now = new Date().toISOString();
   if (action === "matching-discovery-feed") {
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 30), 1), 50);
-    const { data: profiles, error } = await db.schema("booking").from("matching_profiles")
-      .select(PROFILE_FIELDS).eq("publish_status", "published").or("is_public.eq.true,is_public.is.null").order("circle_joined_at", { ascending: false }).limit(limit);
-    if (error) return contractError(origin, 503, "matching_feed_unavailable", "莓好預約圈暫時無法讀取");
+    const [{ data: profiles, error }, { data: teams, error: teamsError }] = await Promise.all([
+      db.schema("booking").from("matching_profiles").select(PROFILE_FIELDS).eq("publish_status", "published").or("is_public.eq.true,is_public.is.null").order("circle_joined_at", { ascending: false }).limit(limit),
+      db.schema("booking").from("official_teams").select("team_id,team_name,team_description,service_scope,logo,cover_image,sort_order").eq("status", "active").eq("display_in_meihao_circle", true).order("sort_order"),
+    ]);
+    if (error || teamsError) return contractError(origin, 503, "matching_feed_unavailable", "莓好預約圈暫時無法讀取");
+    const teamIds = (teams || []).map((row: any) => row.team_id);
+    const { data: officialServices } = teamIds.length ? await db.schema("booking").from("services")
+      .select("service_id,team_id,service_name,category_id,short_description,pricing_type,price_note,sort_order")
+      .in("team_id", teamIds).eq("service_status", "active").eq("display_in_meihao_circle", true).order("sort_order") : { data: [] };
+    const officialItems = (teams || []).map((team: any) => ({
+      entity_type: "official_partner", team_id: team.team_id, user_id: `official:${team.team_id}`,
+      display_name: team.team_name, headline: team.team_description, avatar_url: team.logo, cover_image: team.cover_image,
+      identities: [{ tag_id: "official_partner", name: "官方合作", slug: "official-partner" }],
+      service_scope: team.service_scope || [], services: (officialServices || []).filter((service: any) => service.team_id === team.team_id),
+      stats: { like_count: 0, follower_count: 0, popularity_score: 0 }, sort_order: team.sort_order,
+      is_carousel_enabled: true, carousel_status: "active", carousel_priority: team.sort_order,
+    }));
     const userIds = (profiles || []).map((row: any) => row.user_id);
-    if (!userIds.length) return reply(origin, 200, { categories: [], carousel: [], latest: [], popular: [], items: [] });
+    if (!userIds.length) return reply(origin, 200, { categories: [], official_partners: officialItems, carousel: officialItems, latest: [], popular: [], items: officialItems });
     const [{ data: members }, { data: stats }, { data: verifications }] = await Promise.all([
       db.schema("booking").from("members").select("user_id").in("user_id", userIds).eq("account_status", "active"),
       db.schema("booking").from("matching_profile_stats").select("*").in("user_id", userIds),
@@ -95,10 +109,11 @@ export async function handlePublicMatching(request: Request, origin: string | nu
       };
     });
     const categories = [...new Map(items.flatMap((item: any) => item.identities).map((tag: any) => [tag.tag_id, tag])).values()];
-    const carousel = items.filter((item: any) => item.is_carousel_enabled && item.carousel_status === "active" && (!item.carousel_start_at || item.carousel_start_at <= now) && (!item.carousel_end_at || item.carousel_end_at > now)).sort((a: any,b: any) => Number(a.carousel_priority||0)-Number(b.carousel_priority||0));
+    const memberCarousel = items.filter((item: any) => item.is_carousel_enabled && item.carousel_status === "active" && (!item.carousel_start_at || item.carousel_start_at <= now) && (!item.carousel_end_at || item.carousel_end_at > now)).sort((a: any,b: any) => Number(a.carousel_priority||0)-Number(b.carousel_priority||0));
+    const carousel = [...officialItems, ...memberCarousel];
     const latest = [...items].sort((a: any,b: any) => new Date(b.circle_joined_at || 0).valueOf()-new Date(a.circle_joined_at || 0).valueOf()).slice(0,10);
     const popular = [...items].sort((a: any,b: any) => Number(b.stats?.popularity_score||0)-Number(a.stats?.popularity_score||0)).slice(0,10);
-    return reply(origin, 200, { categories, carousel, latest, popular, items });
+    return reply(origin, 200, { categories, official_partners: officialItems, carousel, latest, popular, items: [...officialItems, ...items] });
   }
   if (action === "public-matching-profile") {
     const slug = String(url.searchParams.get("slug") || url.searchParams.get("profile") || "").trim().toLowerCase();

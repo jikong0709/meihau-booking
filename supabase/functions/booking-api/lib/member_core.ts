@@ -39,13 +39,16 @@ export async function handleAddresses(ctx: RequestContext, method: string) {
 
 export async function handleServices(ctx: RequestContext) {
   const { db, origin } = ctx;
-  const [{ data: services, error: servicesError }, { data: options, error: optionsError }, { data: addons, error: addonsError }] = await Promise.all([
+  const [{ data: services, error: servicesError }, { data: options, error: optionsError }, { data: addons, error: addonsError }, { data: officialTeams, error: teamsError }, { data: applicationFields, error: fieldsError }, { data: priceOptions, error: pricesError }] = await Promise.all([
     db.schema("booking").from("services").select("*").in("service_status", ["active", "coming_soon"]).order("sort_order"),
     db.schema("booking").from("service_options").select("option_id,service_id,option_name,status,sort_order").eq("status", "active").order("sort_order"),
     db.schema("booking").from("service_addons").select("*").eq("status", "active").order("sort_order"),
+    db.schema("booking").from("official_teams").select("*").eq("status", "active").order("sort_order"),
+    db.schema("booking").from("service_application_fields").select("*").eq("status", "active").order("sort_order"),
+    db.schema("booking").from("service_price_options").select("*").eq("status", "active").order("sort_order"),
   ]);
-  if (servicesError || optionsError || addonsError) return reply(origin, 500, { error: "Service catalog unavailable" });
-  return reply(origin, 200, { services, options, addons });
+  if (servicesError || optionsError || addonsError || teamsError || fieldsError || pricesError) return reply(origin, 500, { error: "Service catalog unavailable" });
+  return reply(origin, 200, { services, options, addons, official_teams: officialTeams, application_fields: applicationFields, price_options: priceOptions });
 }
 
 export async function handleQuote(ctx: RequestContext) {
@@ -115,9 +118,26 @@ export async function handleInquiries(ctx: RequestContext, method: string) {
   try {
     const service = await loadActiveService(db, String(body.service_id || ""));
     if (service.booking_type !== "custom_quote") return reply(origin, 400, { error: "Direct booking service cannot create an inquiry" });
-    const requirements = String(body.requirements || "").trim().slice(0, 4000);
+    const rawPayload = body.application_payload && typeof body.application_payload === "object" && !Array.isArray(body.application_payload) ? body.application_payload as Record<string, unknown> : {};
+    const { data: definitions, error: definitionError } = await db.schema("booking").from("service_application_fields")
+      .select("field_key,required").eq("service_id", service.service_id).eq("status", "active").order("sort_order");
+    if (definitionError) return reply(origin, 400, { error: "Application fields unavailable" });
+    const allowed = new Map((definitions || []).map((field: any) => [String(field.field_key), Boolean(field.required)]));
+    const applicationPayload: Record<string, string> = {};
+    for (const [key, required] of allowed) {
+      const value = String(rawPayload[key] ?? "").trim().slice(0, 2000);
+      if (required && !value) return reply(origin, 400, { error: `Required application field is missing: ${key}` });
+      if (value) applicationPayload[key] = value;
+    }
+    const requirements = String(applicationPayload.requirements || body.requirements || "").trim().slice(0, 4000);
     if (requirements.length < 3) return reply(origin, 400, { error: "Requirements are incomplete" });
-    const row = { user_id: user.id, service_id: service.service_id, service_name: service.service_name, preferred_date: body.preferred_date || null, preferred_time: body.preferred_time || null, requirements, additional_notes: String(body.additional_notes || "").slice(0, 2000), status: "pending", quoted_amount: null };
+    const row = {
+      user_id: user.id, service_id: service.service_id, team_id: service.team_id || null, service_name: service.service_name,
+      preferred_date: applicationPayload.preferred_date || body.preferred_date || null,
+      preferred_time: applicationPayload.preferred_time || body.preferred_time || null,
+      requirements, additional_notes: String(applicationPayload.notes || body.additional_notes || "").slice(0, 2000),
+      application_payload: applicationPayload, status: "pending", quoted_amount: null,
+    };
     const { data, error } = await db.schema("booking").from("service_inquiries").insert(row).select().single();
     return reply(origin, error ? 400 : 201, error ? { error: "Inquiry could not be created" } : data);
   } catch { return reply(origin, 400, { error: "Invalid inquiry" }); }

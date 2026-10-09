@@ -1,9 +1,12 @@
 export type ServiceRow = {
   service_id: string;
-  category_id: "temporary_staff" | "recording_space" | "ai_digital" | "venue_equipment";
+  team_id: string | null;
+  category_id: "temporary_staff" | "recording_space" | "ai_digital" | "venue_equipment" | "learning";
   service_name: string;
   price: number | null;
   price_type: "fixed" | "starting_from" | "custom_quote";
+  pricing_type: "fixed" | "quote" | "current_campaign" | "contact" | null;
+  price_note: string;
   booking_type: "direct_booking" | "custom_quote";
   service_type: "recording" | "ai_digital" | "staff" | "space" | "companion" | null;
   price_unit: "session" | "hour" | "half_day" | "day" | "project" | null;
@@ -60,7 +63,7 @@ export async function buildQuote(db: any, input: Record<string, unknown>) {
     const { data, error } = await db.schema("booking").from("service_addons").select("*").in("addon_id", selectedAddonIds).eq("status", "active");
     if (error || !data || data.length !== selectedAddonIds.length) throw new Error("invalid_addon");
     const allowedTags: Record<ServiceRow["category_id"], string[]> = {
-      recording_space: ["recording", "podcast"], venue_equipment: ["photo", "event"], temporary_staff: ["event"], ai_digital: [],
+      recording_space: ["recording", "podcast"], venue_equipment: ["photo", "event"], temporary_staff: ["event"], ai_digital: [], learning: [],
     };
     for (const addon of data as AddonRow[]) {
       if (!addon.available_for.some((tag) => allowedTags[service.category_id].includes(tag))) throw new Error("invalid_addon");

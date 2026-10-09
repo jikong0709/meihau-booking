@@ -8,6 +8,10 @@ const legacyDemoCatalog = [
 
 const money = n => `NT$ ${Math.round(Number(n)||0).toLocaleString('zh-TW')}`;
 const priceLabel = (item) => {
+  if (item.pricing_type === "quote") return item.price_note || "依需求報價";
+  if (item.pricing_type === "current_campaign") return item.price_note || "依當期方案公告";
+  if (item.pricing_type === "contact") return item.price_note || "請先提交需求";
+  if (item.pricing_type === "fixed" && item.price !== null) return money(item.price).replace("NT$ ", "NT$");
   if (item.price_type === "custom_quote" || item.price === null) return "客製報價";
   const amount = money(item.price).replace("NT$ ", "NT$");
   const unit = item.price_unit === "hour" ? "／小時" : item.price_unit === "half_day" ? "／半日" : item.price_unit === "day" ? "／日" : item.price_unit === "project" ? "／專案" : item.included_hours ? `／${item.included_hours} 小時` : "";
@@ -597,6 +601,7 @@ async function initProductionMember() {
   let currentQuote;
   let serviceStateRevision = 0;
   const selectedService = () => catalogData.services.find((item) => item.service_id === planSelect.value);
+  const teamById = new Map((catalogData.official_teams || []).map((team) => [team.team_id, team]));
   serviceMenu.innerHTML = categoryDefinitions.map(([id, label, description]) => `<button class="service-choice ${id === category ? "active" : ""}" data-cat="${id}"><strong>${label}</strong><div class="muted">${description}</div></button>`).join("");
   const quotePayload = () => {
     const item = selectedService();
@@ -640,11 +645,21 @@ async function initProductionMember() {
     const staleHint = document.querySelector("#bookingHoursHint"); if (staleHint) staleHint.textContent = "";
     document.querySelector("#companionMode").innerHTML = (item.companion_modes || []).map((mode) => `<option value="${mode}">${companionModeLabels[mode] || escapeHtml(mode)}</option>`).join("");
     const isInquiry = item.booking_type === "custom_quote";
+    const applicationRoot = document.querySelector("#serviceApplicationFields");
+    const applicationFields = (catalogData.application_fields || []).filter((field) => field.service_id === item.service_id && !["requirements", "preferred_date", "preferred_time", "notes"].includes(field.field_key));
+    if (applicationRoot) applicationRoot.innerHTML = applicationFields.map((field) => {
+      const attrs = `data-application-field="${escapeHtml(field.field_key)}" ${field.required ? "required" : ""} placeholder="${escapeHtml(field.placeholder || "")}"`;
+      const control = field.field_type === "textarea" ? `<textarea ${attrs} rows="3"></textarea>` : `<input ${attrs} type="${escapeHtml(field.field_type || "text")}" />`;
+      return `<div class="field ${field.field_type === "textarea" ? "full" : ""}"><label>${escapeHtml(field.field_label)}${field.required ? "＊" : ""}</label>${control}</div>`;
+    }).join("");
     inquiryFields.classList.toggle("hidden", !isInquiry);
     checkoutButton.textContent = isInquiry ? "立即詢價" : "立即預約";
     checkoutButton.disabled = false;
     if (isInquiry) {
-      document.querySelector("#checkoutLines").innerHTML = `<div class="checkout-line"><span>${escapeHtml(item.service_name)}</span><strong>${priceLabel(item)}</strong></div>`;
+      const priceOptions = (catalogData.price_options || []).filter((option) => option.service_id === item.service_id);
+      document.querySelector("#checkoutLines").innerHTML = `<div class="checkout-line"><span>${escapeHtml(item.service_name)}</span><strong>${priceLabel(item)}</strong></div>`
+        + priceOptions.map((option) => `<div class="checkout-line service-price-option"><span>${escapeHtml(option.option_name)}</span><strong>${option.amount === null ? priceLabel(option) : money(option.amount)}</strong></div>`).join("")
+        + (item.application_method ? `<p class="service-application-note">${escapeHtml(item.application_method)}</p>` : "");
       document.querySelector("#checkoutTotal").textContent = "人工報價";
     } else {
       checkoutButton.disabled = true;
@@ -657,7 +672,7 @@ async function initProductionMember() {
     const firstActive = items.find((item) => item.service_status === "active");
     if (firstActive) planSelect.value = firstActive.service_id;
     const cardRoot = document.querySelector("#serviceCatalogCards");
-    cardRoot.innerHTML = items.map((item) => `<button type="button" class="service-plan-card ${item.service_id === planSelect.value ? "active" : ""}" data-service-id="${item.service_id}" ${item.service_status !== "active" ? "disabled" : ""}><span class="service-plan-head"><strong>${escapeHtml(item.service_name)}</strong><em>${item.service_status === "coming_soon" ? "即將推出" : priceLabel(item)}</em></span>${item.service_type === "companion" ? '<span class="companion-tags">🧍 真人陪伴｜🏢 工作空間</span>' : ""}<small>${escapeHtml(item.short_description || "")}</small></button>`).join("") || '<p class="muted">目前沒有上架服務</p>';
+    cardRoot.innerHTML = items.map((item) => { const team = teamById.get(item.team_id); return `<button type="button" class="service-plan-card ${item.service_id === planSelect.value ? "active" : ""}" data-service-id="${item.service_id}" ${item.service_status !== "active" ? "disabled" : ""}><span class="service-plan-head"><strong>${escapeHtml(item.service_name)}</strong><em>${item.service_status === "coming_soon" ? "即將推出" : priceLabel(item)}</em></span>${team ? `<span class="official-service-meta"><b>官方合作</b>${escapeHtml(team.team_name)}</span>` : ""}${item.service_type === "companion" ? '<span class="companion-tags">🧍 真人陪伴｜🏢 工作空間</span>' : ""}<small>${escapeHtml(item.short_description || "")}</small></button>`; }).join("") || '<p class="muted">目前沒有上架服務</p>';
     cardRoot.querySelectorAll("[data-service-id]:not(:disabled)").forEach((card) => card.addEventListener("click", () => { planSelect.value = card.dataset.serviceId; updateServiceMode().catch((error) => alert(error.message)); cardRoot.querySelectorAll("[data-service-id]").forEach((item) => item.classList.toggle("active", item === card)); }));
     updateServiceMode().catch((error) => alert(error.message));
   };
@@ -737,7 +752,11 @@ async function initProductionMember() {
       const note = document.querySelector("#bookingNote").value || "";
       if (item.booking_type === "custom_quote") {
         const requirements = document.querySelector("#inquiryRequirements").value.trim();
-        const created = await api("inquiries", { method: "POST", body: { service_id: item.service_id, preferred_date: bookingDate, preferred_time: bookingTime, requirements, additional_notes: note } });
+        const applicationPayload = Object.fromEntries([...document.querySelectorAll("[data-application-field]")].map((field) => [field.dataset.applicationField, field.value.trim()]));
+        Object.assign(applicationPayload, { requirements, preferred_date: bookingDate || "", preferred_time: bookingTime || "", notes: note });
+        const invalid = [...document.querySelectorAll("[data-application-field]:required")].find((field) => !field.value.trim());
+        if (invalid) { invalid.reportValidity(); invalid.focus(); return; }
+        const created = await api("inquiries", { method: "POST", body: { service_id: item.service_id, preferred_date: bookingDate, preferred_time: bookingTime, requirements, additional_notes: note, application_payload: applicationPayload } });
         inquiries = [created, ...inquiries]; renderInquiries(); document.querySelector("#inquiryRequirements").value = ""; show("inquiries");
         alert("詢價已送出，管理者確認後會更新報價狀態。");
       } else {
@@ -748,6 +767,26 @@ async function initProductionMember() {
     } catch (error) { alert(error.message); }
   });
   renderPlans();
+  const entryParams = new URLSearchParams(location.search);
+  const requestedService = entryParams.get("service");
+  const requestedTeam = entryParams.get("service_team");
+  const targetService = catalogData.services.find((item) => item.service_id === requestedService)
+    || catalogData.services.find((item) => item.team_id === requestedTeam && item.service_status === "active");
+  if (targetService) openMemberService(targetService.category_id, targetService.service_id);
+}
+
+function officialServiceUrl(item, apply = false) {
+  const href = new URL("member.html", location.href);
+  href.searchParams.set("v", "20261008-official-teams");
+  href.searchParams.set("service_team", String(item.team_id || ""));
+  const firstService = (item.services || [])[0];
+  if (firstService?.service_id) href.searchParams.set("service", firstService.service_id);
+  if (apply) href.searchParams.set("apply", "1");
+  return href.href;
+}
+function officialMatchingCard(item) {
+  const scope = (item.service_scope || []).join("・") || "官方合作服務";
+  return `<article class="matching-feed-card official-team-card"><p class="eyebrow"><span class="official-partner-badge">官方合作</span></p><h3>${escapeHtml(item.display_name || "官方團隊")}</h3><p>${escapeHtml(item.headline || scope)}</p><small>${escapeHtml(scope)}</small><div class="official-team-actions"><a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item))}">查看服務</a><a class="btn small" href="${escapeHtml(officialServiceUrl(item, true))}">申請服務</a></div></article>`;
 }
 
 async function initMemberCircleCarousel() {
@@ -763,6 +802,7 @@ async function initMemberCircleCarousel() {
   const pageSize = () => matchMedia("(max-width: 620px)").matches ? 1 : matchMedia("(max-width: 1080px)").matches ? 2 : 3;
   const pageCount = () => Math.ceil(items.length / pageSize());
   const card = (item) => {
+    if (item.entity_type === "official_partner") return `<article class="member-circle-card official-team-card"><span class="member-circle-avatar" aria-hidden="true">莓</span><span class="member-circle-role">官方合作</span><strong>${escapeHtml(item.display_name || "官方團隊")}</strong><small>${escapeHtml((item.service_scope || []).join("・") || item.headline || "官方合作服務")}</small><div class="official-team-actions"><a href="${escapeHtml(officialServiceUrl(item))}">查看服務</a><a href="${escapeHtml(officialServiceUrl(item, true))}">申請服務</a></div></article>`;
     const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-resource-circle"); href.searchParams.set("profile", String(item.public_slug || ""));
     const avatar = safeHttpUrl(item.avatar_url), identities = (item.identities || []).map((tag) => tag.name).filter(Boolean);
     const role = identities[0] || "莓好圈會員";
@@ -1141,6 +1181,7 @@ async function initMatchingHomeFeed() {
     const payload = await publicPhase2Api("matching-discovery-feed", "&limit=12");
     const items = [...phase2Items(payload, "carousel"), ...phase2Items(payload, "popular")].filter((item,index,rows)=>rows.findIndex((row)=>row.user_id===item.user_id)===index).slice(0,6);
     root.innerHTML = items.map((item) => {
+      if (item.entity_type === "official_partner") return officialMatchingCard(item);
       const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-resource-circle");
       href.searchParams.set("profile", String(item.public_slug || ""));
       return `<article class="matching-feed-card"><p class="eyebrow">${escapeHtml((item.identities||[]).map((tag)=>tag.name).join("・")||"莓好圈會員")}</p><h3>${escapeHtml(item.display_name || "莓好圈會員")}</h3><p>${escapeHtml(item.headline || "查看公開的我的莓好圈")}</p><div class="circle-social-counts"><span>❤️ ${Number(item.stats?.like_count||0)}</span><span>⭐ ${Number(item.stats?.follower_count||0)}</span></div><a class="btn ghost small" href="${escapeHtml(href.href)}">查看 MY 莓好圈</a></article>`;
@@ -1158,6 +1199,7 @@ async function initMatchingPage() {
   const latestSection = document.querySelector("#matchingLatestSection"), latestRoot = document.querySelector("#matchingLatestFeed");
   const popularSection = document.querySelector("#matchingPopularSection"), popularRoot = document.querySelector("#matchingPopularFeed");
   const feedCard = (item) => {
+    if (item.entity_type === "official_partner") return officialMatchingCard(item);
     const itemSlug = String(item.public_slug || "");
     const href = new URL("match.html", location.href); href.searchParams.set("v", "20261008-resource-circle"); href.searchParams.set("profile", itemSlug);
     const identities = item.identities || [], avatar = safeHttpUrl(item.avatar_url);
@@ -1608,9 +1650,9 @@ async function initProductionAdmin() {
   const categoryLabel = { temporary_staff: "莓你不可", recording_space: "莓好聲音", venue_equipment: "莓好基地", learning: "莓好學習", ai_digital: "莓好數位" };
   const priceTypeLabel = { fixed: "固定價", starting_from: "起價", custom_quote: "客製報價" };
   const bookingTypeLabel = { direct_booking: "直接預約", custom_quote: "先詢價" };
-  document.querySelector("#adminServiceRows").innerHTML = services.map((service) => `<tr><td><strong>${escapeHtml(service.service_id)}</strong><br>${escapeHtml(service.service_name)}</td><td>${categoryLabel[service.category_id] || escapeHtml(service.category_id)}</td><td>${priceLabel(service)}<br><small>${priceTypeLabel[service.price_type] || escapeHtml(service.price_type)}</small></td><td>${bookingTypeLabel[service.booking_type] || escapeHtml(service.booking_type)}</td><td><span class="badge neutral">${escapeHtml(service.service_status)}</span><br><small>#${service.sort_order}</small></td></tr>`).join("") || '<tr><td colspan="5">目前沒有服務資料</td></tr>';
+  document.querySelector("#adminServiceRows").innerHTML = services.map((service) => `<tr><td><strong>${escapeHtml(service.service_id)}</strong><br>${escapeHtml(service.service_name)}${service.team_id ? `<br><small><span class="official-partner-badge">官方合作</span> ${escapeHtml(service.team_id)}</small>` : ""}</td><td>${categoryLabel[service.category_id] || escapeHtml(service.category_id)}</td><td>${priceLabel(service)}<br><small>${priceTypeLabel[service.price_type] || escapeHtml(service.price_type)}</small></td><td>${bookingTypeLabel[service.booking_type] || escapeHtml(service.booking_type)}</td><td><span class="badge neutral">${escapeHtml(service.service_status)}</span><br><small>#${service.sort_order}</small></td></tr>`).join("") || '<tr><td colspan="5">目前沒有服務資料</td></tr>';
   const renderAdminInquiries = () => {
-    document.querySelector("#adminInquiryRows").innerHTML = inquiries.map((item) => `<tr><td><strong>${escapeHtml(item.id.slice(0, 8))}</strong><br><small>${escapeHtml(item.members?.full_name || item.members?.name || item.members?.email || "會員")}</small></td><td><strong>${escapeHtml(item.service_name)}</strong><br><small>${item.preferred_date || "日期未定"} ${item.preferred_time || ""}</small></td><td>${escapeHtml(item.requirements)}</td><td><div class="admin-inquiry-actions"><select data-inquiry-status="${item.id}"><option value="pending" ${item.status === "pending" ? "selected" : ""}>待處理</option><option value="reviewing" ${item.status === "reviewing" ? "selected" : ""}>評估中</option><option value="quoted" ${item.status === "quoted" ? "selected" : ""}>已報價</option><option value="accepted" ${item.status === "accepted" ? "selected" : ""}>已接受</option><option value="closed" ${item.status === "closed" ? "selected" : ""}>已結案</option></select><input data-inquiry-amount="${item.id}" type="number" min="0" step="1" placeholder="報價金額" value="${item.quoted_amount ?? ""}" /><button class="btn ghost small" data-save-inquiry="${item.id}">儲存</button></div></td></tr>`).join("") || '<tr><td colspan="4">目前沒有詢價</td></tr>';
+    document.querySelector("#adminInquiryRows").innerHTML = inquiries.map((item) => { const details = Object.entries(item.application_payload || {}).filter(([, value]) => value !== "").map(([key, value]) => `<li><b>${escapeHtml(key)}</b>：${escapeHtml(value)}</li>`).join(""); return `<tr><td><strong>${escapeHtml(item.id.slice(0, 8))}</strong><br><small>${escapeHtml(item.members?.full_name || item.members?.name || item.members?.email || "會員")}</small></td><td><strong>${escapeHtml(item.service_name)}</strong><br><small>${item.preferred_date || "日期未定"} ${item.preferred_time || ""}</small></td><td>${escapeHtml(item.requirements)}${details ? `<details><summary>申請欄位</summary><ul>${details}</ul></details>` : ""}</td><td><div class="admin-inquiry-actions"><select data-inquiry-status="${item.id}"><option value="pending" ${item.status === "pending" ? "selected" : ""}>待處理</option><option value="reviewing" ${item.status === "reviewing" ? "selected" : ""}>評估中</option><option value="quoted" ${item.status === "quoted" ? "selected" : ""}>已報價</option><option value="accepted" ${item.status === "accepted" ? "selected" : ""}>已接受</option><option value="closed" ${item.status === "closed" ? "selected" : ""}>已結案</option></select><input data-inquiry-amount="${item.id}" type="number" min="0" step="1" placeholder="報價金額" value="${item.quoted_amount ?? ""}" /><button class="btn ghost small" data-save-inquiry="${item.id}">儲存</button></div></td></tr>`; }).join("") || '<tr><td colspan="4">目前沒有詢價</td></tr>';
     document.querySelectorAll("[data-save-inquiry]").forEach((button) => button.addEventListener("click", async () => {
       try {
         const id = button.dataset.saveInquiry;

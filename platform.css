@@ -911,6 +911,14 @@ img, svg { max-width: 100%; }
 .service-plan-head em { flex: 0 0 auto; color: var(--berry-700); font-size: .78rem; font-style: normal; font-weight: 800; }
 .service-plan-card small { color: var(--muted); line-height: 1.5; }
 .companion-tags { width: fit-content; padding: 5px 9px; border-radius: var(--radius-pill); background: var(--sage-100); color: var(--success-ink); font-size: .74rem; font-weight: 800; }
+.official-service-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: var(--muted); font-size: .75rem; }
+.official-partner-badge,.official-service-meta b { width: fit-content; padding: 3px 8px; border-radius: var(--radius-pill); background: var(--berry-100); color: var(--berry-700); font-size: .7rem; font-weight: 850; }
+.official-team-card { border-color: var(--berry-200); background: linear-gradient(145deg,#fff 0%,var(--berry-50) 100%); }
+.official-team-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.member-circle-card>.official-team-actions { grid-column: 1/-1; }
+.official-team-actions a { text-decoration: none; }
+.member-circle-card>.official-team-actions a { padding: 7px 10px; border: 1px solid var(--berry-300); border-radius: var(--radius-pill); color: var(--berry-700); background: #fff; font-size: .78rem; font-weight: 800; }
+.service-application-note { grid-column: 1/-1; margin: 8px 0 0; color: var(--muted); font-size: .82rem; }
 .companion-booking { padding: 18px; border: 1px solid var(--berry-200); border-radius: var(--radius-lg); background: var(--berry-50); }
 .companion-rules { margin-top: 16px; display: grid; gap: 11px; padding: 16px; border-radius: var(--radius-md); background: var(--surface-raised); }
 .companion-rules > strong { color: var(--berry-700); font-family: "Noto Serif TC", serif; font-size: 1.08rem; }
