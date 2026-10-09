@@ -857,10 +857,9 @@ function officialServiceCard(item, variant = "full") {
   // 推薦卡的「查看詳情」進入官方團隊的莓好預約圈展示頁；完整服務卡整張可點，進入該服務主頁面
   if (variant === "compact") return `<article class="service-reco-card" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-reco-body"><h3>${escapeHtml(item.display_name || "官方服務")}</h3>${provider}<a class="btn ghost small" href="${escapeHtml(officialTeamUrl(item))}">查看詳情</a></div></article>`;
   const tags = `<span class="service-tag">${escapeHtml(serviceFilterLabel(item.category_id))}</span>`;
-  const quote = item.allow_quote ? `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "quote"))}">報價</a>` : "";
-  const negotiation = item.allow_negotiation ? `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "negotiation"))}">議價</a>` : "";
+  const quote = `<a class="btn ghost small" href="${escapeHtml(officialServiceUrl(item, "quote"))}">報價</a>`;
   const inquiry = `<a class="btn small" href="${escapeHtml(officialServiceUrl(item, "inquiry"))}">詢價</a>`;
-  return `<article class="service-list-card" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-list-body"><div class="service-tag-row">${tags}</div><h3><a class="service-card-link" href="${escapeHtml(officialServiceUrl(item))}">${escapeHtml(item.display_name || "官方服務")}</a></h3><p class="service-card-summary">${escapeHtml(item.headline || "")}</p>${provider}<strong class="service-card-price">${escapeHtml(officialPriceText(item))}</strong><div class="service-card-actions">${quote}${negotiation}${inquiry}</div></div></article>`;
+  return `<article class="service-list-card" data-service-id="${escapeHtml(item.service_id)}">${image}<div class="service-list-body"><div class="service-tag-row">${tags}</div><h3><a class="service-card-link" href="${escapeHtml(officialServiceUrl(item))}">${escapeHtml(item.display_name || "官方服務")}</a></h3><p class="service-card-summary">${escapeHtml(item.headline || "")}</p>${provider}<strong class="service-card-price">${escapeHtml(officialPriceText(item))}</strong><div class="service-card-actions">${quote}${inquiry}</div></div></article>`;
 }
 async function renderOfficialTeamPage(teamId, state, root) {
   const payload = await publicPhase2Api("matching-discovery-feed", "&limit=50");
