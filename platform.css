@@ -1565,3 +1565,60 @@ img, svg { max-width: 100%; }
 @media(max-width:1080px){.member-circle-track{grid-template-columns:repeat(2,minmax(0,1fr))}.member-howto ol{grid-template-columns:repeat(3,minmax(0,1fr))}.member-howto li:nth-child(3)::after{display:none}}
 @media(max-width:820px){.side-nav-divider{width:1px;height:28px;margin:8px 6px;flex:0 0 1px}.member-category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.member-announcements{grid-template-columns:1fr;gap:9px}.member-announcements h2{padding:0 0 8px;border-right:0;border-bottom:1px solid #e9c8c9}.member-announcements .member-text-button{justify-self:start}}
 @media(max-width:620px){.member-home-search{width:100%}.member-home-search button{display:none}.member-section-head{display:grid;gap:8px}.member-section-head>a,.member-section-head>.member-text-button{justify-self:start}.member-circle-spotlight{padding:18px 16px;border-radius:20px}.member-circle-track{grid-template-columns:1fr}.member-circle-card{min-height:226px}.member-carousel-arrow.prev{left:-12px}.member-carousel-arrow.next{right:-12px}.member-quick-row{grid-template-columns:repeat(2,minmax(0,1fr))}.member-welcome-card{grid-template-columns:46px minmax(0,1fr)}.member-welcome-card .btn{grid-column:1/-1}.member-home-avatar{width:46px;height:46px}.member-mini-stat.status{grid-column:1/-1}.member-category-grid{grid-template-columns:1fr}.member-category-card{min-height:150px;grid-template-columns:36px minmax(0,1fr) 118px;align-items:center}.member-category-card img{grid-column:3;grid-row:1/span 2;height:96px;margin:0}.member-category-card>b{right:8px;bottom:8px}.member-featured-track{grid-auto-columns:minmax(220px,82%)}.member-howto ol{grid-template-columns:1fr}.member-howto li{padding-inline:4px}.member-howto li:not(:last-child)::after{content:"↓";top:auto;right:16px;bottom:-8px;display:block}.member-announcements li{grid-template-columns:44px minmax(0,1fr)}}
+
+/* ===== 預約莓好圈：莓好推薦（橫式名片卡）＋服務分類＋完整服務列表 ===== */
+.matching-public-main > #matchingProfileState { min-height: 0; max-width: none; margin-inline: 0; margin-bottom: 18px; padding: 4px 0 8px; border: 0; background: transparent; text-align: left; place-items: start; }
+.matching-public-main > #matchingProfileState h1 { margin: 0 0 4px; font-size: clamp(1.4rem, 3vw, 1.9rem); }
+.matching-public-main > #matchingProfileState p { margin: 0; }
+.reco-section { margin-top: 0; }
+.reco-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 14px; }
+.reco-head h2 { margin: 0; font-family: Georgia, "Noto Serif TC", serif; font-size: clamp(1.5rem, 3vw, 2rem); color: var(--berry-700); }
+.reco-head p { flex: 1 1 200px; margin: 0; color: var(--muted); font-size: .92rem; }
+.reco-head .carousel-controls { margin-left: auto; }
+.reco-head #matchingCarouselIndicator { min-width: 64px; text-align: center; font-weight: 800; color: var(--muted-strong); font-size: .86rem; }
+.service-reco-track { display: flex; gap: 16px; overflow-x: auto; padding: 3px 3px 10px; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.service-reco-card { flex: 0 0 320px; width: 320px; height: 140px; display: flex; gap: 12px; padding: 10px; border: 1px solid var(--berry-200); border-radius: 16px; background: #fff; box-shadow: 0 6px 18px rgba(92, 40, 44, .07); scroll-snap-align: start; overflow: hidden; }
+.service-card-media { position: relative; overflow: hidden; border-radius: 12px; background: var(--berry-50); }
+.service-card-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.service-card-media .official-partner-badge { position: absolute; top: 6px; left: 6px; background: rgba(255, 255, 255, .94); }
+.service-reco-card .service-card-media { flex: 0 0 112px; height: 100%; }
+.service-reco-body { min-width: 0; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.service-reco-body h3 { margin: 0; font-size: 1.05rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.service-card-provider { color: var(--muted); font-size: .8rem; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.service-reco-body .btn { align-self: flex-start; text-decoration: none; }
+.service-browse { margin-top: clamp(22px, 4vw, 36px); }
+.service-category-head, .service-list-head > div:first-child { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
+.service-category-head h2, .service-list-head h2 { margin: 0; font-family: Georgia, "Noto Serif TC", serif; font-size: clamp(1.4rem, 3vw, 1.9rem); }
+.service-category-head p, .service-list-head p { margin: 0; color: var(--muted); font-size: .9rem; }
+.service-category-nav { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 26px; }
+.service-category-nav button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--berry-200); border-radius: 999px; color: var(--berry-800); background: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.service-category-nav button.active, .service-category-nav button[aria-pressed="true"] { border-color: var(--berry-700); color: #fff; background: var(--berry-700); }
+.service-list-head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.service-list-tools { display: flex; align-items: center; gap: 8px; }
+.service-list-tools select { min-height: 38px; padding: 6px 10px; border: 1px solid var(--berry-200); border-radius: 11px; background: #fff; color: var(--ink); font: inherit; }
+.service-list-tools .btn[aria-pressed="true"] { background: var(--berry-700); color: #fff; }
+.service-list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+.service-list-card { display: flex; flex-direction: column; min-width: 0; padding: 10px; border: 1px solid var(--berry-200); border-radius: 18px; background: #fff; box-shadow: 0 6px 18px rgba(92, 40, 44, .07); }
+.service-list-card .service-card-media { aspect-ratio: 16 / 9; }
+.service-list-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 4px 4px; }
+.service-tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.service-tag { padding: 3px 9px; border-radius: 999px; background: var(--surface-soft); color: var(--muted-strong); font-size: .74rem; font-weight: 700; }
+.service-list-body h3 { margin: 0; font-size: 1.1rem; line-height: 1.3; overflow-wrap: anywhere; }
+.service-card-summary { margin: 0; color: var(--muted); font-size: .88rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.6em; }
+.service-card-price { color: var(--berry-700); font-size: 1.05rem; overflow-wrap: anywhere; }
+.service-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
+.service-card-actions .btn { flex: 1 1 auto; justify-content: center; text-align: center; text-decoration: none; }
+.service-empty { grid-column: 1 / -1; padding: 28px 16px; border: 1px dashed var(--berry-300); border-radius: 16px; text-align: center; color: var(--muted); }
+.service-list-grid.is-list { grid-template-columns: 1fr; }
+.service-list-grid.is-list .service-list-card { flex-direction: row; gap: 14px; }
+.service-list-grid.is-list .service-list-card .service-card-media { flex: 0 0 220px; aspect-ratio: auto; min-height: 150px; }
+.matching-public-main > .circle-category-filter { margin-top: clamp(30px, 5vw, 56px); }
+@media (max-width: 640px) {
+  .service-reco-card { flex-basis: 290px; width: 290px; }
+  .service-list-grid { grid-template-columns: 1fr; gap: 14px; }
+  .service-list-grid.is-list .service-list-card { flex-direction: column; }
+  .service-list-grid.is-list .service-list-card .service-card-media { flex: none; aspect-ratio: 16 / 9; min-height: 0; }
+  .service-category-nav { flex-wrap: nowrap; overflow-x: auto; margin-inline: -4px; padding: 2px 4px 8px; scrollbar-width: none; }
+  .service-category-nav button { flex: 0 0 auto; }
+  .reco-head .carousel-controls { margin-left: 0; }
+}

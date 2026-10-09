@@ -12,9 +12,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=Noto+Serif+TC:wght@600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="platform.css?v=20261008-official-teams" />
+    <link rel="stylesheet" href="platform.css?v=20261009-service-browse" />
     <script src="config.js"></script>
-    <script defer src="platform.js?v=20261009-official-services"></script>
+    <script defer src="platform.js?v=20261009-service-browse"></script>
   </head>
   <body data-page="match" class="matching-public-page">
     <header class="topbar matching-circle-topbar">
@@ -30,8 +30,9 @@
     <main class="matching-public-main">
       <section id="matchingProfileState" class="state-box" aria-live="polite"><h1>載入莓好預約圈中</h1><p>請稍候。</p></section>
       <article id="matchingPublicProfile" class="matching-profile-shell hidden" aria-labelledby="matchingPublicName"></article>
+      <section id="matchingCarouselSection" class="matching-carousel-section reco-section hidden" aria-labelledby="matchingCarouselTitle"><div class="reco-head"><h2 id="matchingCarouselTitle">莓好推薦</h2><p>精選服務，快速了解，點擊查看詳情！</p><div class="carousel-controls"><button id="matchingCarouselPrev" class="icon-btn" type="button" aria-label="上一張">←</button><span id="matchingCarouselIndicator">0 / 0</span><button id="matchingCarouselNext" class="icon-btn" type="button" aria-label="下一張">→</button></div></div><div id="matchingCarousel" class="service-reco-track" aria-live="polite"></div></section>
+      <section id="matchingServiceSection" class="service-browse hidden" aria-labelledby="serviceCategoryTitle"><div class="service-category-head"><h2 id="serviceCategoryTitle">服務分類</h2><p>依需求快速找到適合的服務項目</p></div><nav id="serviceCategoryNav" class="service-category-nav" aria-label="服務分類"></nav><div class="service-list-head"><div><h2 id="serviceListTitle">全部服務</h2><p id="serviceListCount" aria-live="polite">精選各類服務，歡迎查看詳情或直接申請</p></div><div class="service-list-tools"><label class="sr-only" for="serviceSort">排序方式</label><select id="serviceSort"><option value="default">推薦排序</option><option value="price-asc">價格低到高</option><option value="price-desc">價格高到低</option><option value="name">服務名稱</option></select><button type="button" class="btn small" data-service-view="card" aria-pressed="true">卡片</button><button type="button" class="btn ghost small" data-service-view="list" aria-pressed="false">列表</button></div></div><div id="serviceList" class="service-list-grid"></div></section>
       <nav id="matchingCategoryFilter" class="circle-category-filter hidden" aria-label="莓好預約圈分類"></nav>
-      <section id="matchingCarouselSection" class="matching-carousel-section hidden" aria-labelledby="matchingCarouselTitle"><div class="section-head"><div><p class="eyebrow">FEATURED CIRCLES</p><h2 id="matchingCarouselTitle">莓好推薦輪播</h2></div><div class="carousel-controls"><button id="matchingCarouselPrev" class="icon-btn" type="button" aria-label="上一張">←</button><span id="matchingCarouselIndicator">0 / 0</span><button id="matchingCarouselNext" class="icon-btn" type="button" aria-label="下一張">→</button></div></div><div id="matchingCarousel" class="matching-circle-carousel" aria-live="polite"></div></section>
       <section id="matchingLatestSection" class="matching-feed-section hidden" aria-labelledby="matchingLatestTitle"><div class="section-head"><div><p class="eyebrow">NEW CIRCLES</p><h2 id="matchingLatestTitle">最新加入</h2></div><p>依加入莓好圈時間排序，只顯示已核准且已公開的頁面。</p></div><div id="matchingLatestFeed" class="matching-feed-track"></div></section>
       <section id="matchingPopularSection" class="matching-feed-section hidden" aria-labelledby="matchingPopularTitle"><div class="section-head"><div><p class="eyebrow">POPULAR CIRCLES</p><h2 id="matchingPopularTitle">人氣推薦</h2></div><p>由後台人氣分數綜合喜歡、追蹤、瀏覽、預約、詢價與媒合資料排序。</p></div><div id="matchingPopularFeed" class="matching-feed-track"></div></section>
     </main>
