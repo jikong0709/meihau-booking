@@ -275,3 +275,31 @@
 - 正式資源 11 筆、8 分類；公開莓好圈目前 0 筆，未批次公開既有會員。
 - 登入後會員／後台寫入、真實 Like／Follow、公開會員檔案仍 NOT RUN；Claude Code fresh-context 最終驗收待執行。
 
+
+## 2026-10-08｜會員首頁 UIUX 最終微調（最新）
+- 依 `其他更換的美術UI/莓好預約站_會員首頁_UIUX最終修改計畫書.md` 與參考圖，已局部修改會員首頁：推薦莓好圈輪播 → 會員快速資訊 → 公告 → 五大服務 → 精選服務 → 使用說明。
+- `member.html` 新增會員資料側欄入口並移除首頁常用地址卡；`platform.js` 串既有 discovery feed／services、搜尋與預約入口；`platform.css` 完成桌機與手機版。
+- 本機自檢：JS syntax、duplicate ID、區塊順序、diff check、1536／390px mock、390px 無水平溢位、console 0 error、導覽切換 PASS。
+- 範例人物／價格只用於 `C:\tmp\meihau-member-preview` 視覺 mock，正式來源不含假資料。
+- 未 commit、push、deploy；登入後真實資料與 Claude Code fresh-context 最終驗收仍待執行。
+## 2026-10-09｜官方團隊服務卡片（本機完成，待驗證）
+
+- 依 `莓好預約站_官方團隊服務卡片建置規格_20261008.md` 鍵入 TEAM-001／TEAM-002、16 項官方服務、7 項課程價格選項與動態申請欄位；保留五大分類與既有 UI 版型。
+- 新 migration：`supabase/migrations/20261008144330_official_partner_services.sql`；API 修改：`catalog.ts`、`member_core.ts`、`matching.ts`；前端修改集中於既有共用卡片與詢價流程。
+- 本機 PASS：JS syntax、五頁 duplicate ID、diff check、seed 2／16／7、價格標籤回歸、骨架定案零 diff。
+- ⚠️待驗證：無 Deno／Docker，本機 Supabase 54322 未啟動；migration、DB lint、登入後流程、正式部署、Claude Code fresh-context 皆 NOT RUN。
+- 下一步必須先 fresh-context 驗 migration／API，再依 DB → booking-api＋matching-public → Pages 順序上線；不得先部署 Functions。
+- 未 commit／push／deploy；未動金流、客戶帳號、正式 DB 或 `協作/骨架定案.md`。
+
+## 2026-10-09 11:40｜目前狀態：會員首頁已部署
+- origin/main：fbf7b5d（會員首頁 UI/UX）。
+- Pages run 37880248703：success；正式 HTML/CSS/JS 已核對新版識別字。
+- 其他官方團隊服務／後端／migration 改動仍僅在工作目錄，未隨本次部署提交。
+- 下一步：Claude fresh-context 登入正式會員頁做最終視覺與互動驗收；使用者端強制重新整理。
+
+### 2026-10-09｜官方團隊已正式上線
+- migration `20261008144330` 已套用並登記 applied；正式 DB＝2 團隊、16 服務、7 價格選項、165 申請欄位、3 強制 RLS、0 個空描述。
+- booking-api／matching-public 已部署；公開 feed＝official_partners 2、carousel 2，未登入 booking-api＝401。
+- commit `51e7e73` 已推送 main；Pages workflow `37885094049` success；正式 HTML／JS／API 讀回新版。
+- 右側 in-app browser 目標：`https://jikong0709.github.io/meihau-booking/match.html?v=51e7e73`。
+- 尚待：使用者目視、登入後會員／Admin 寫入、Claude Code fresh-context 最終驗收；瀏覽器自動化 helper 因 Windows sandbox crash 未取得截圖。
