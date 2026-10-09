@@ -339,3 +339,7 @@
 - 五色寫入骨架定案並套用 platform.css（match／member／admin）。
 - 報價／詢價：未登入點服務卡→登入→還原原服務與操作（localStorage meihau_pending_return，30 分鐘）；member 端消化 service_action（inquiry／quote／negotiation）並顯示提示、聚焦需求欄；報價在 allow_quote 關閉時引導走一般詢價。
 - NOT RUN：登入後實際送出詢價／報價與後台回覆（不得操作客戶帳號）。已知缺口：報價案件通知（quote-notifications）API 已有但前端無通知顯示；官方團隊成員（非 admin）尚無專屬後台入口。
+
+### 2026-10-10｜案件通知前端補齊（本次部署）
+- 會員「我的詢價」與後台「詢價管理」新增案件通知清單、未讀徽章、標示已讀（讀 quote-notifications API，60 秒更新）；以 mock api 驗證渲染／已讀流程。
+- 未完成：官方團隊成員（非 admin）專屬案件入口。需後端新增團隊案件列表／報價 API（現有 admin-quote-cases 僅限 admin、developer）並重新部署 Function；本環境無 Supabase CLI／MCP 權限，無法部署，待使用者授權部署途徑後再做。

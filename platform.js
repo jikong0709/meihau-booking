@@ -314,6 +314,27 @@ async function initProductionPublic() {
   }));
   await Promise.all([initMatchingHomeFeed(), initResourcesHomeFeed()]);
 }
+// 報價／議價案件通知：未讀徽章＋通知清單＋標示已讀（會員頁與後台共用，每 60 秒更新）
+function initQuoteNotifications(api, { anchor, navButton }) {
+  if (!anchor || document.querySelector("#quoteNotifications")) return;
+  const box = document.createElement("div"); box.id = "quoteNotifications"; box.className = "quote-notifications hidden";
+  anchor.insertAdjacentElement("beforebegin", box);
+  const load = async () => {
+    let items = [];
+    try { items = phase2Items(await api("quote-notifications"), "items"); } catch { return; }
+    const unread = items.filter((item) => !item.is_read).length;
+    if (navButton) { navButton.dataset.badge = unread ? String(unread) : ""; navButton.classList.toggle("has-badge", unread > 0); }
+    box.classList.toggle("hidden", !items.length);
+    box.innerHTML = items.length ? `<h3>案件通知（${unread} 則未讀）</h3><ul>${items.slice(0, 10).map((item) => `<li class="${item.is_read ? "" : "unread"}"><span>${escapeHtml(item.title)}</span><time>${escapeHtml(new Date(item.created_at).toLocaleString("zh-TW", { hour12: false }))}</time>${item.is_read ? "" : `<button class="btn ghost small" type="button" data-notify-read="${escapeHtml(item.notification_id)}">標示已讀</button>`}</li>`).join("")}</ul>` : "";
+  };
+  box.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-notify-read]"); if (!button) return;
+    button.disabled = true;
+    try { await api("quote-notifications", { method: "PATCH", body: { notification_id: button.dataset.notifyRead } }); } catch (error) { alert(error.message); }
+    await load();
+  });
+  load(); window.setInterval(() => { if (!document.hidden) load(); }, 60000);
+}
 async function requireSession() {
   const client = await getProductionClient();
   const { data: { session } } = await client.auth.getSession();
@@ -613,6 +634,7 @@ async function initProductionMember() {
     }));
   };
   renderInquiries();
+  initQuoteNotifications(api, { anchor: document.querySelector("#memberInquiryList"), navButton: document.querySelector('[data-show="inquiries"]') });
   const serviceMenu = document.querySelector("#serviceMenu");
   const planSelect = document.querySelector("#planSelect");
   const categoryDefinitions = [
@@ -872,7 +894,7 @@ function serviceSortAmount(item) {
 }
 function officialTeamUrl(item) {
   const href = new URL("match.html", location.href);
-  href.searchParams.set("v", "20261010-five-colors");
+  href.searchParams.set("v", "20261010-notifications");
   href.searchParams.set("team", String(item.team_id || ""));
   return href.href;
 }
@@ -1896,6 +1918,7 @@ async function initProductionAdmin() {
   });
   document.querySelector("#adminResourceCancelEdit")?.addEventListener("click", resetResourceForm);
   renderAdminInquiries();
+  initQuoteNotifications(api, { anchor: document.querySelector("#inquiriesAdmin .table-scroll"), navButton: document.querySelector('[data-admin-show="inquiries"]') });
   await loadAdminResources();
   renderCalendar(); renderDay(today); renderPayments();
   try { await initAdminPeople(isDeveloper, member.user_id); }
