@@ -1636,6 +1636,11 @@ img, svg { max-width: 100%; }
 .team-back { color: var(--berry-700); font-weight: 800; text-decoration: none; }
 .team-services { margin-top: 28px; }
 .team-services h2 { margin: 0 0 14px; }
+.team-service-groups { display: grid; gap: 28px; }
+.team-service-group { display: grid; gap: 14px; }
+.team-service-group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 3px solid var(--cc); }
+.team-service-group-head h2 { margin: 0; color: var(--cc-ink); }
+.team-service-group-head span { padding: 5px 10px; border-radius: var(--radius-pill); background: var(--cc-bg); color: var(--cc-ink); font-size: .78rem; font-weight: 800; white-space: nowrap; }
 @media (max-width: 640px) { .team-hero { flex-direction: column; align-items: flex-start; } }
 .service-action-hint { grid-column: 1 / -1; margin: 0 0 10px; padding: 10px 14px; border-left: 4px solid var(--berry-700); border-radius: 10px; background: var(--berry-50); color: var(--berry-800); font-weight: 700; }
 /* ===== 五大服務分類五色（骨架定案 2026-10-10）：莓你不可＝莓紅、莓好聲音＝琥珀、莓好基地＝森綠、莓好學習＝湖藍、莓好數位＝紫 ===== */

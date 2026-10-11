@@ -914,10 +914,17 @@ async function renderOfficialTeamPage(teamId, state, root) {
   const services = phase2Items(payload, "items").filter((item) => item.entity_type === "official_service" && item.team_id === teamId);
   if (!services.length) { state.innerHTML = '<h1>找不到這個官方團隊</h1><p>團隊可能尚未公開，<a href="match.html">回到預約莓好圈</a>。</p>'; return; }
   const first = services[0], logo = safeHttpUrl(first.avatar_url) || (/^assets\/[\w./-]+$/.test(String(first.avatar_url || "")) ? first.avatar_url : "");
+  const serviceList = teamId === "TEAM-001"
+    ? SERVICE_FILTERS.filter((category) => category.key !== "all").map((category) => {
+        const categoryServices = services.filter((item) => item.category_id === category.key);
+        if (!categoryServices.length) return "";
+        return `<section class="team-service-group cat-${escapeHtml(category.key)}" data-team-service-category="${escapeHtml(category.key)}"><div class="team-service-group-head"><h2>${escapeHtml(category.label)}</h2><span>${categoryServices.length} 項服務</span></div><div class="service-list-grid">${categoryServices.map((item) => officialServiceCard(item, "full")).join("")}</div></section>`;
+      }).join("")
+    : `<div class="service-list-grid">${services.map((item) => officialServiceCard(item, "full")).join("")}</div>`;
   document.title = `${first.team_name}｜莓好預約圈`;
   state.classList.add("hidden");
   root.className = "matching-profile-shell official-team-page";
-  root.innerHTML = `<section class="team-hero">${logo ? `<img class="team-hero-logo" src="${escapeHtml(logo)}" alt="${escapeHtml(first.team_name)}" />` : ""}<div><span class="official-partner-badge">官方合作</span><h1>${escapeHtml(first.team_name)}</h1><p>我的莓好圈｜提供 ${services.length} 項服務，請選擇需要的服務項目。</p><a class="team-back" href="match.html">← 返回預約莓好圈</a></div></section><section class="team-services"><h2>服務項目</h2><div class="service-list-grid">${services.map((item) => officialServiceCard(item, "full")).join("")}</div></section>`;
+  root.innerHTML = `<section class="team-hero">${logo ? `<img class="team-hero-logo" src="${escapeHtml(logo)}" alt="${escapeHtml(first.team_name)}" />` : ""}<div><span class="official-partner-badge">官方合作</span><h1>${escapeHtml(first.team_name)}</h1><p>我的莓好圈｜提供 ${services.length} 項服務，請選擇需要的服務項目。</p><a class="team-back" href="match.html">← 返回預約莓好圈</a></div></section><section class="team-services"><h2>服務項目</h2><div class="team-service-groups">${serviceList}</div></section>`;
 }
 async function initMemberCircleCarousel() {
   const root = document.querySelector("#memberCircleCarousel"), dots = document.querySelector("#memberCircleDots");
