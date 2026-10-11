@@ -343,3 +343,11 @@
 ### 2026-10-10｜案件通知前端補齊（本次部署）
 - 會員「我的詢價」與後台「詢價管理」新增案件通知清單、未讀徽章、標示已讀（讀 quote-notifications API，60 秒更新）；以 mock api 驗證渲染／已讀流程。
 - 未完成：官方團隊成員（非 admin）專屬案件入口。需後端新增團隊案件列表／報價 API（現有 admin-quote-cases 僅限 admin、developer）並重新部署 Function；本環境無 Supabase CLI／MCP 權限，無法部署，待使用者授權部署途徑後再做。
+
+## 2026-10-11 TEAM-001 官方團隊服務分類已部署
+
+- 正式 main 功能 commit：0753960d7c64e13b0288c9a0bafe096b417bd089；Pages workflow 38120404521 success。
+- match.html?team=TEAM-001 依五大分類固定順序建立非空群組；目前正式資料顯示莓你不可 5、莓好學習 3、莓好數位 4，空的莓好聲音、莓好基地不顯示。
+- match.html 的 platform.css／platform.js 版本參數為 20261011-team-services。
+- 正式遠端 JS 與本機換行正規化後逐字一致；正式公開 API 動態輸出 smoke 通過。
+- 瀏覽器 helper 兩次初始化失敗後停止，正式視覺截圖 NOT RUN；仍須 Claude Code fresh-context 最終驗收。
