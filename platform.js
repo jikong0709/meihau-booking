@@ -239,6 +239,7 @@ async function api(action, options = {}) {
   if (!response.ok) {
     const error = new Error(data.message || data.error || "API_ERROR");
     error.code = data.error;
+    error.status = response.status;
     if (data.error === "account_suspended") showAccountSuspended();
     throw error;
   }
@@ -634,6 +635,40 @@ async function initProductionMember() {
     }));
   };
   renderInquiries();
+  // Official team cases: visibility is cosmetic; each API call enforces active membership.
+  const teamNav = document.querySelector("#teamCasesNav");
+  const teamList = document.querySelector("#teamCaseList");
+  let teamCases = [];
+  const refreshTeamCases = async () => {
+    try { teamCases = phase2Items(await api("team-quote-cases"), "items"); }
+    catch (error) { teamCases = []; if (error.status !== 403) console.warn("Team cases unavailable", error); }
+    teamNav?.classList.toggle("hidden", !teamCases.length);
+    if (!teamList) return;
+    teamList.innerHTML = teamCases.map((item) => {
+      const isOpen = ["submitted", "provider_replied", "awaiting_member"].includes(item.status);
+      const canReply = !["rejected", "expired", "converted_to_booking", "cancelled"].includes(item.status);
+      const messages = (item.messages || []).map((m) => `<li><b>${escapeHtml(m.sender_role)}</b>：${escapeHtml(m.message_text)}</li>`).join("");
+      return `<article class="order-row quote-case-row"><strong>${escapeHtml(item.service?.service_name || item.service_id)}</strong><span>${escapeHtml(item.provider_team_id)}｜${escapeHtml(item.case_no)}</span><span class="badge neutral">${quoteCaseStatusLabels[item.status] || escapeHtml(item.status)}</span><p>${escapeHtml(item.requirements)}</p><span>${item.provider_quote_amount == null ? "未報價" : money(item.provider_quote_amount)}</span><details><summary>案件留言（${(item.messages || []).length}）</summary><ul>${messages || "<li>尚無留言</li>"}</ul></details><div class="official-team-actions">${canReply ? `<button type="button" class="btn ghost small" data-team-message="${escapeHtml(item.quote_id)}">留言</button>` : ""}${isOpen ? `<button type="button" class="btn small" data-team-quote="${escapeHtml(item.quote_id)}">正式報價</button>` : ""}</div></article>`;
+    }).join("") || '<p class="muted">目前沒有團隊案件</p>';
+    teamList.querySelectorAll("[data-team-message]").forEach((button) => button.addEventListener("click", async () => {
+      const message = prompt("請輸入案件留言"); if (!message?.trim()) return;
+      try { await api("quote-message", { method: "POST", body: { quote_id: button.dataset.teamMessage, message_text: message } }); await refreshTeamCases(); }
+      catch (error) { alert(error.message); }
+    }));
+    teamList.querySelectorAll("[data-team-quote]").forEach((button) => button.addEventListener("click", async () => {
+      const quoteId = button.dataset.teamQuote;
+      const price = prompt("正式報價金額（0–1000000，整數）");
+      if (price === null) return;
+      if (!/^\d+$/.test(price.trim()) || Number(price) > 1000000) { alert("報價必須為 0 至 1000000 的整數"); return; }
+      const description = prompt("報價說明（最多 4000 字）", ""); if (description === null) return;
+      const expiry = prompt("有效期限（選填：YYYY-MM-DDTHH:mm）", ""); if (expiry === null) return;
+      if (expiry.trim() && (Number.isNaN(Date.parse(expiry)) || Date.parse(expiry) <= Date.now())) { alert("有效期限必須晚於現在"); return; }
+      if (!confirm("提交正式報價並通知會員？這不代表付款成功。")) return;
+      try { await api("team-quote-cases", { method: "PATCH", body: { quote_id: quoteId, provider_quote_amount: Number(price), quote_description: description, valid_until: expiry.trim() ? new Date(expiry.trim()).toISOString() : null } }); await refreshTeamCases(); }
+      catch (error) { alert(error.message); }
+    }));
+  };
+  await refreshTeamCases();
   initQuoteNotifications(api, { anchor: document.querySelector("#memberInquiryList"), navButton: document.querySelector('[data-show="inquiries"]') });
   const serviceMenu = document.querySelector("#serviceMenu");
   const planSelect = document.querySelector("#planSelect");

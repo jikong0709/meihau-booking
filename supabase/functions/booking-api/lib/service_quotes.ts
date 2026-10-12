@@ -60,6 +60,75 @@ async function withDetails(ctx: RequestContext, cases: any[]) {
 
 export async function handleServiceQuotes(ctx: RequestContext, action: string, method: string): Promise<Response | null> {
   const { body, db, origin, user } = ctx;
+  if (action === "team-quote-cases" && method === "GET") {
+    // Only active official-team membership grants access; member_roles.provider is not sufficient.
+    const { data: memberships, error: membershipError } = await db.schema("booking").from("official_team_members")
+      .select("team_id").eq("user_id", user.id).eq("status", "active");
+    if (membershipError) return fail(ctx, 500, "team_lookup_failed", "團隊權限暫時無法確認");
+    const teamIds = [...new Set((memberships || []).map((item: any) => item.team_id))];
+    if (!teamIds.length) return fail(ctx, 403, "team_access_required", "需要官方團隊成員權限");
+    const { data, error } = await db.schema("booking").from("service_quote_cases")
+      .select("*").in("provider_team_id", teamIds).order("created_at", { ascending: false });
+    return error ? fail(ctx, 500, "team_cases_unavailable", "團隊案件暫時無法讀取")
+      : reply(origin, 200, { items: await withDetails(ctx, data || []) });
+  }
+  if (action === "team-quote-cases" && method === "PATCH") {
+    const quoteId = String(body.quote_id || "");
+    if (!quoteId) return fail(ctx, 400, "quote_id_required", "缺少案件編號");
+    const { data: row, error: caseError } = await db.schema("booking").from("service_quote_cases")
+      .select("*").eq("quote_id", quoteId).maybeSingle();
+    if (caseError) return fail(ctx, 500, "case_lookup_failed", "案件暫時無法讀取");
+    // Keep existence of other teams' cases private.
+    const { data: membership, error: membershipError } = row ? await db.schema("booking").from("official_team_members").select("team_id").eq("team_id", row.provider_team_id).eq("user_id", user.id).eq("status", "active").maybeSingle() : { data: null, error: null };
+    if (membershipError) return fail(ctx, 500, "team_lookup_failed", "團隊權限暫時無法確認");
+    if (!row || !membership) return fail(ctx, 403, "team_access_denied", "沒有此團隊案件的操作權限");
+    if (!["submitted","provider_replied","awaiting_member"].includes(row.status)) return fail(ctx, 409, "case_closed", "目前狀態不可報價");
+    const providerQuoteAmount = amount(body.provider_quote_amount, false);
+    if (Number.isNaN(providerQuoteAmount)) return fail(ctx, 400, "invalid_amount", "請輸入 0 至 1000000 的整數報價");
+    const validUntil = body.valid_until ? new Date(String(body.valid_until)) : null;
+    if (validUntil && (Number.isNaN(validUntil.valueOf()) || validUntil <= new Date())) return fail(ctx, 400, "invalid_valid_until", "有效期限必須晚於現在");
+    const patch = {
+      provider_quote_amount: providerQuoteAmount,
+      quote_description: text(body.quote_description, 4000),
+      provider_terms: text(body.provider_terms, 4000),
+      valid_until: validUntil?.toISOString() || null,
+      status: "awaiting_member",
+      // A status-only compare-and-swap cannot detect two quotes while already awaiting_member.
+      updated_at: new Date(Math.max(Date.now(), new Date(row.updated_at).getTime() + 1)).toISOString(),
+    };
+    if (!row.updated_at || !Number.isFinite(new Date(row.updated_at).getTime())) {
+      return fail(ctx, 500, "case_version_missing", "案件版本缺失，無法安全提交報價");
+    }
+    const { data: updated, error: updateError } = await db.schema("booking").from("service_quote_cases")
+      .update(patch).eq("quote_id", quoteId).eq("provider_team_id", row.provider_team_id)
+      .eq("status", row.status).eq("updated_at", row.updated_at).select().maybeSingle();
+    if (updateError) return fail(ctx, 500, "team_quote_failed", "正式報價無法送出");
+    if (!updated) return fail(ctx, 409, "case_changed", "案件狀態已變更，請重新整理");
+    // Fail closed: neither event nor notification failure may be reported as HTTP 200.
+    // These writes are not transactionally atomic with the case update: reviewer must
+    // keep the deployment gate blocked until consistency/compensation is approved.
+    const [eventResult, notificationResult] = await Promise.allSettled([
+      db.schema("booking").from("service_quote_events").insert({
+        quote_id: quoteId, actor_id: user.id, event_type: "provider_quote",
+        from_status: row.status, to_status: "awaiting_member",
+        price_snapshot: providerQuoteAmount, event_payload: { valid_until: patch.valid_until },
+      }),
+      db.schema("booking").from("service_quote_notifications").insert({
+        quote_id: quoteId, recipient_id: row.member_id, notification_type: "provider_quote",
+        title: `${row.case_no} 收到正式報價`,
+      }),
+    ]);
+    if (eventResult.status === "rejected" || notificationResult.status === "rejected" ||
+        eventResult.value?.error || notificationResult.value?.error) {
+      console.error("team quote side-effect failed", {
+        quote_id: quoteId,
+        event_failed: eventResult.status === "rejected" || !!eventResult.value?.error,
+        notification_failed: notificationResult.status === "rejected" || !!notificationResult.value?.error,
+      });
+      return fail(ctx, 500, "quote_side_effect_failed", "報價已更新但通知或歷程寫入失敗，請聯繫管理員確認，勿重複送出");
+    }
+    return reply(origin, 200, updated);
+  }
   if (action === "quote-cases" && method === "GET") {
     const { data, error } = await db.schema("booking").from("service_quote_cases").select("*").eq("member_id", user.id).order("created_at", { ascending: false });
     return reply(origin, error ? 400 : 200, error ? { error: "報價案件暫時無法讀取" } : { items: await withDetails(ctx, data || []) });
