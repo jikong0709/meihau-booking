@@ -26,6 +26,7 @@
           <button data-show="home">預約服務</button
           ><button data-show="orders">我的預約</button
           ><button data-show="inquiries">我的詢價</button
+           ><button data-show="team-cases" class="hidden" id="teamCasesNav">團隊案件</button
           ><button data-show="matching-profile">我的莓好圈</button
           ><button data-show="stars">莓好追星圈</button
           ><span class="side-nav-divider" aria-hidden="true"></span
@@ -202,6 +203,10 @@
             <div><p class="eyebrow">MY INQUIRIES</p><h1>我的詢價</h1><p class="muted">查看需求評估、報價與確認狀態</p></div>
           </div>
           <div id="memberInquiryList" class="order-list"></div>
+        </section>
+        <section data-section="team-cases" class="hidden">
+          <div class="page-head"><div><p class="eyebrow">TEAM CASES</p><h1>團隊案件</h1><p class="muted">僅顯示您所屬官方團隊的報價與議價案件；不包含其他團隊資料。</p></div></div>
+          <div id="teamCaseList" class="order-list" aria-live="polite"></div>
         </section>
         <section data-section="profile" class="hidden">
           <div class="page-head">
