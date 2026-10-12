@@ -658,7 +658,7 @@ async function initProductionMember() {
       const quoteId = button.dataset.teamQuote;
       const price = prompt("正式報價金額（0–1000000，整數）");
       if (price === null) return;
-      if (!/^\\d+$/.test(price.trim()) || Number(price) > 1000000) { alert("報價必須為 0 至 1000000 的整數"); return; }
+      if (!/^\d+$/.test(price.trim()) || Number(price) > 1000000) { alert("報價必須為 0 至 1000000 的整數"); return; }
       const description = prompt("報價說明（最多 4000 字）", ""); if (description === null) return;
       const expiry = prompt("有效期限（選填：YYYY-MM-DDTHH:mm）", ""); if (expiry === null) return;
       if (expiry.trim() && (Number.isNaN(Date.parse(expiry)) || Date.parse(expiry) <= Date.now())) { alert("有效期限必須晚於現在"); return; }
