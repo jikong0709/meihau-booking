@@ -93,13 +93,21 @@ export async function handleServiceQuotes(ctx: RequestContext, action: string, m
       provider_terms: text(body.provider_terms, 4000),
       valid_until: validUntil?.toISOString() || null,
       status: "awaiting_member",
+      // A status-only compare-and-swap cannot detect two quotes while already awaiting_member.
+      updated_at: new Date(Math.max(Date.now(), new Date(row.updated_at).getTime() + 1)).toISOString(),
     };
+    if (!row.updated_at || !Number.isFinite(new Date(row.updated_at).getTime())) {
+      return fail(ctx, 500, "case_version_missing", "案件版本缺失，無法安全提交報價");
+    }
     const { data: updated, error: updateError } = await db.schema("booking").from("service_quote_cases")
       .update(patch).eq("quote_id", quoteId).eq("provider_team_id", row.provider_team_id)
-      .eq("status", row.status).select().maybeSingle();
+      .eq("status", row.status).eq("updated_at", row.updated_at).select().maybeSingle();
     if (updateError) return fail(ctx, 500, "team_quote_failed", "正式報價無法送出");
     if (!updated) return fail(ctx, 409, "case_changed", "案件狀態已變更，請重新整理");
-    await Promise.all([
+    // Fail closed: neither event nor notification failure may be reported as HTTP 200.
+    // These writes are not transactionally atomic with the case update: reviewer must
+    // keep the deployment gate blocked until consistency/compensation is approved.
+    const [eventResult, notificationResult] = await Promise.allSettled([
       db.schema("booking").from("service_quote_events").insert({
         quote_id: quoteId, actor_id: user.id, event_type: "provider_quote",
         from_status: row.status, to_status: "awaiting_member",
@@ -110,6 +118,15 @@ export async function handleServiceQuotes(ctx: RequestContext, action: string, m
         title: `${row.case_no} 收到正式報價`,
       }),
     ]);
+    if (eventResult.status === "rejected" || notificationResult.status === "rejected" ||
+        eventResult.value?.error || notificationResult.value?.error) {
+      console.error("team quote side-effect failed", {
+        quote_id: quoteId,
+        event_failed: eventResult.status === "rejected" || !!eventResult.value?.error,
+        notification_failed: notificationResult.status === "rejected" || !!notificationResult.value?.error,
+      });
+      return fail(ctx, 500, "quote_side_effect_failed", "報價已更新但通知或歷程寫入失敗，請聯繫管理員確認，勿重複送出");
+    }
     return reply(origin, 200, updated);
   }
   if (action === "quote-cases" && method === "GET") {
