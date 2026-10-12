@@ -79,7 +79,9 @@ export async function handleServiceQuotes(ctx: RequestContext, action: string, m
       .select("*").eq("quote_id", quoteId).maybeSingle();
     if (caseError) return fail(ctx, 500, "case_lookup_failed", "案件暫時無法讀取");
     // Keep existence of other teams' cases private.
-    if (!row || !(await teamAccess(ctx, row.provider_team_id))) return fail(ctx, 403, "team_access_denied", "沒有此團隊案件的操作權限");
+    const { data: membership, error: membershipError } = row ? await db.schema("booking").from("official_team_members").select("team_id").eq("team_id", row.provider_team_id).eq("user_id", user.id).eq("status", "active").maybeSingle() : { data: null, error: null };
+    if (membershipError) return fail(ctx, 500, "team_lookup_failed", "團隊權限暫時無法確認");
+    if (!row || !membership) return fail(ctx, 403, "team_access_denied", "沒有此團隊案件的操作權限");
     if (!["submitted","provider_replied","awaiting_member"].includes(row.status)) return fail(ctx, 409, "case_closed", "目前狀態不可報價");
     const providerQuoteAmount = amount(body.provider_quote_amount, false);
     if (Number.isNaN(providerQuoteAmount)) return fail(ctx, 400, "invalid_amount", "請輸入 0 至 1000000 的整數報價");
