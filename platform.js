@@ -239,6 +239,7 @@ async function api(action, options = {}) {
   if (!response.ok) {
     const error = new Error(data.message || data.error || "API_ERROR");
     error.code = data.error;
+    error.status = response.status;
     if (data.error === "account_suspended") showAccountSuspended();
     throw error;
   }
@@ -640,7 +641,7 @@ async function initProductionMember() {
   let teamCases = [];
   const refreshTeamCases = async () => {
     try { teamCases = phase2Items(await api("team-quote-cases"), "items"); }
-    catch (error) { teamCases = []; if (!String(error.message).includes("403")) console.warn("Team cases unavailable", error); }
+    catch (error) { teamCases = []; if (error.status !== 403) console.warn("Team cases unavailable", error); }
     teamNav?.classList.toggle("hidden", !teamCases.length);
     if (!teamList) return;
     teamList.innerHTML = teamCases.map((item) => {
