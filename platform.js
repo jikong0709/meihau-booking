@@ -663,7 +663,7 @@ async function initProductionMember() {
       const expiry = prompt("有效期限（選填：YYYY-MM-DDTHH:mm）", ""); if (expiry === null) return;
       if (expiry.trim() && (Number.isNaN(Date.parse(expiry)) || Date.parse(expiry) <= Date.now())) { alert("有效期限必須晚於現在"); return; }
       if (!confirm("提交正式報價並通知會員？這不代表付款成功。")) return;
-      try { await api("team-quote-cases", { method: "PATCH", body: { quote_id: quoteId, provider_quote_amount: Number(price), quote_description: description, valid_until: expiry.trim() || null } }); await refreshTeamCases(); }
+      try { await api("team-quote-cases", { method: "PATCH", body: { quote_id: quoteId, provider_quote_amount: Number(price), quote_description: description, valid_until: expiry.trim() ? new Date(expiry.trim()).toISOString() : null } }); await refreshTeamCases(); }
       catch (error) { alert(error.message); }
     }));
   };
